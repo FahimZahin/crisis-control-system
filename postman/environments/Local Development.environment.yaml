@@ -1,0 +1,6 @@
+name: Local Development
+values:
+  - key: baseUrl
+    value: 'http://localhost:8081'
+    enabled: true
+    type: default
