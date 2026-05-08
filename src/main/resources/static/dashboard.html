@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="index.html">Home</a>
+        <a href="login.html">Logout</a>
+    </div>
+</nav>
+
+<div class="dashboard">
+    <h1>Welcome to Crisis Control System</h1>
+
+    <div class="dashboard-card">
+        <h2 id="userName">User Name</h2>
+        <p><strong>User ID:</strong> <span id="userId"></span></p>
+        <p><strong>Role:</strong> <span id="userRole"></span></p>
+        <p class="success-text">Login successful. This is your demo dashboard.</p>
+
+        <a href="profile-setup.html" class="btn primary">Complete Profile Setup</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById("userName").innerText = localStorage.getItem("fullName") || "User";
+    document.getElementById("userId").innerText = localStorage.getItem("userId") || "-";
+    document.getElementById("userRole").innerText = localStorage.getItem("role") || "-";
+</script>
+
+</body>
+</html>

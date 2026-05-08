@@ -1,0 +1,72 @@
+﻿$kind: http-request
+name: Login User
+method: POST
+url: '{{baseUrl}}/api/auth/login'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "phoneNumber": "01700000001",
+      "password": "Test@1234"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      // Happy path tests (200 OK)
+      if (pm.response.code === 200) {
+          pm.test("Status code is 200 OK", function () {
+              pm.response.to.have.status(200);
+          });
+
+          pm.test("Response has required fields (message, userId, fullName, role)", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("message");
+              pm.expect(json).to.have.property("userId");
+              pm.expect(json).to.have.property("fullName");
+              pm.expect(json).to.have.property("role");
+          });
+
+          pm.test("Message is 'Login successful'", function () {
+              const json = pm.response.json();
+              pm.expect(json.message).to.eql("Login successful");
+          });
+
+          pm.test("userId is a positive number", function () {
+              const json = pm.response.json();
+              pm.expect(json.userId).to.be.a("number");
+              pm.expect(json.userId).to.be.above(0);
+          });
+
+          pm.test("userId matches the registered user", function () {
+              const registeredUserId = pm.collectionVariables.get("registeredUserId");
+              if (registeredUserId !== undefined && registeredUserId !== null && registeredUserId !== "") {
+                  const json = pm.response.json();
+                  pm.expect(json.userId).to.eql(Number(registeredUserId));
+              }
+          });
+
+          pm.test("fullName is a non-empty string", function () {
+              const json = pm.response.json();
+              pm.expect(json.fullName).to.be.a("string");
+              pm.expect(json.fullName.length).to.be.above(0);
+          });
+
+          pm.test("role is a non-empty string", function () {
+              const json = pm.response.json();
+              pm.expect(json.role).to.be.a("string");
+              pm.expect(json.role.length).to.be.above(0);
+          });
+
+          pm.test("Content-Type is application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time is under 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+      }

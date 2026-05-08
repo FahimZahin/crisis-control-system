@@ -1,0 +1,73 @@
+﻿$kind: http-request
+name: Register User
+method: POST
+url: '{{baseUrl}}/api/auth/register'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fullName": "Test User",
+      "phoneNumber": "01700000001",
+      "drivingLicenseNumber": "DL-TEST-001",
+      "address": "123 Test Street, Dhaka",
+      "password": "Test@1234",
+      "confirmPassword": "Test@1234",
+      "role": "VEHICLE_OWNER"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      // Happy path tests (201 Created)
+      if (pm.response.code === 201) {
+          pm.test("Status code is 201 Created", function () {
+              pm.response.to.have.status(201);
+          });
+
+          pm.test("Response has required fields (message, userId, fullName, role)", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("message");
+              pm.expect(json).to.have.property("userId");
+              pm.expect(json).to.have.property("fullName");
+              pm.expect(json).to.have.property("role");
+          });
+
+          pm.test("Message is 'Registration successful'", function () {
+              const json = pm.response.json();
+              pm.expect(json.message).to.eql("Registration successful");
+          });
+
+          pm.test("userId is a positive number", function () {
+              const json = pm.response.json();
+              pm.expect(json.userId).to.be.a("number");
+              pm.expect(json.userId).to.be.above(0);
+          });
+
+          pm.test("Role matches requested role (VEHICLE_OWNER)", function () {
+              const json = pm.response.json();
+              pm.expect(json.role).to.eql("VEHICLE_OWNER");
+          });
+
+          pm.test("fullName matches requested fullName", function () {
+              const json = pm.response.json();
+              pm.expect(json.fullName).to.eql("Test User");
+          });
+
+          pm.test("Content-Type is application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time is under 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+          // Save userId to collectionVariables if present
+          const json = pm.response.json();
+          if (json && json.userId !== undefined) {
+              pm.collectionVariables.set("registeredUserId", json.userId);
+          }
+      }

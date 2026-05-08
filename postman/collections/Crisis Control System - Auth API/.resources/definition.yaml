@@ -1,0 +1,5 @@
+$kind: collection
+name: Crisis Control System - Auth API
+variables:
+  - key: registeredUserId
+    value: ''

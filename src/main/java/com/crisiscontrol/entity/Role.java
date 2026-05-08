@@ -1,0 +1,11 @@
+package com.crisiscontrol.entity;
+
+public enum Role {
+    ADMIN,
+    GOVERNMENT_AUTHORITY,
+    LOCAL_AUTHORITY,
+    PUMP_AUTHORITY,
+    VEHICLE_OWNER,
+    EMERGENCY_VEHICLE_AUTHORITY,
+    BUILDING_MANAGER
+}

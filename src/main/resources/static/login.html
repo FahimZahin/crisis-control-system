@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="index.html">Home</a>
+        <a href="register.html">Register</a>
+        <a href="login.html">Login</a>
+    </div>
+</nav>
+
+<div class="form-container">
+    <h2>User Login</h2>
+    <p class="form-subtitle">Login to your Crisis Control account</p>
+
+    <form id="loginForm">
+
+        <label>Phone Number</label>
+        <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
+
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password" required>
+
+        <button type="submit" class="btn primary full-width">Login</button>
+    </form>
+
+    <p id="message"></p>
+
+    <p class="switch-link">
+        Do not have an account? <a href="register.html">Register here</a>
+    </p>
+</div>
+
+<script src="js/login.js"></script>
+
+</body>
+</html>
