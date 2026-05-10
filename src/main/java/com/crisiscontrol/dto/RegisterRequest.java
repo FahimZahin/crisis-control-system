@@ -10,14 +10,12 @@ import lombok.Setter;
 @Setter
 public class RegisterRequest {
 
+    // Common fields
     @NotBlank(message = "Full name is required")
     private String fullName;
 
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
-
-    @NotBlank(message = "Driving license number is required")
-    private String drivingLicenseNumber;
 
     private String address;
 
@@ -29,4 +27,55 @@ public class RegisterRequest {
 
     @NotNull(message = "Role is required")
     private Role role;
+
+    // Vehicle owner field
+    private String drivingLicenseNumber;
+
+    // Building manager fields
+    private String buildingName;
+    private String holdingNumber;
+    private Integer numberOfFlats;
+    private String generatorPower;
+
+    // Pump authority fields
+    private String pumpName;
+    private String businessLicenseNumber;
+    private String pumpAddress;
+    private Double fuelCapacity;
+    private String fuelTypes;
+    private Double currentStock;
+    private Boolean open24Hours;
+    private String openingTime;
+    private String closingTime;
+
+    // Hospital authority fields
+    private String hospitalName;
+    private String hospitalRegistrationNumber;
+    private String hospitalAddress;
+    private String emergencyContactNumber;
+
+    // Utility authority fields
+    private String utilityOrganizationType;
+    private String utilityEmployeeId;
+    private String serviceArea;
+    private String officeAddress;
+
+    // Emergency vehicle authority fields
+    private String organizationName;
+    private String organizationType;
+    private String officialVerificationId;
+    private String assignedArea;
+
+    // Government authority fields
+    private String governmentEmployeeId;
+    private String departmentName;
+    private String designation;
+
+    // Local authority fields
+    private String localAuthorityId;
+    private String district;
+    private String thanaOrUpazila;
+
+    // Admin field
+    private String adminCode;
 }

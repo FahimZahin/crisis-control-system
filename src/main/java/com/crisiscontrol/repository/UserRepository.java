@@ -11,5 +11,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByDrivingLicenseNumber(String drivingLicenseNumber);
 
+    boolean existsByHoldingNumber(String holdingNumber);
+
+    boolean existsByBusinessLicenseNumber(String businessLicenseNumber);
+
+    boolean existsByHospitalRegistrationNumber(String hospitalRegistrationNumber);
+
+    boolean existsByUtilityEmployeeId(String utilityEmployeeId);
+
+    boolean existsByOfficialVerificationId(String officialVerificationId);
+
+    boolean existsByGovernmentEmployeeId(String governmentEmployeeId);
+
+    boolean existsByLocalAuthorityId(String localAuthorityId);
+
     Optional<User> findByPhoneNumber(String phoneNumber);
 }
