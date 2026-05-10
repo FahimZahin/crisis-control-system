@@ -16,43 +16,215 @@
     </div>
 </nav>
 
-<div class="form-container">
+<div class="form-container wide-form">
     <h2>User Registration</h2>
-    <p class="form-subtitle">Create your Crisis Control account</p>
+    <p class="form-subtitle">Select your role first, then complete the required information</p>
 
     <form id="registerForm">
 
-        <label>Full Name</label>
-        <input type="text" id="fullName" placeholder="Enter full name" required>
-
-        <label>Phone Number</label>
-        <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
-
-        <label>Driving License Number</label>
-        <input type="text" id="drivingLicenseNumber" placeholder="Enter driving license number" required>
-
-        <label>Address</label>
-        <input type="text" id="address" placeholder="Enter address">
-
-        <label>Password</label>
-        <input type="password" id="password" placeholder="Enter password" required>
-
-        <label>Confirm Password</label>
-        <input type="password" id="confirmPassword" placeholder="Confirm password" required>
-
         <label>Role</label>
         <select id="role" required>
-            <option value="">Select Role</option>
+            <option value="">Select Role First</option>
             <option value="VEHICLE_OWNER">Vehicle Owner</option>
+            <option value="BUILDING_MANAGER">Building Manager</option>
             <option value="PUMP_AUTHORITY">Pump Authority</option>
-            <option value="ADMIN">Admin</option>
+            <option value="HOSPITAL_AUTHORITY">Hospital Authority</option>
+            <option value="UTILITY_AUTHORITY">Utility Authority</option>
+            <option value="EMERGENCY_VEHICLE_AUTHORITY">Emergency Vehicle Authority</option>
             <option value="GOVERNMENT_AUTHORITY">Government Authority</option>
             <option value="LOCAL_AUTHORITY">Local Authority</option>
-            <option value="EMERGENCY_VEHICLE_AUTHORITY">Emergency Vehicle Authority</option>
-            <option value="BUILDING_MANAGER">Building Manager</option>
+            <option value="ADMIN">Admin</option>
         </select>
 
-        <button type="submit" class="btn primary full-width">Register</button>
+        <div id="registrationFields" class="hidden-section">
+
+            <h3 class="section-title">Common Information</h3>
+
+            <label>Full Name</label>
+            <input type="text" id="fullName" placeholder="Enter full name" required>
+
+            <label>Phone Number</label>
+            <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
+
+            <label>Address</label>
+            <input type="text" id="address" placeholder="Enter address">
+
+            <div id="vehicleOwnerFields" class="role-section hidden-section">
+                <h3 class="section-title">Vehicle Owner Information</h3>
+
+                <label>Driving License Number</label>
+                <input type="text" id="drivingLicenseNumber" placeholder="Enter driving license number">
+            </div>
+
+            <div id="buildingManagerFields" class="role-section hidden-section">
+                <h3 class="section-title">Building Manager Information</h3>
+
+                <label>Building Name</label>
+                <input type="text" id="buildingName" placeholder="Enter building name">
+
+                <label>Building Holding Number</label>
+                <input type="text" id="holdingNumber" placeholder="Enter unique holding number">
+
+                <label>Number of Flats</label>
+                <input type="number" id="numberOfFlats" placeholder="Enter number of flats">
+
+                <label>Generator Power</label>
+                <input type="text" id="generatorPower" placeholder="Example: 20 KVA / 50 KVA">
+            </div>
+
+            <div id="pumpAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Pump Authority Information</h3>
+
+                <label>Pump Name</label>
+                <input type="text" id="pumpName" placeholder="Enter pump name">
+
+                <label>Business License Number</label>
+                <input type="text" id="businessLicenseNumber" placeholder="Enter business license number">
+
+                <label>Pump Address</label>
+                <input type="text" id="pumpAddress" placeholder="Enter pump address">
+
+                <label>Total Fuel Capacity</label>
+                <input type="number" id="fuelCapacity" placeholder="Enter total fuel capacity in liters">
+
+                <label>Fuel Types</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="fuelTypes" value="OCTANE"> Octane</label>
+                    <label><input type="checkbox" name="fuelTypes" value="PETROL"> Petrol</label>
+                    <label><input type="checkbox" name="fuelTypes" value="DIESEL"> Diesel</label>
+                    <label><input type="checkbox" name="fuelTypes" value="CNG"> CNG</label>
+                </div>
+
+                <label>Current Fuel Stock</label>
+                <input type="number" id="currentStock" placeholder="Enter current stock in liters">
+
+                <label class="checkbox-line">
+                    <input type="checkbox" id="open24Hours">
+                    Open 24 Hours
+                </label>
+
+                <div id="pumpTimeFields">
+                    <label>Opening Time</label>
+                    <input type="time" id="openingTime">
+
+                    <label>Closing Time</label>
+                    <input type="time" id="closingTime">
+                </div>
+            </div>
+
+            <div id="hospitalAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Hospital Authority Information</h3>
+
+                <label>Hospital Name</label>
+                <input type="text" id="hospitalName" placeholder="Enter hospital name">
+
+                <label>Hospital Registration Number</label>
+                <input type="text" id="hospitalRegistrationNumber" placeholder="Enter hospital registration number">
+
+                <label>Hospital Address</label>
+                <input type="text" id="hospitalAddress" placeholder="Enter hospital address">
+
+                <label>Emergency Contact Number</label>
+                <input type="text" id="emergencyContactNumber" placeholder="Enter emergency contact number">
+            </div>
+
+            <div id="utilityAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Utility Authority Information</h3>
+
+                <label>Utility Organization Type</label>
+                <select id="utilityOrganizationType">
+                    <option value="">Select Utility Organization</option>
+                    <option value="DPDC">DPDC</option>
+                    <option value="DESCO">DESCO</option>
+                    <option value="PALLI_BIDYUT">Palli Bidyut</option>
+                    <option value="BPDB">BPDB</option>
+                </select>
+
+                <label>Employee ID</label>
+                <input type="text" id="utilityEmployeeId" placeholder="Enter employee ID">
+
+                <label>Service Area</label>
+                <input type="text" id="serviceArea" placeholder="Example: Mirpur, Uttara, Gazipur">
+
+                <label>Office Address</label>
+                <input type="text" id="utilityOfficeAddress" placeholder="Enter office address">
+            </div>
+
+            <div id="emergencyVehicleAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Emergency Vehicle Authority Information</h3>
+
+                <label>Organization Name</label>
+                <input type="text" id="organizationName" placeholder="Enter organization name">
+
+                <label>Organization Type</label>
+                <select id="organizationType">
+                    <option value="">Select Organization Type</option>
+                    <option value="AMBULANCE_SERVICE">Ambulance Service</option>
+                    <option value="POLICE">Police</option>
+                    <option value="FIRE_BRIGADE">Fire Brigade</option>
+                    <option value="MILITARY">Military</option>
+                    <option value="CIVIL_DEFENSE">Civil Defense</option>
+                </select>
+
+                <label>Official Verification ID</label>
+                <input type="text" id="officialVerificationId" placeholder="Enter official verification ID">
+
+                <label>Assigned Area</label>
+                <input type="text" id="assignedArea" placeholder="Enter assigned area">
+            </div>
+
+            <div id="governmentAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Government Authority Information</h3>
+
+                <label>Government Employee ID</label>
+                <input type="text" id="governmentEmployeeId" placeholder="Enter government employee ID">
+
+                <label>Department Name</label>
+                <input type="text" id="departmentName" placeholder="Enter department name">
+
+                <label>Designation</label>
+                <input type="text" id="governmentDesignation" placeholder="Enter designation">
+
+                <label>Office Address</label>
+                <input type="text" id="governmentOfficeAddress" placeholder="Enter office address">
+            </div>
+
+            <div id="localAuthorityFields" class="role-section hidden-section">
+                <h3 class="section-title">Local Authority Information</h3>
+
+                <label>Local Authority ID</label>
+                <input type="text" id="localAuthorityId" placeholder="Enter local authority ID">
+
+                <label>District</label>
+                <input type="text" id="district" placeholder="Enter district">
+
+                <label>Thana / Upazila</label>
+                <input type="text" id="thanaOrUpazila" placeholder="Enter thana or upazila">
+
+                <label>Designation</label>
+                <input type="text" id="localDesignation" placeholder="Enter designation">
+
+                <label>Office Address</label>
+                <input type="text" id="localOfficeAddress" placeholder="Enter office address">
+            </div>
+
+            <div id="adminFields" class="role-section hidden-section">
+                <h3 class="section-title">Admin Information</h3>
+
+                <label>Admin Secret Code</label>
+                <input type="password" id="adminCode" placeholder="Enter admin secret code">
+            </div>
+
+            <h3 class="section-title">Security Information</h3>
+
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Enter password" required>
+
+            <label>Confirm Password</label>
+            <input type="password" id="confirmPassword" placeholder="Confirm password" required>
+
+            <button type="submit" class="btn primary full-width">Register</button>
+        </div>
     </form>
 
     <p id="message"></p>

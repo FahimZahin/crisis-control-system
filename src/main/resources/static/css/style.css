@@ -239,3 +239,44 @@ footer {
 .hidden-section {
     display: none;
 }
+
+.section-title {
+    margin-top: 25px;
+    margin-bottom: 10px;
+    color: #0b1f3a;
+    border-bottom: 2px solid #0b1f3a;
+    padding-bottom: 6px;
+}
+
+.wide-form {
+    width: 620px;
+}
+
+.checkbox-group {
+    background: #f4f6f8;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.checkbox-group label {
+    display: block;
+    margin: 8px 0;
+    font-weight: normal;
+}
+
+.checkbox-group input {
+    width: auto;
+    margin-right: 8px;
+}
+
+.checkbox-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.checkbox-line input {
+    width: auto;
+}
