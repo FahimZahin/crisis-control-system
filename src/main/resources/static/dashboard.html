@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard | Crisis Control System</title>
+    <title>Vehicle Owner Dashboard | Crisis Control System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,28 +11,267 @@
     <div class="logo">Crisis Control System</div>
     <div>
         <a href="index.html">Home</a>
-        <a href="login.html">Logout</a>
+        <a href="profile-setup.html">Profile Setup</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
     </div>
 </nav>
 
-<div class="dashboard">
-    <h1>Welcome to Crisis Control System</h1>
+<div class="dashboard-page">
 
-    <div class="dashboard-card">
-        <h2 id="userName">User Name</h2>
-        <p><strong>User ID:</strong> <span id="userId"></span></p>
-        <p><strong>Role:</strong> <span id="userRole"></span></p>
-        <p class="success-text">Login successful. This is your demo dashboard.</p>
+    <div class="dashboard-header">
+        <div>
+            <h1>Vehicle Owner Dashboard</h1>
+            <p>Manage your crisis fuel profile, vehicle information, and fuel eligibility preview.</p>
+        </div>
 
-        <a href="profile-setup.html" class="btn primary">Complete Profile Setup</a>
+        <div class="dashboard-user-badge">
+            <span id="badgeRole">VEHICLE_OWNER</span>
+        </div>
     </div>
+
+    <div id="roleWarning" class="warning-box hidden-section">
+        This dashboard is designed for Vehicle Owner accounts. Your current role is:
+        <strong id="currentRoleText"></strong>
+    </div>
+
+    <div class="dashboard-summary-grid">
+
+        <div class="summary-card">
+            <h3>User ID</h3>
+            <p id="summaryUserId">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Account Status</h3>
+            <p id="summaryStatus">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Driving License</h3>
+            <p id="summaryLicense">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Vehicle Profile</h3>
+            <p id="summaryVehicleStatus">Not Added</p>
+        </div>
+
+    </div>
+
+    <div class="dashboard-tabs">
+        <button class="tab-button active" data-tab="accountTab">Account Info</button>
+        <button class="tab-button" data-tab="vehicleTab">Vehicle Info</button>
+        <button class="tab-button" data-tab="fuelTab">Fuel Eligibility Preview</button>
+        <button class="tab-button" data-tab="actionsTab">Quick Actions</button>
+    </div>
+
+    <div id="accountTab" class="tab-content active">
+
+        <div class="dashboard-card wide-dashboard-card">
+            <h2>Registration Information</h2>
+
+            <div class="info-grid">
+                <div>
+                    <label>Full Name</label>
+                    <p id="infoFullName">-</p>
+                </div>
+
+                <div>
+                    <label>Phone Number</label>
+                    <p id="infoPhoneNumber">-</p>
+                </div>
+
+                <div>
+                    <label>Role</label>
+                    <p id="infoRole">-</p>
+                </div>
+
+                <div>
+                    <label>Status</label>
+                    <p id="infoStatus">-</p>
+                </div>
+
+                <div>
+                    <label>Driving License Number</label>
+                    <p id="infoDrivingLicense">-</p>
+                </div>
+
+                <div>
+                    <label>Address</label>
+                    <p id="infoAddress">-</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="vehicleTab" class="tab-content">
+
+        <div class="dashboard-card wide-dashboard-card">
+            <div class="card-title-row">
+                <h2>Vehicle Profile Preview</h2>
+                <a href="profile-setup.html" class="btn primary small-btn">Add / Update Vehicle</a>
+            </div>
+
+            <div id="noVehicleBox" class="empty-box">
+                <h3>No vehicle profile added yet</h3>
+                <p>Complete your profile setup to add vehicle type, brand, model, odometer reading, and vehicle photo.</p>
+                <a href="profile-setup.html" class="btn primary">Complete Profile Setup</a>
+            </div>
+
+            <div id="vehicleInfoBox" class="hidden-section">
+
+                <div class="vehicle-dashboard-layout">
+                    <div class="vehicle-image-box">
+                        <img id="dashboardVehicleImage" src="images/sample-vehicle.png" alt="Vehicle Photo">
+                        <p>Vehicle photo preview</p>
+                    </div>
+
+                    <div class="info-grid vehicle-info-grid">
+                        <div>
+                            <label>Vehicle Type</label>
+                            <p id="vehicleType">-</p>
+                        </div>
+
+                        <div>
+                            <label>Car Category</label>
+                            <p id="carCategory">-</p>
+                        </div>
+
+                        <div>
+                            <label>Brand</label>
+                            <p id="brand">-</p>
+                        </div>
+
+                        <div>
+                            <label>Model</label>
+                            <p id="model">-</p>
+                        </div>
+
+                        <div>
+                            <label>Fuel Type</label>
+                            <p id="fuelType">-</p>
+                        </div>
+
+                        <div>
+                            <label>Engine CC</label>
+                            <p id="engineCc">-</p>
+                        </div>
+
+                        <div>
+                            <label>Tank Capacity</label>
+                            <p><span id="tankCapacity">-</span> L</p>
+                        </div>
+
+                        <div>
+                            <label>Mileage Per Liter</label>
+                            <p><span id="mileagePerLiter">-</span> km/L</p>
+                        </div>
+
+                        <div>
+                            <label>Number Plate</label>
+                            <p id="numberPlate">-</p>
+                        </div>
+
+                        <div>
+                            <label>Current Odometer</label>
+                            <p><span id="odometerReading">-</span> km</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <div id="fuelTab" class="tab-content">
+
+        <div class="dashboard-card wide-dashboard-card">
+            <h2>Fuel Eligibility Preview</h2>
+            <p class="muted-text">
+                This is a demo preview. Actual odometer-based eligibility will be database-connected in the fuel request module.
+            </p>
+
+            <div class="fuel-preview-grid">
+                <div class="summary-card">
+                    <h3>Estimated Full Tank Range</h3>
+                    <p><span id="estimatedRange">-</span> km</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Bike Session Limit</h3>
+                    <p>BDT 500</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Car Session Limit</h3>
+                    <p>BDT 2000</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Refill Rule</h3>
+                    <p>Remaining range ≤ 5 km</p>
+                </div>
+            </div>
+
+            <div class="demo-calculator">
+                <h3>Mini Range Calculator</h3>
+
+                <label>Fuel Amount in Liters</label>
+                <input type="number" id="calculatorLiters" placeholder="Example: 4">
+
+                <button class="btn primary full-width" id="calculateRangeBtn">Calculate Estimated Range</button>
+
+                <p id="calculatorResult"></p>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="actionsTab" class="tab-content">
+
+        <div class="dashboard-card wide-dashboard-card">
+            <h2>Quick Actions</h2>
+
+            <div class="action-grid">
+                <a href="profile-setup.html" class="action-card">
+                    <h3>Complete Profile Setup</h3>
+                    <p>Add or update vehicle information, odometer reading, and vehicle photo.</p>
+                </a>
+
+                <div class="action-card disabled-card">
+                    <h3>Request Fuel</h3>
+                    <p>Coming in Part 7 after fuel eligibility module.</p>
+                </div>
+
+                <div class="action-card disabled-card">
+                    <h3>Generate QR Code</h3>
+                    <p>Coming in Part 8 after approval and QR module.</p>
+                </div>
+
+                <div class="action-card disabled-card">
+                    <h3>Payment</h3>
+                    <p>Coming in Part 9 with bKash and cash payment.</p>
+                </div>
+
+                <div class="action-card disabled-card">
+                    <h3>Fuel History</h3>
+                    <p>Coming in reports and transaction module.</p>
+                </div>
+
+                <div class="action-card disabled-card">
+                    <h3>Route Fuel Planning</h3>
+                    <p>Coming in route-based fuel planning module.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
-<script>
-    document.getElementById("userName").innerText = localStorage.getItem("fullName") || "User";
-    document.getElementById("userId").innerText = localStorage.getItem("userId") || "-";
-    document.getElementById("userRole").innerText = localStorage.getItem("role") || "-";
-</script>
+<script src="js/dashboard.js"></script>
 
 </body>
 </html>

@@ -1,6 +1,7 @@
 package com.crisiscontrol.dto;
 
 import com.crisiscontrol.entity.Role;
+import com.crisiscontrol.entity.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,7 +14,57 @@ import lombok.Setter;
 public class AuthResponse {
 
     private String message;
+
     private Long userId;
     private String fullName;
+    private String phoneNumber;
+    private String address;
     private Role role;
+    private UserStatus status;
+
+    // Vehicle owner registration info
+    private String drivingLicenseNumber;
+
+    // Building manager info
+    private String buildingName;
+    private String holdingNumber;
+    private Integer numberOfFlats;
+    private String generatorPower;
+
+    // Pump authority info
+    private String pumpName;
+    private String businessLicenseNumber;
+    private String pumpAddress;
+    private Double fuelCapacity;
+    private String fuelTypes;
+    private Double currentStock;
+    private Boolean open24Hours;
+    private String openingTime;
+    private String closingTime;
+
+    // Hospital authority info
+    private String hospitalName;
+    private String hospitalRegistrationNumber;
+    private String hospitalAddress;
+    private String emergencyContactNumber;
+
+    // Utility authority info
+    private String utilityOrganizationType;
+    private String utilityEmployeeId;
+    private String serviceArea;
+    private String officeAddress;
+
+    // Emergency vehicle authority info
+    private String organizationName;
+    private String organizationType;
+    private String officialVerificationId;
+    private String assignedArea;
+
+    // Government/local authority info
+    private String governmentEmployeeId;
+    private String departmentName;
+    private String designation;
+    private String localAuthorityId;
+    private String district;
+    private String thanaOrUpazila;
 }

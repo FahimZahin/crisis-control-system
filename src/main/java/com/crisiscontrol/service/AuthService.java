@@ -78,12 +78,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        return AuthResponse.builder()
-                .message("Registration successful")
-                .userId(savedUser.getId())
-                .fullName(savedUser.getFullName())
-                .role(savedUser.getRole())
-                .build();
+        return buildAuthResponse("Registration successful", savedUser);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -99,12 +94,7 @@ public class AuthService {
             throw new RuntimeException("User account is not active");
         }
 
-        return AuthResponse.builder()
-                .message("Login successful")
-                .userId(user.getId())
-                .fullName(user.getFullName())
-                .role(user.getRole())
-                .build();
+        return buildAuthResponse("Login successful", user);
     }
 
     private void validateCommonFields(RegisterRequest request) {
@@ -368,5 +358,57 @@ public class AuthService {
         }
 
         return value.trim();
+    }
+    private AuthResponse buildAuthResponse(String message, User user) {
+        return AuthResponse.builder()
+                .message(message)
+
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .phoneNumber(user.getPhoneNumber())
+                .address(user.getAddress())
+                .role(user.getRole())
+                .status(user.getStatus())
+
+                .drivingLicenseNumber(user.getDrivingLicenseNumber())
+
+                .buildingName(user.getBuildingName())
+                .holdingNumber(user.getHoldingNumber())
+                .numberOfFlats(user.getNumberOfFlats())
+                .generatorPower(user.getGeneratorPower())
+
+                .pumpName(user.getPumpName())
+                .businessLicenseNumber(user.getBusinessLicenseNumber())
+                .pumpAddress(user.getPumpAddress())
+                .fuelCapacity(user.getFuelCapacity())
+                .fuelTypes(user.getFuelTypes())
+                .currentStock(user.getCurrentStock())
+                .open24Hours(user.getOpen24Hours())
+                .openingTime(user.getOpeningTime())
+                .closingTime(user.getClosingTime())
+
+                .hospitalName(user.getHospitalName())
+                .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
+                .hospitalAddress(user.getHospitalAddress())
+                .emergencyContactNumber(user.getEmergencyContactNumber())
+
+                .utilityOrganizationType(user.getUtilityOrganizationType())
+                .utilityEmployeeId(user.getUtilityEmployeeId())
+                .serviceArea(user.getServiceArea())
+                .officeAddress(user.getOfficeAddress())
+
+                .organizationName(user.getOrganizationName())
+                .organizationType(user.getOrganizationType())
+                .officialVerificationId(user.getOfficialVerificationId())
+                .assignedArea(user.getAssignedArea())
+
+                .governmentEmployeeId(user.getGovernmentEmployeeId())
+                .departmentName(user.getDepartmentName())
+                .designation(user.getDesignation())
+                .localAuthorityId(user.getLocalAuthorityId())
+                .district(user.getDistrict())
+                .thanaOrUpazila(user.getThanaOrUpazila())
+
+                .build();
     }
 }

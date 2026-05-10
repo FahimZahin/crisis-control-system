@@ -20,9 +20,15 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         const result = await response.json();
 
         if (response.ok) {
+            localStorage.setItem("loggedInUser", JSON.stringify(result));
+
             localStorage.setItem("userId", result.userId);
             localStorage.setItem("fullName", result.fullName);
+            localStorage.setItem("phoneNumber", result.phoneNumber || "");
+            localStorage.setItem("address", result.address || "");
             localStorage.setItem("role", result.role);
+            localStorage.setItem("status", result.status || "");
+            localStorage.setItem("drivingLicenseNumber", result.drivingLicenseNumber || "");
 
             message.className = "success-text";
             message.innerText = result.message;
