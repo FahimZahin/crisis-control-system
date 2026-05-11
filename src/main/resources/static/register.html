@@ -218,10 +218,16 @@
             <h3 class="section-title">Security Information</h3>
 
             <label>Password</label>
-            <input type="password" id="password" placeholder="Enter password" required>
+            <div class="password-wrapper">
+                <input type="password" id="password" placeholder="Enter password" required>
+                <button type="button" class="eye-btn" onclick="togglePassword('password', this)">👁</button>
+            </div>
 
             <label>Confirm Password</label>
-            <input type="password" id="confirmPassword" placeholder="Confirm password" required>
+            <div class="password-wrapper">
+                <input type="password" id="confirmPassword" placeholder="Confirm password" required>
+                <button type="button" class="eye-btn" onclick="togglePassword('confirmPassword', this)">👁</button>
+            </div>
 
             <button type="submit" class="btn primary full-width">Register</button>
         </div>
@@ -233,7 +239,19 @@
         Already have an account? <a href="login.html">Login here</a>
     </p>
 </div>
+<script>
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
 
+        if (input.type === "password") {
+            input.type = "text";
+            button.innerText = "🙈";
+        } else {
+            input.type = "password";
+            button.innerText = "👁";
+        }
+    }
+</script>
 <script src="js/register.js"></script>
 
 </body>

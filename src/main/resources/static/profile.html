@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Profile | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="index.html">Home</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="profile-page">
+
+    <div class="profile-header">
+        <h1>My Profile</h1>
+        <p>View and manage your account information</p>
+    </div>
+
+    <div class="profile-grid">
+
+        <div class="profile-card">
+            <h2>Account Information</h2>
+
+            <label>User ID</label>
+            <input type="text" id="profileUserId" readonly>
+
+            <label>Full Name</label>
+            <input type="text" id="profileFullName">
+
+            <label>Phone Number</label>
+            <input type="text" id="profilePhoneNumber">
+
+            <label>Role</label>
+            <input type="text" id="profileRole" readonly>
+
+            <label>Status</label>
+            <input type="text" id="profileStatus" readonly>
+
+            <label>Address</label>
+            <input type="text" id="profileAddress">
+
+            <button class="btn primary full-width" id="saveProfileBtn">Save Profile Changes</button>
+
+            <p id="profileMessage"></p>
+        </div>
+
+        <div class="profile-card">
+            <h2>Change Password</h2>
+
+            <label>Current Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="currentPassword" placeholder="Enter current password">
+                <button type="button" class="eye-btn" onclick="togglePassword('currentPassword', this)">👁</button>
+            </div>
+
+            <label>New Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="newPassword" placeholder="Enter new password">
+                <button type="button" class="eye-btn" onclick="togglePassword('newPassword', this)">👁</button>
+            </div>
+
+            <label>Confirm New Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+                <button type="button" class="eye-btn" onclick="togglePassword('confirmNewPassword', this)">👁</button>
+            </div>
+
+            <button class="btn primary full-width" id="changePasswordBtn">Change Password Preview</button>
+
+            <p id="passwordMessage"></p>
+        </div>
+
+    </div>
+
+    <div class="profile-card danger-zone">
+        <h2>Danger Zone</h2>
+        <p>
+            Delete profile preview will clear your logged-in data from this browser.
+            Database delete will be added later with backend API.
+        </p>
+
+        <button class="btn danger full-width" id="deleteProfileBtn">Delete / Clear Profile Preview</button>
+
+        <p id="deleteMessage"></p>
+    </div>
+
+</div>
+
+<script>
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
+
+        if (input.type === "password") {
+            input.type = "text";
+            button.innerText = "🙈";
+        } else {
+            input.type = "password";
+            button.innerText = "👁";
+        }
+    }
+</script>
+
+<script src="js/profile.js"></script>
+
+</body>
+</html>

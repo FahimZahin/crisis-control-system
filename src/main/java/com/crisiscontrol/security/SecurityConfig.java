@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/emergency-vehicle-dashboard.html",
                                 "/government-dashboard.html",
                                 "/local-authority-dashboard.html",
+                                "/profile.html",
                                 "/admin-dashboard.html"
                         ).permitAll()
                         .anyRequest().authenticated()
