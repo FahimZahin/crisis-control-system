@@ -34,7 +34,7 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             message.innerText = result.message;
 
             setTimeout(function () {
-                window.location.href = "dashboard.html";
+                redirectToRoleDashboard(result.role);
             }, 1000);
         } else {
             message.className = "error-text";
@@ -46,3 +46,27 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         message.innerText = "Server connection failed";
     }
 });
+
+function redirectToRoleDashboard(role) {
+    if (role === "VEHICLE_OWNER") {
+        window.location.href = "vehicle-owner-dashboard.html";
+    } else if (role === "BUILDING_MANAGER") {
+        window.location.href = "building-manager-dashboard.html";
+    } else if (role === "PUMP_AUTHORITY") {
+        window.location.href = "pump-authority-dashboard.html";
+    } else if (role === "HOSPITAL_AUTHORITY") {
+        window.location.href = "hospital-authority-dashboard.html";
+    } else if (role === "UTILITY_AUTHORITY") {
+        window.location.href = "utility-authority-dashboard.html";
+    } else if (role === "EMERGENCY_VEHICLE_AUTHORITY") {
+        window.location.href = "emergency-vehicle-dashboard.html";
+    } else if (role === "GOVERNMENT_AUTHORITY") {
+        window.location.href = "government-dashboard.html";
+    } else if (role === "LOCAL_AUTHORITY") {
+        window.location.href = "local-authority-dashboard.html";
+    } else if (role === "ADMIN") {
+        window.location.href = "admin-dashboard.html";
+    } else {
+        window.location.href = "dashboard.html";
+    }
+}

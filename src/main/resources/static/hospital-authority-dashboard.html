@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Authority Dashboard | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="index.html">Home</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Hospital Authority Dashboard</h1>
+            <p>Manage hospital emergency fuel and power support during crisis.</p>
+        </div>
+        <span class="role-badge">HOSPITAL AUTHORITY</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card"><h3>Hospital Name</h3><p id="hospitalName">-</p></div>
+        <div class="summary-card"><h3>Emergency Contact</h3><p id="emergencyContactNumber">-</p></div>
+        <div class="summary-card"><h3>Status</h3><p id="dashboardUserStatus">-</p></div>
+        <div class="summary-card"><h3>Role</h3><p id="dashboardUserRole">-</p></div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Hospital Registration Information</h2>
+        <div class="info-grid">
+            <div><label>Authority Name</label><p id="dashboardUserName">-</p></div>
+            <div><label>Phone</label><p id="dashboardUserPhone">-</p></div>
+            <div><label>Hospital Registration Number</label><p id="hospitalRegistrationNumber">-</p></div>
+            <div><label>Hospital Address</label><p id="hospitalAddress">-</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Available Features Preview</h2>
+        <div class="feature-preview-grid">
+            <div class="feature-preview-card"><h3>Generator Support</h3><p>Request diesel for hospital generator backup.</p></div>
+            <div class="feature-preview-card"><h3>Critical Notice</h3><p>Send urgent crisis notice to government authority.</p></div>
+            <div class="feature-preview-card"><h3>Request History</h3><p>View previous hospital fuel and diesel requests.</p></div>
+            <div class="feature-preview-card"><h3>Power Outage Updates</h3><p>View utility outage and restoration notices.</p></div>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/role-dashboard.js"></script>
+
+</body>
+</html>

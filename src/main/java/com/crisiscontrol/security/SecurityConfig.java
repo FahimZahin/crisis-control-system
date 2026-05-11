@@ -36,7 +36,16 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/profile-setup.html",
-                                "/images/**"
+                                "/images/**",
+                                "/vehicle-owner-dashboard.html",
+                                "/building-manager-dashboard.html",
+                                "/pump-authority-dashboard.html",
+                                "/hospital-authority-dashboard.html",
+                                "/utility-authority-dashboard.html",
+                                "/emergency-vehicle-dashboard.html",
+                                "/government-dashboard.html",
+                                "/local-authority-dashboard.html",
+                                "/admin-dashboard.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

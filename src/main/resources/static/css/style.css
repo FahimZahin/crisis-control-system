@@ -506,3 +506,90 @@ footer {
 .hidden-section {
     display: none;
 }
+.role-dashboard-page {
+    padding: 40px 60px;
+}
+
+.role-dashboard-header {
+    background: linear-gradient(to right, #0b1f3a, #123f6d);
+    color: white;
+    padding: 35px;
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.role-dashboard-header h1 {
+    font-size: 34px;
+    margin-bottom: 10px;
+}
+
+.role-badge {
+    background: white;
+    color: #0b1f3a;
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.role-summary-grid {
+    margin-top: 25px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.role-dashboard-section {
+    margin-top: 30px;
+    background: white;
+    padding: 28px;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
+.role-dashboard-section h2 {
+    color: #0b1f3a;
+    margin-bottom: 20px;
+}
+
+.feature-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.feature-preview-card {
+    background: #f4f6f8;
+    padding: 22px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: 0.2s;
+    text-decoration: none;
+    color: #222;
+}
+
+.feature-preview-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+}
+
+.feature-preview-card h3 {
+    color: #0b1f3a;
+    margin-bottom: 10px;
+}
+
+.active-feature {
+    background: #e8f5ff;
+    border-color: #00a8ff;
+}
+
+.redirect-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
