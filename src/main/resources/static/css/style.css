@@ -664,3 +664,107 @@ footer {
     background: #dc3545;
     color: white;
 }
+.table-wrapper {
+    margin-top: 20px;
+    overflow-x: auto;
+}
+
+.admin-users-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.admin-users-table th,
+.admin-users-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    font-size: 14px;
+}
+
+.admin-users-table th {
+    background: #0b1f3a;
+    color: white;
+}
+
+.admin-users-table tr:nth-child(even) {
+    background: #f4f6f8;
+}
+
+.table-role-badge {
+    background: #e8f5ff;
+    color: #0b1f3a;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.delete-user-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.delete-user-btn:hover {
+    background: #b02a37;
+}
+.pagination-box {
+    margin-top: 22px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+}
+
+.pagination-box button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.deactivate-user-btn {
+    background: #f0ad4e;
+    color: white;
+    border: none;
+    padding: 8px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+.deactivate-user-btn:hover {
+    background: #d6902f;
+}
+
+.status-badge {
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.active-status {
+    background: #d4edda;
+    color: #155724;
+}
+
+.inactive-status {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.blocked-status {
+    background: #f8d7da;
+    color: #721c24;
+}

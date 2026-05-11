@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registered Users | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="admin-dashboard.html">Admin Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Registered Users</h1>
+            <p>View, deactivate, and delete registered users from the database.</p>
+        </div>
+        <span class="role-badge">USER MANAGEMENT</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Users</h3>
+            <p id="totalUsers">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Current Page</h3>
+            <p id="currentPageText">1</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Users Per Page</h3>
+            <p>30</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Admin</h3>
+            <p id="dashboardUserName">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>User Management Table</h2>
+                <p class="muted-text">
+                    This table is connected to the database. PLEASE BE CAREFUL.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshUsersBtn">Refresh Users</button>
+        </div>
+
+        <div id="registeredUsersMessage"></div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Identity Info</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+
+                <tbody id="registeredUsersTableBody">
+                <tr>
+                    <td colspan="8">Loading users...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-box">
+            <button class="btn secondary small-btn" id="previousPageBtn">Previous</button>
+            <span id="paginationInfo">Page 1 of 1</span>
+            <button class="btn primary small-btn" id="nextPageBtn">Next</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/role-dashboard.js"></script>
+<script src="js/registered-users.js"></script>
+
+</body>
+</html>

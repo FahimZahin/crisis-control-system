@@ -21,33 +21,108 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Admin Dashboard</h1>
-            <p>Manage users, roles, fuel limits, system configuration, and reports.</p>
+            <p>Manage users now. Fuel price setup, approvals, verification, and reports will be added later.</p>
         </div>
         <span class="role-badge">ADMIN</span>
     </div>
 
     <div class="role-summary-grid">
-        <div class="summary-card"><h3>Admin</h3><p id="dashboardUserName">-</p></div>
-        <div class="summary-card"><h3>Phone</h3><p id="dashboardUserPhone">-</p></div>
-        <div class="summary-card"><h3>Status</h3><p id="dashboardUserStatus">-</p></div>
-        <div class="summary-card"><h3>Role</h3><p id="dashboardUserRole">-</p></div>
+        <div class="summary-card">
+            <h3>Admin</h3>
+            <p id="dashboardUserName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Phone</h3>
+            <p id="dashboardUserPhone">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Status</h3>
+            <p id="dashboardUserStatus">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Total Users</h3>
+            <p id="totalUsers">0</p>
+        </div>
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Admin Features Preview</h2>
+        <h2>Current Admin Features</h2>
+
         <div class="feature-preview-grid">
-            <div class="feature-preview-card"><h3>User Management</h3><p>View, block, activate, and manage all users.</p></div>
-            <div class="feature-preview-card"><h3>Role Management</h3><p>Control system roles and permissions.</p></div>
-            <div class="feature-preview-card"><h3>Fuel Price Setup</h3><p>Set petrol, octane, diesel, and CNG prices.</p></div>
-            <div class="feature-preview-card"><h3>Fuel Limit Setup</h3><p>Configure bike, car, emergency, and generator fuel limits.</p></div>
-            <div class="feature-preview-card"><h3>System Reports</h3><p>View fuel, payment, request, pump, and utility reports.</p></div>
-            <div class="feature-preview-card"><h3>Emergency Control</h3><p>Control crisis priority and emergency settings.</p></div>
+            <a href="registered-users.html" class="feature-preview-card active-feature">
+                <h3>View All Users</h3>
+                <p>Admin can view all registered users from the database.</p>
+            </a>
+
+            <a href="registered-users.html" class="feature-preview-card active-feature">
+                <h3>Delete Users</h3>
+                <p>Admin can deactivate or delete users from the system.</p>
+            </a>
+
+            <div class="feature-preview-card">
+                <h3>Emergency Vehicle Approval</h3>
+                <p>Coming later: approve emergency vehicle authority accounts.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Fuel Price Setup</h3>
+                <p>Coming later: set petrol, octane, diesel, and CNG prices.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Pump Verification</h3>
+                <p>Coming later: verify pump authority accounts.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>System Reports</h3>
+                <p>Coming later: view system reports and analytics.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Registered Users Preview</h2>
+            <a href="registered-users.html" class="btn primary small-btn">Open User Management</a>
+        </div>
+
+        <p class="muted-text">
+            This table is connected to the database. PLEASE BE CAREFUL.
+        </p>
+
+        <div id="adminMessage"></div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Identity Info</th>
+                    <th>Created At</th>
+                </tr>
+                </thead>
+
+                <tbody id="usersTableBody">
+                <tr>
+                    <td colspan="7">Loading latest users...</td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
 </div>
 
 <script src="js/role-dashboard.js"></script>
+<script src="js/admin-dashboard.js"></script>
 
 </body>
 </html>
