@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 "/profile.html",
                                 "/api/admin/**",
                                 "/registered-users.html",
+                                "/api/users/**",
                                 "/admin-dashboard.html"
                         ).permitAll()
                         .anyRequest().authenticated()

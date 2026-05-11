@@ -10,9 +10,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     loadRegisteredUsers();
+    loadActivationRequests();
 
     document.getElementById("refreshUsersBtn").addEventListener("click", function () {
         loadRegisteredUsers();
+    });
+
+    document.getElementById("refreshActivationRequestsBtn").addEventListener("click", function () {
+        loadActivationRequests();
     });
 
     document.getElementById("previousPageBtn").addEventListener("click", function () {
@@ -68,6 +73,67 @@ async function loadRegisteredUsers() {
     }
 }
 
+async function loadActivationRequests() {
+    const tableBody = document.getElementById("activationRequestsTableBody");
+
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="8">Loading activation requests...</td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch("http://localhost:8081/api/admin/activation-requests");
+        const requests = await response.json();
+
+        if (!response.ok) {
+            showActivationAdminMessage("Failed to load activation requests.", "error-text");
+            return;
+        }
+
+        if (requests.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8">No pending activation requests.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tableBody.innerHTML = "";
+
+        requests.forEach(function (request) {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${request.requestId}</td>
+                <td>${valueOrDash(request.fullName)}</td>
+                <td>${valueOrDash(request.phoneNumber)}</td>
+                <td><span class="table-role-badge">${valueOrDash(request.role)}</span></td>
+                <td>${renderStatusBadge(request.userStatus)}</td>
+                <td>${valueOrDash(request.reason)}</td>
+                <td>${formatDate(request.requestedAt)}</td>
+                <td>
+                    <button class="activate-user-btn" onclick="approveActivationRequest(${request.requestId})">
+                        Approve
+                    </button>
+                </td>
+            `;
+
+            tableBody.appendChild(row);
+        });
+
+    } catch (error) {
+        showActivationAdminMessage("Server connection failed while loading activation requests.", "error-text");
+
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8">Could not load activation requests.</td>
+            </tr>
+        `;
+    }
+}
+
 function renderUsersTable() {
     const tableBody = document.getElementById("registeredUsersTableBody");
 
@@ -100,12 +166,7 @@ function renderUsersTable() {
             <td>${getIdentityInfo(user)}</td>
             <td>${formatDate(user.createdAt)}</td>
             <td>
-                <button class="deactivate-user-btn" onclick="deactivateUser(${user.id}, '${escapeText(user.fullName)}')">
-                    Deactivate
-                </button>
-                <button class="delete-user-btn" onclick="deleteUser(${user.id}, '${escapeText(user.fullName)}')">
-                    Delete
-                </button>
+                ${renderUserActionButtons(user)}
             </td>
         `;
 
@@ -113,6 +174,34 @@ function renderUsersTable() {
     });
 
     updatePagination();
+}
+
+function renderUserActionButtons(user) {
+    let buttons = "";
+
+    if (user.status === "ACTIVE") {
+        buttons += `
+            <button class="deactivate-user-btn" onclick="deactivateUser(${user.id}, '${escapeText(user.fullName)}')">
+                Deactivate
+            </button>
+        `;
+    }
+
+    if (user.status === "INACTIVE") {
+        buttons += `
+            <button class="activate-user-btn" onclick="activateUserDirectly(${user.id}, '${escapeText(user.fullName)}')">
+                Activate
+            </button>
+        `;
+    }
+
+    buttons += `
+        <button class="delete-user-btn" onclick="deleteUser(${user.id}, '${escapeText(user.fullName)}')">
+            Delete
+        </button>
+    `;
+
+    return buttons;
 }
 
 async function deactivateUser(userId, fullName) {
@@ -141,6 +230,60 @@ async function deactivateUser(userId, fullName) {
     }
 }
 
+async function activateUserDirectly(userId, fullName) {
+    const confirmed = confirm("Are you sure you want to activate user: " + fullName + "?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/admin/users/" + userId + "/activate", {
+            method: "PUT"
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showRegisteredUsersMessage(result.message, "success-text");
+            loadRegisteredUsers();
+            loadActivationRequests();
+        } else {
+            showRegisteredUsersMessage(result.message || "Failed to activate user.", "error-text");
+        }
+
+    } catch (error) {
+        showRegisteredUsersMessage("Server connection failed while activating user.", "error-text");
+    }
+}
+
+async function approveActivationRequest(requestId) {
+    const confirmed = confirm("Approve this activation request?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/admin/activation-requests/" + requestId + "/approve", {
+            method: "PUT"
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showActivationAdminMessage(result.message, "success-text");
+            loadActivationRequests();
+            loadRegisteredUsers();
+        } else {
+            showActivationAdminMessage(result.message || "Failed to approve request.", "error-text");
+        }
+
+    } catch (error) {
+        showActivationAdminMessage("Server connection failed while approving request.", "error-text");
+    }
+}
+
 async function deleteUser(userId, fullName) {
     const confirmed = confirm("Are you sure you want to permanently delete user: " + fullName + "?");
 
@@ -157,15 +300,8 @@ async function deleteUser(userId, fullName) {
 
         if (response.ok) {
             showRegisteredUsersMessage(result.message, "success-text");
-
-            const totalPagesBeforeRender = getTotalPages();
-
-            loadRegisteredUsers().then(function () {
-                if (currentPage > totalPagesBeforeRender && currentPage > 1) {
-                    currentPage--;
-                    renderUsersTable();
-                }
-            });
+            loadRegisteredUsers();
+            loadActivationRequests();
         } else {
             showRegisteredUsersMessage(result.message || "Failed to delete user.", "error-text");
         }
@@ -249,6 +385,12 @@ function renderStatusBadge(status) {
 
 function showRegisteredUsersMessage(message, className) {
     const messageBox = document.getElementById("registeredUsersMessage");
+    messageBox.className = className;
+    messageBox.innerText = message;
+}
+
+function showActivationAdminMessage(message, className) {
+    const messageBox = document.getElementById("activationRequestAdminMessage");
     messageBox.className = className;
     messageBox.innerText = message;
 }

@@ -90,8 +90,8 @@ public class AuthService {
             throw new RuntimeException("Invalid phone number or password");
         }
 
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new RuntimeException("User account is not active");
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("User account is blocked");
         }
 
         return buildAuthResponse("Login successful", user);

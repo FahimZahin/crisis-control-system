@@ -51,6 +51,45 @@
     <div class="role-dashboard-section">
         <div class="card-title-row">
             <div>
+                <h2>Activation Requests</h2>
+                <p class="muted-text">
+                    Users deactivated by admin can apply for activation. Admin can approve them here.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshActivationRequestsBtn">
+                Refresh Requests
+            </button>
+        </div>
+
+        <div id="activationRequestAdminMessage"></div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>User Status</th>
+                    <th>Reason</th>
+                    <th>Requested At</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="activationRequestsTableBody">
+                <tr>
+                    <td colspan="8">Loading activation requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
                 <h2>User Management Table</h2>
                 <p class="muted-text">
                     This table is connected to the database. PLEASE BE CAREFUL.
@@ -84,6 +123,8 @@
                 </tbody>
             </table>
         </div>
+
+
 
         <div class="pagination-box">
             <button class="btn secondary small-btn" id="previousPageBtn">Previous</button>

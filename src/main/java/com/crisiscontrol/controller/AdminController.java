@@ -1,5 +1,6 @@
 package com.crisiscontrol.controller;
 
+import com.crisiscontrol.dto.ActivationRequestResponse;
 import com.crisiscontrol.dto.AdminUserResponse;
 import com.crisiscontrol.service.AdminService;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +31,35 @@ public class AdminController {
         );
     }
 
+    @PutMapping("/users/{userId}/activate")
+    public ResponseEntity<Map<String, String>> activateUser(@PathVariable Long userId) {
+        adminService.activateUser(userId);
+
+        return ResponseEntity.ok(
+                Map.of("message", "User activated successfully")
+        );
+    }
+
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long userId) {
         adminService.deleteUser(userId);
 
         return ResponseEntity.ok(
                 Map.of("message", "User deleted successfully")
+        );
+    }
+
+    @GetMapping("/activation-requests")
+    public ResponseEntity<List<ActivationRequestResponse>> getPendingActivationRequests() {
+        return ResponseEntity.ok(adminService.getPendingActivationRequests());
+    }
+
+    @PutMapping("/activation-requests/{requestId}/approve")
+    public ResponseEntity<Map<String, String>> approveActivationRequest(@PathVariable Long requestId) {
+        adminService.approveActivationRequest(requestId);
+
+        return ResponseEntity.ok(
+                Map.of("message", "Activation request approved successfully")
         );
     }
 }

@@ -7,8 +7,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     loadProfileData();
+    setupInactiveAccountBox();
     setupProfileSave();
     setupPasswordChange();
+    setupActivationRequest();
     setupDeleteProfile();
     setupLogout();
 });
@@ -22,8 +24,21 @@ function loadProfileData() {
     document.getElementById("profileAddress").value = loggedInUser.address || "";
 }
 
+function setupInactiveAccountBox() {
+    const status = loggedInUser.status || "ACTIVE";
+
+    if (status === "INACTIVE") {
+        document.getElementById("inactiveAccountBox").classList.remove("hidden-section");
+    }
+}
+
 function setupProfileSave() {
     document.getElementById("saveProfileBtn").addEventListener("click", function () {
+        if (loggedInUser.status === "INACTIVE") {
+            showMessage("profileMessage", "Your account is deactivated. Apply for activation first.", "error-text");
+            return;
+        }
+
         loggedInUser.fullName = document.getElementById("profileFullName").value;
         loggedInUser.phoneNumber = document.getElementById("profilePhoneNumber").value;
         loggedInUser.address = document.getElementById("profileAddress").value;
@@ -39,6 +54,11 @@ function setupProfileSave() {
 
 function setupPasswordChange() {
     document.getElementById("changePasswordBtn").addEventListener("click", function () {
+        if (loggedInUser.status === "INACTIVE") {
+            showMessage("passwordMessage", "Your account is deactivated. Apply for activation first.", "error-text");
+            return;
+        }
+
         const currentPassword = document.getElementById("currentPassword").value;
         const newPassword = document.getElementById("newPassword").value;
         const confirmNewPassword = document.getElementById("confirmNewPassword").value;
@@ -61,23 +81,59 @@ function setupPasswordChange() {
     });
 }
 
+function setupActivationRequest() {
+    const button = document.getElementById("sendActivationRequestBtn");
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener("click", async function () {
+        const reason = document.getElementById("activationReason").value.trim();
+
+        if (!reason) {
+            showMessage("activationRequestMessage", "Please write a reason for activation.", "error-text");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8081/api/users/" + loggedInUser.userId + "/activation-request", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ reason: reason })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showMessage("activationRequestMessage", result.message, "success-text");
+                document.getElementById("activationReason").value = "";
+            } else {
+                showMessage("activationRequestMessage", result.message || "Activation request failed.", "error-text");
+            }
+
+        } catch (error) {
+            showMessage("activationRequestMessage", "Server connection failed.", "error-text");
+        }
+    });
+}
+
 function setupDeleteProfile() {
     document.getElementById("deleteProfileBtn").addEventListener("click", function () {
+        if (loggedInUser.status === "INACTIVE") {
+            showMessage("deleteMessage", "Your account is deactivated. Apply for activation first.", "error-text");
+            return;
+        }
+
         const confirmed = confirm("Are you sure you want to delete/clear this profile preview?");
 
         if (!confirmed) {
             return;
         }
 
-        localStorage.removeItem("loggedInUser");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("fullName");
-        localStorage.removeItem("phoneNumber");
-        localStorage.removeItem("address");
-        localStorage.removeItem("role");
-        localStorage.removeItem("status");
-        localStorage.removeItem("drivingLicenseNumber");
-        localStorage.removeItem("vehicleProfilePreview");
+        localStorage.clear();
 
         showMessage("deleteMessage", "Profile preview cleared. Redirecting to login...", "success-text");
 
