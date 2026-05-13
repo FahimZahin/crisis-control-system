@@ -39,6 +39,7 @@ public class SecurityConfig {
                                 "/images/**",
                                 "/vehicle-owner-dashboard.html",
                                 "/building-manager-dashboard.html",
+                                "/admin-fuel-settings.html",
                                 "/pump-authority-dashboard.html",
                                 "/hospital-authority-dashboard.html",
                                 "/utility-authority-dashboard.html",

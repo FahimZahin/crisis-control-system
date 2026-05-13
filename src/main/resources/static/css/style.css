@@ -807,3 +807,38 @@ footer {
 .activate-user-btn:hover {
     background: #146c43;
 }
+.settings-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.settings-form-grid label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #0b1f3a;
+}
+
+.settings-form-grid input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.settings-full-row {
+    grid-column: 1 / -1;
+}
+
+.card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.muted-text {
+    color: #666;
+    margin-bottom: 18px;
+}

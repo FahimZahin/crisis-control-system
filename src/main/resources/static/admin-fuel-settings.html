@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fuel Settings | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="admin-dashboard.html">Admin Dashboard</a>
+        <a href="registered-users.html">Users</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Price and Limit Setup</h1>
+            <p>Admin can update fuel prices and crisis fuel limits from this page.</p>
+        </div>
+        <span class="role-badge">ADMIN SETTINGS</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Petrol</h3>
+            <p><span id="petrolPricePreview">-</span> BDT/L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Octane</h3>
+            <p><span id="octanePricePreview">-</span> BDT/L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Diesel</h3>
+            <p><span id="dieselPricePreview">-</span> BDT/L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>CNG</h3>
+            <p><span id="cngPricePreview">-</span> BDT/Unit</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Fuel Price Setup</h2>
+        <p class="muted-text">
+            Set current fuel prices. These values will be used later for fuel request cost calculation.
+        </p>
+
+        <form id="fuelPriceForm" class="settings-form-grid">
+
+            <div>
+                <label>Petrol Price Per Liter</label>
+                <input type="number" id="petrolPrice" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Octane Price Per Liter</label>
+                <input type="number" id="octanePrice" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Diesel Price Per Liter</label>
+                <input type="number" id="dieselPrice" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>CNG Price Per Unit</label>
+                <input type="number" id="cngPrice" step="0.01" min="1" required>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Save Fuel Prices
+            </button>
+        </form>
+
+        <p id="fuelPriceMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Fuel Limit Setup</h2>
+        <p class="muted-text">
+            Set crisis limits for normal vehicles, emergency vehicles, and generator diesel support.
+        </p>
+
+        <form id="fuelLimitForm" class="settings-form-grid">
+
+            <div>
+                <label>Bike Limit Per Session (BDT)</label>
+                <input type="number" id="bikeLimit" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Car Limit Per Session (BDT)</label>
+                <input type="number" id="carLimit" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Emergency Vehicle Limit (BDT)</label>
+                <input type="number" id="emergencyVehicleLimit" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Generator Diesel Limit (BDT)</label>
+                <input type="number" id="generatorDieselLimit" step="0.01" min="1" required>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Save Fuel Limits
+            </button>
+        </form>
+
+        <p id="fuelLimitMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Current Crisis Fuel Policy Preview</h2>
+
+        <div class="feature-preview-grid">
+            <div class="feature-preview-card">
+                <h3>Bike Fuel Limit</h3>
+                <p>Maximum <strong id="bikeLimitPreview">-</strong> BDT per fuel session.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Car Fuel Limit</h3>
+                <p>Maximum <strong id="carLimitPreview">-</strong> BDT per fuel session.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Emergency Vehicle Limit</h3>
+                <p>Maximum <strong id="emergencyVehicleLimitPreview">-</strong> BDT per priority request.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Generator Diesel Limit</h3>
+                <p>Maximum <strong id="generatorDieselLimitPreview">-</strong> BDT per request.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Used By Future Modules</h3>
+                <p>Vehicle Owner fuel request, Pump Authority stock, and Emergency Vehicle request will use these settings.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Last Updated</h3>
+                <p id="lastUpdatedAt">-</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/role-dashboard.js"></script>
+<script src="js/admin-fuel-settings.js"></script>
+
+</body>
+</html>
