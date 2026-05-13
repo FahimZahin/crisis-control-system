@@ -842,3 +842,126 @@ footer {
     color: #666;
     margin-bottom: 18px;
 }
+.profile-setup-page {
+    padding: 50px 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.profile-setup-card {
+    width: 720px;
+    background: white;
+    padding: 35px;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.profile-setup-card h2 {
+    text-align: center;
+    color: #0b1f3a;
+    margin-bottom: 8px;
+}
+
+.vehicle-preview-box {
+    text-align: center;
+    margin: 25px 0;
+}
+
+.vehicle-preview-box img {
+    width: 320px;
+    height: 190px;
+    object-fit: cover;
+    border: 3px solid #0b1f3a;
+    border-radius: 10px;
+    background: #f4f6f8;
+}
+
+.vehicle-preview-box p {
+    margin-top: 8px;
+    color: #666;
+}
+
+.profile-setup-card label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.profile-setup-card input,
+.profile-setup-card select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.saved-vehicles-section {
+    margin-top: 30px;
+}
+
+.saved-vehicles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.saved-vehicle-card {
+    background: #f4f6f8;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.saved-vehicle-card h3 {
+    color: #0b1f3a;
+    margin-bottom: 8px;
+}
+
+.dashboard-vehicle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.dashboard-vehicle-card {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 25px;
+    background: #f4f6f8;
+    padding: 22px;
+    border-radius: 14px;
+    border: 1px solid #ddd;
+}
+
+.dashboard-vehicle-image-box img {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 2px solid #0b1f3a;
+    background: white;
+}
+
+.dashboard-vehicle-info h3 {
+    color: #0b1f3a;
+    font-size: 24px;
+    margin-bottom: 18px;
+}
+
+.empty-dashboard-box {
+    background: #f4f6f8;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+}
+
+.empty-dashboard-box h3 {
+    color: #0b1f3a;
+    margin-bottom: 10px;
+}

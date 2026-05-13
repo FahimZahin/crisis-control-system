@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Profile Setup | Crisis Control System</title>
+    <title>Vehicle Profile Setup | Crisis Control System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,88 +12,105 @@
     <div>
         <a href="index.html">Home</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="login.html">Logout</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
     </div>
 </nav>
 
-<div class="form-container wide-form">
-    <h2>Profile Setup</h2>
-    <p class="form-subtitle">Complete your vehicle information for future fuel eligibility</p>
+<div class="profile-setup-page">
 
-    <div class="profile-photo-box">
-        <img src="images/sample-vehicle.png" alt="Vehicle Photo" id="vehiclePreview">
-        <p>Vehicle photo preview. Number plate must be visible.</p>
-    </div>
+    <div class="profile-setup-card">
 
-    <form id="profileSetupForm">
+        <h2>Vehicle Profile Setup</h2>
+        <p class="form-subtitle">
+            Save your vehicle information into the database for future fuel eligibility.
+        </p>
 
-        <h3 class="section-title">Owner Information</h3>
-
-        <label>Owner Name</label>
-        <input type="text" id="ownerName" readonly>
-
-        <label>Role</label>
-        <input type="text" id="ownerRole" readonly>
-
-        <h3 class="section-title">Vehicle Information</h3>
-
-        <label>Vehicle Type</label>
-        <select id="vehicleType" required>
-            <option value="">Select Vehicle Type</option>
-            <option value="BIKE">Bike</option>
-            <option value="CAR">Car</option>
-        </select>
-
-        <div id="carCategorySection" class="hidden-section">
-            <label>Car Category</label>
-            <select id="carCategory">
-                <option value="">Select Car Category</option>
-                <option value="HYBRID">Hybrid</option>
-                <option value="NON_HYBRID">Non-Hybrid</option>
-            </select>
+        <div class="vehicle-preview-box">
+            <img id="vehiclePhotoPreview" src="images/default-vehicle.jpg" alt="Vehicle photo preview">
+            <p>Vehicle photo preview</p>
         </div>
 
-        <label>Vehicle Brand</label>
-        <select id="brand" required>
-            <option value="">Enter your vehicle brand</option>
-        </select>
+        <form id="vehicleProfileForm">
 
-        <label>Vehicle Model</label>
-        <select id="model" required>
-            <option value="">Enter your vehicle model</option>
-        </select>
+            <input type="hidden" id="vehicleId">
 
-        <label>Fuel Type</label>
-        <select id="fuelType" required>
-            <option value="">Select Fuel Type</option>
-            <option value="OCTANE">Octane</option>
-            <option value="PETROL">Petrol</option>
-            <option value="DIESEL">Diesel</option>
-            <option value="CNG">CNG</option>
-        </select>
+            <label>Owner Name</label>
+            <input type="text" id="ownerName" readonly>
 
-        <label>Engine CC</label>
-        <input type="number" id="engineCc" placeholder="Auto-filled after selecting brand and model" readonly required>
+            <label>Role</label>
+            <input type="text" id="ownerRole" readonly>
 
-        <label>Company Declared Mileage Per Liter</label>
-        <input type="number" id="mileagePerLiter" placeholder="Auto-filled after selecting brand and model" readonly required>
+            <label>Vehicle Type</label>
+            <select id="vehicleType" required>
+                <option value="">Enter your vehicle brand and model</option>
+                <option value="BIKE">Bike</option>
+                <option value="CAR">Car</option>
+            </select>
 
-        <label>Tank Capacity</label>
-        <input type="number" id="tankCapacity" placeholder="Auto-filled after selecting brand and model" readonly required>
+            <div id="carCategorySection" class="hidden-section">
+                <label>Car Category</label>
+                <select id="carCategory">
+                    <option value="NON_HYBRID">Non Hybrid</option>
+                    <option value="HYBRID">Hybrid</option>
+                </select>
+            </div>
 
-        <label>Vehicle Number Plate</label>
-        <input type="text" id="numberPlate" placeholder="Example: DHAKA-METRO-GA-123456" required>
+            <label>Vehicle Brand</label>
+            <select id="brand" required>
+                <option value="">Enter your vehicle brand and model</option>
+            </select>
 
-        <label>Current Odometer Reading</label>
-        <input type="number" id="odometerReading" placeholder="Example: 12000" required>
+            <label>Vehicle Model</label>
+            <select id="model" required>
+                <option value="">Enter your vehicle brand and model</option>
+            </select>
 
-        <label>Vehicle Photo</label>
-        <input type="file" id="vehiclePhoto" accept="image/*">
+            <label>Fuel Type</label>
+            <select id="fuelType" required>
+                <option value="">Select Fuel Type</option>
+            </select>
 
-        <button type="submit" class="btn primary full-width">Save Profile Preview</button>
-    </form>
+            <label>Engine CC</label>
+            <input type="number" id="engineCc" readonly>
 
-    <p id="message"></p>
+            <label>Company Declared Mileage</label>
+            <input type="number" id="companyMileage" readonly>
+
+            <label>Tank Capacity</label>
+            <input type="number" id="tankCapacity" readonly>
+
+            <label>Vehicle Number Plate</label>
+            <input type="text" id="numberPlate" placeholder="Example: DHAKA METRO GA 12-3456" required>
+
+            <label>Current Odometer Reading</label>
+            <input type="number" id="odometerReading" placeholder="Enter current odometer reading" min="0" step="0.01" required>
+
+            <label>Vehicle Photo</label>
+            <input type="file" id="vehiclePhoto" accept="image/*">
+
+            <button type="submit" class="btn primary full-width" id="saveVehicleBtn">
+                Save Vehicle
+            </button>
+
+            <button type="button" class="btn danger full-width hidden-section" id="deleteVehicleBtn">
+                Delete Vehicle
+            </button>
+
+        </form>
+
+        <p id="vehicleMessage"></p>
+
+        <div class="role-dashboard-section saved-vehicles-section">
+            <h2>My Saved Vehicles</h2>
+
+            <div id="savedVehiclesList" class="saved-vehicles-list">
+                Loading vehicles...
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
 <script src="js/profile-setup.js"></script>
