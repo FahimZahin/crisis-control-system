@@ -12,6 +12,7 @@
     <div>
         <a href="index.html">Home</a>
         <a href="profile.html">Profile</a>
+        <a href="pump-stock-management.html">Stock Management</a>
         <a href="login.html" id="logoutBtn">Logout</a>
     </div>
 </nav>
@@ -21,41 +22,138 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Pump Authority Dashboard</h1>
-            <p>Manage pump profile, fuel stock, QR verification, and transparency reports.</p>
+            <p>Manage pump profile, fuel stock, QR verification preview, and transparency reports.</p>
         </div>
         <span class="role-badge">PUMP AUTHORITY</span>
     </div>
 
     <div class="role-summary-grid">
-        <div class="summary-card"><h3>Pump Name</h3><p id="pumpName">-</p></div>
-        <div class="summary-card"><h3>Fuel Types</h3><p id="fuelTypes">-</p></div>
-        <div class="summary-card"><h3>Capacity</h3><p id="fuelCapacity">-</p></div>
-        <div class="summary-card"><h3>Current Stock</h3><p id="currentStock">-</p></div>
+        <div class="summary-card">
+            <h3>Pump Name</h3>
+            <p id="pumpDashboardName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Fuel Types</h3>
+            <p id="pumpDashboardFuelTypes">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Capacity</h3>
+            <p><span id="pumpDashboardCapacity">-</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Current Stock</h3>
+            <p><span id="pumpDashboardStock">-</span> L</p>
+        </div>
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Pump Registration Information</h2>
+        <div class="card-title-row">
+            <div>
+                <h2>Pump Stock Summary</h2>
+                <p class="muted-text">This summary is loaded from MySQL pump profile table.</p>
+            </div>
+
+            <a href="pump-stock-management.html" class="btn primary small-btn">Manage Stock</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Fuel Type</th>
+                    <th>Capacity</th>
+                    <th>Current Stock</th>
+                    <th>Available Stock</th>
+                </tr>
+                </thead>
+
+                <tbody id="pumpFuelStockTableBody">
+                <tr>
+                    <td colspan="4">Loading fuel stock...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pumpDashboardMessage"></div>
+
         <div class="info-grid">
-            <div><label>Owner Name</label><p id="dashboardUserName">-</p></div>
-            <div><label>Phone</label><p id="dashboardUserPhone">-</p></div>
-            <div><label>Business License Number</label><p id="businessLicenseNumber">-</p></div>
-            <div><label>Pump Address</label><p id="pumpAddress">-</p></div>
-            <div><label>Open 24 Hours</label><p id="open24Hours">-</p></div>
-            <div><label>Opening Time</label><p id="openingTime">-</p></div>
-            <div><label>Closing Time</label><p id="closingTime">-</p></div>
-            <div><label>Status</label><p id="dashboardUserStatus">-</p></div>
+            <div>
+                <label>Owner Name</label>
+                <p id="dashboardUserName">-</p>
+            </div>
+
+            <div>
+                <label>Phone</label>
+                <p id="dashboardUserPhone">-</p>
+            </div>
+
+            <div>
+                <label>Business License Number</label>
+                <p id="pumpDashboardLicense">-</p>
+            </div>
+
+            <div>
+                <label>Pump Address</label>
+                <p id="pumpDashboardAddress">-</p>
+            </div>
+
+            <div>
+                <label>Pump Status</label>
+                <p id="pumpDashboardStatus">-</p>
+            </div>
+
+            <div>
+                <label>Available Capacity</label>
+                <p><span id="pumpDashboardAvailable">-</span> L</p>
+            </div>
+
+            <div>
+                <label>Open 24 Hours</label>
+                <p id="pumpDashboardOpen24">-</p>
+            </div>
+
+            <div>
+                <label>Opening / Closing Time</label>
+                <p id="pumpDashboardTime">-</p>
+            </div>
         </div>
     </div>
 
     <div class="role-dashboard-section">
         <h2>Available Features Preview</h2>
+
         <div class="feature-preview-grid">
-            <div class="feature-preview-card"><h3>Update Fuel Stock</h3><p>Update petrol, octane, diesel, and CNG stock.</p></div>
-            <div class="feature-preview-card"><h3>Scan QR Code</h3><p>Verify approved fuel collection QR codes.</p></div>
-            <div class="feature-preview-card"><h3>Approve Collection</h3><p>Mark fuel as collected after verification.</p></div>
-            <div class="feature-preview-card"><h3>Daily Sales Report</h3><p>View pump-wise daily fuel distribution.</p></div>
-            <div class="feature-preview-card"><h3>Transparency Report</h3><p>Show public stock and collection transparency.</p></div>
-            <div class="feature-preview-card"><h3>Open/Closed Status</h3><p>Control pump availability during crisis.</p></div>
+            <a href="pump-stock-management.html" class="feature-preview-card active-feature">
+                <h3>Update Fuel Stock</h3>
+                <p>Update petrol, octane, diesel, and CNG stock from database.</p>
+            </a>
+
+            <a href="pump-stock-management.html" class="feature-preview-card active-feature">
+                <h3>Open / Closed Status</h3>
+                <p>Control pump availability during crisis.</p>
+            </a>
+
+            <div class="feature-preview-card">
+                <h3>Scan QR Code</h3>
+                <p>Future module: verify approved fuel collection QR codes.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Approve Collection</h3>
+                <p>Future module: mark fuel as collected after QR verification.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Daily Sales Report</h3>
+                <p>Future module: view pump-wise daily fuel distribution.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Transparency Report</h3>
+                <p>Future module: show public stock and collection transparency.</p>
+            </div>
         </div>
     </div>
 

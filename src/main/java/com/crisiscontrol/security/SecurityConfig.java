@@ -41,6 +41,8 @@ public class SecurityConfig {
                                 "/building-manager-dashboard.html",
                                 "/admin-fuel-settings.html",
                                 "/api/vehicles/**",
+                                "/pump-stock-management.html",
+                                "/api/pumps/**",
                                 "/pump-authority-dashboard.html",
                                 "/hospital-authority-dashboard.html",
                                 "/utility-authority-dashboard.html",

@@ -965,3 +965,65 @@ footer {
     color: #0b1f3a;
     margin-bottom: 10px;
 }
+.pump-status-actions {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.pump-status-actions .btn {
+    width: 220px;
+}
+
+.checkbox-group {
+    background: #f4f6f8;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.checkbox-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 18px;
+    margin-bottom: 8px;
+    font-weight: normal;
+}
+
+.checkbox-group input {
+    width: auto;
+}
+
+.checkbox-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+}
+
+.checkbox-line input {
+    width: auto;
+}
+.fuel-stock-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-top: 15px;
+}
+
+.fuel-stock-card {
+    background: #f4f6f8;
+    border: 1px solid #ddd;
+    padding: 18px;
+    border-radius: 12px;
+}
+
+.fuel-stock-card label {
+    margin-top: 10px;
+}
+
+.fuel-stock-card input:disabled {
+    background: #e9ecef;
+    cursor: not-allowed;
+}

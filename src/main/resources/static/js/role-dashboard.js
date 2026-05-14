@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", function () {
         loadVehiclesForDashboard();
     }
 
+    if (document.getElementById("pumpDashboardName")) {
+        loadPumpForDashboard();
+    }
+
     setupFeatureButtons();
 });
 
@@ -66,6 +70,58 @@ function loadUserInfo() {
     setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || "Not Provided");
 }
 
+async function loadPumpForDashboard() {
+    const userId = loggedInUser.userId || localStorage.getItem("userId");
+
+    if (!userId) {
+        showDashboardPumpMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        let response = await fetch("http://localhost:8081/api/pumps/user/" + userId);
+        let pump = await response.json();
+
+        if (!response.ok) {
+            response = await fetch("http://localhost:8081/api/pumps/create-from-user/" + userId, {
+                method: "POST"
+            });
+
+            pump = await response.json();
+        }
+
+        if (response.ok) {
+            fillPumpDashboard(pump);
+            showDashboardPumpMessage("Pump profile loaded from database.", "success-text");
+        } else {
+            showDashboardPumpMessage(getErrorMessage(pump), "error-text");
+        }
+
+    } catch (error) {
+        showDashboardPumpMessage("Server connection failed while loading pump profile.", "error-text");
+    }
+}
+
+function fillPumpDashboard(pump) {
+    setTextIfExists("pumpDashboardName", valueOrDash(pump.pumpName));
+    setTextIfExists("pumpDashboardFuelTypes", valueOrDash(pump.fuelTypes));
+    setTextIfExists("pumpDashboardCapacity", valueOrDash(pump.totalFuelCapacity));
+    setTextIfExists("pumpDashboardStock", valueOrDash(pump.totalCurrentStock));
+
+    setTextIfExists("pumpDashboardLicense", valueOrDash(pump.businessLicenseNumber));
+    setTextIfExists("pumpDashboardAddress", valueOrDash(pump.pumpAddress));
+    setTextIfExists("pumpDashboardStatus", valueOrDash(pump.pumpStatus));
+    setTextIfExists("pumpDashboardAvailable", valueOrDash(pump.totalAvailableStock));
+    setTextIfExists("pumpDashboardOpen24", pump.open24Hours ? "Yes" : "No");
+
+    if (pump.open24Hours) {
+        setTextIfExists("pumpDashboardTime", "Open 24 Hours");
+    } else {
+        setTextIfExists("pumpDashboardTime", valueOrDash(pump.openingTime) + " - " + valueOrDash(pump.closingTime));
+    }
+    renderPumpFuelStockTable(pump.fuelStocks);
+}
+
 async function loadVehiclesForDashboard() {
     const userId = loggedInUser.userId || localStorage.getItem("userId");
     const list = document.getElementById("vehicleDashboardList");
@@ -115,55 +171,16 @@ async function loadVehiclesForDashboard() {
                     <h3>${vehicle.brand} ${vehicle.model}</h3>
 
                     <div class="info-grid">
-                        <div>
-                            <label>Vehicle Type</label>
-                            <p>${vehicle.vehicleType}</p>
-                        </div>
-
-                        <div>
-                            <label>Car Category</label>
-                            <p>${vehicle.carCategory}</p>
-                        </div>
-
-                        <div>
-                            <label>Fuel Type</label>
-                            <p>${vehicle.fuelType}</p>
-                        </div>
-
-                        <div>
-                            <label>Engine CC</label>
-                            <p>${vehicle.engineCc}</p>
-                        </div>
-
-                        <div>
-                            <label>Company Mileage</label>
-                            <p>${vehicle.companyMileage} km/l</p>
-                        </div>
-
-                        <div>
-                            <label>Tank Capacity</label>
-                            <p>${vehicle.tankCapacity} liter</p>
-                        </div>
-
-                        <div>
-                            <label>Number Plate</label>
-                            <p>${vehicle.numberPlate}</p>
-                        </div>
-
-                        <div>
-                            <label>Odometer Reading</label>
-                            <p>${vehicle.odometerReading} km</p>
-                        </div>
-
-                        <div>
-                            <label>Estimated Full Tank Range</label>
-                            <p>${estimatedRange}</p>
-                        </div>
-
-                        <div>
-                            <label>Last Updated</label>
-                            <p>${formatDate(vehicle.updatedAt)}</p>
-                        </div>
+                        <div><label>Vehicle Type</label><p>${vehicle.vehicleType}</p></div>
+                        <div><label>Car Category</label><p>${vehicle.carCategory}</p></div>
+                        <div><label>Fuel Type</label><p>${vehicle.fuelType}</p></div>
+                        <div><label>Engine CC</label><p>${vehicle.engineCc}</p></div>
+                        <div><label>Company Mileage</label><p>${vehicle.companyMileage} km/l</p></div>
+                        <div><label>Tank Capacity</label><p>${vehicle.tankCapacity} liter</p></div>
+                        <div><label>Number Plate</label><p>${vehicle.numberPlate}</p></div>
+                        <div><label>Odometer Reading</label><p>${vehicle.odometerReading} km</p></div>
+                        <div><label>Estimated Full Tank Range</label><p>${estimatedRange}</p></div>
+                        <div><label>Last Updated</label><p>${formatDate(vehicle.updatedAt)}</p></div>
                     </div>
                 </div>
             `;
@@ -214,6 +231,15 @@ function setupFeatureButtons() {
     });
 }
 
+function showDashboardPumpMessage(message, className) {
+    const messageBox = document.getElementById("pumpDashboardMessage");
+
+    if (messageBox) {
+        messageBox.className = className;
+        messageBox.innerText = message;
+    }
+}
+
 function setTextIfExists(id, value) {
     const element = document.getElementById(id);
 
@@ -222,10 +248,61 @@ function setTextIfExists(id, value) {
     }
 }
 
+function valueOrDash(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
+}
+
+function getErrorMessage(result) {
+    if (result.message) {
+        return result.message;
+    }
+
+    if (result.messages) {
+        return JSON.stringify(result.messages);
+    }
+
+    return "Request failed.";
+}
+
 function formatDate(dateValue) {
     if (!dateValue) {
         return "-";
     }
 
     return dateValue.replace("T", " ").substring(0, 19);
+}
+function renderPumpFuelStockTable(fuelStocks) {
+    const tableBody = document.getElementById("pumpFuelStockTableBody");
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!fuelStocks || fuelStocks.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4">No fuel stock added yet.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    fuelStocks.forEach(function (stock) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${stock.fuelType}</td>
+            <td>${stock.fuelCapacity}</td>
+            <td>${stock.currentStock}</td>
+            <td>${stock.availableStock}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
 }
