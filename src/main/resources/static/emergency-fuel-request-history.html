@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Emergency Fuel Request History | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="emergency-vehicle-dashboard.html">Emergency Dashboard</a>
+        <a href="emergency-fuel-request.html">New Priority Request</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Emergency Fuel Request History</h1>
+            <p>View approved, collected, and pending emergency priority fuel requests.</p>
+        </div>
+        <span class="role-badge">EMERGENCY HISTORY</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>My Emergency Fuel Requests</h2>
+            <button class="btn primary small-btn" id="refreshEmergencyFuelRequestsBtn">Refresh</button>
+        </div>
+
+        <p class="muted-text">
+            Approved requests show collection code for pump verification.
+        </p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Source</th>
+                    <th>Emergency Vehicle</th>
+                    <th>Fuel</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Collection Code</th>
+                    <th>Assigned Pump</th>
+                    <th>Reason</th>
+                    <th>Collected At</th>
+                    <th>Created</th>
+                </tr>
+                </thead>
+
+                <tbody id="emergencyFuelHistoryBody">
+                <tr>
+                    <td colspan="12">Loading emergency fuel requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/emergency-fuel-request-history.js"></script>
+
+</body>
+</html>

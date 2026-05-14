@@ -1,11 +1,34 @@
 package com.crisiscontrol.service;
 
+import com.crisiscontrol.dto.EmergencyFuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
-import com.crisiscontrol.entity.*;
-import com.crisiscontrol.repository.*;
+import com.crisiscontrol.entity.EmergencyVehicleApprovalStatus;
+import com.crisiscontrol.entity.EmergencyVehicleProfile;
+import com.crisiscontrol.entity.FuelLimit;
+import com.crisiscontrol.entity.FuelLimitType;
+import com.crisiscontrol.entity.FuelPrice;
+import com.crisiscontrol.entity.FuelRequest;
+import com.crisiscontrol.entity.FuelRequestSource;
+import com.crisiscontrol.entity.FuelRequestStatus;
+import com.crisiscontrol.entity.FuelType;
+import com.crisiscontrol.entity.PumpFuelStock;
+import com.crisiscontrol.entity.PumpProfile;
+import com.crisiscontrol.entity.PumpStatus;
+import com.crisiscontrol.entity.Role;
+import com.crisiscontrol.entity.User;
+import com.crisiscontrol.entity.Vehicle;
+import com.crisiscontrol.entity.VehicleType;
+import com.crisiscontrol.repository.EmergencyVehicleRepository;
+import com.crisiscontrol.repository.FuelLimitRepository;
+import com.crisiscontrol.repository.FuelPriceRepository;
+import com.crisiscontrol.repository.FuelRequestRepository;
+import com.crisiscontrol.repository.PumpFuelStockRepository;
+import com.crisiscontrol.repository.PumpProfileRepository;
+import com.crisiscontrol.repository.UserRepository;
+import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +48,7 @@ public class FuelRequestService {
     private final FuelLimitRepository fuelLimitRepository;
     private final PumpProfileRepository pumpProfileRepository;
     private final PumpFuelStockRepository pumpFuelStockRepository;
+    private final EmergencyVehicleRepository emergencyVehicleRepository;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -61,6 +85,7 @@ public class FuelRequestService {
             FuelRequest pendingRequest = FuelRequest.builder()
                     .user(user)
                     .vehicle(vehicle)
+                    .requestSource(FuelRequestSource.VEHICLE_OWNER)
                     .fuelType(request.getFuelType())
                     .requestedLiter(request.getRequestedLiter())
                     .fuelLevelStatus(fuelLevelStatus)
@@ -83,6 +108,7 @@ public class FuelRequestService {
                     .user(user)
                     .vehicle(vehicle)
                     .pumpProfile(assignedPump)
+                    .requestSource(FuelRequestSource.VEHICLE_OWNER)
                     .fuelType(request.getFuelType())
                     .requestedLiter(request.getRequestedLiter())
                     .fuelLevelStatus(fuelLevelStatus)
@@ -101,6 +127,7 @@ public class FuelRequestService {
         FuelRequest pendingRequest = FuelRequest.builder()
                 .user(user)
                 .vehicle(vehicle)
+                .requestSource(FuelRequestSource.VEHICLE_OWNER)
                 .fuelType(request.getFuelType())
                 .requestedLiter(request.getRequestedLiter())
                 .fuelLevelStatus(fuelLevelStatus)
@@ -113,8 +140,76 @@ public class FuelRequestService {
         return mapToResponse(fuelRequestRepository.save(pendingRequest));
     }
 
+    public FuelRequestResponse createEmergencyFuelRequest(EmergencyFuelRequestCreateRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != Role.EMERGENCY_VEHICLE_AUTHORITY) {
+            throw new RuntimeException("Only Emergency Vehicle Authority can request emergency fuel");
+        }
+
+        EmergencyVehicleProfile emergencyProfile = emergencyVehicleRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Emergency vehicle profile not found. Submit profile first."));
+
+        if (emergencyProfile.getApprovalStatus() != EmergencyVehicleApprovalStatus.APPROVED) {
+            throw new RuntimeException("Emergency vehicle profile is not approved yet");
+        }
+
+        if (!Boolean.TRUE.equals(emergencyProfile.getPriorityFuelAccess())) {
+            throw new RuntimeException("Priority fuel access is locked. Admin approval is required first.");
+        }
+
+        FuelPrice fuelPrice = fuelPriceRepository.findByFuelType(request.getFuelType())
+                .orElseThrow(() -> new RuntimeException("Fuel price not set by admin"));
+
+        BigDecimal estimatedCost = request.getRequestedLiter().multiply(fuelPrice.getPricePerUnit());
+
+        /*
+         * Emergency rule:
+         * Admin approval of emergency vehicle profile automatically unlocks priority fuel access.
+         * No second approval is needed for emergency/higher fuel request.
+         * We only check that emergency fuel limit setting exists for policy tracking,
+         * but we do not block approved emergency vehicles by normal vehicle owner limit.
+         */
+        fuelLimitRepository.findByLimitType(FuelLimitType.EMERGENCY_VEHICLE)
+                .orElseThrow(() -> new RuntimeException("Emergency vehicle fuel limit not set by admin"));
+
+        PumpProfile assignedPump = findAvailablePumpForFuel(
+                request.getFuelType(),
+                request.getRequestedLiter()
+        );
+
+        FuelRequest emergencyRequest = FuelRequest.builder()
+                .user(user)
+                .emergencyVehicleProfile(emergencyProfile)
+                .pumpProfile(assignedPump)
+                .requestSource(FuelRequestSource.EMERGENCY)
+                .fuelType(request.getFuelType())
+                .requestedLiter(request.getRequestedLiter())
+                .fuelLevelStatus("EMERGENCY_PRIORITY")
+                .emergencyReason(request.getEmergencyReason())
+                .pricePerUnit(fuelPrice.getPricePerUnit())
+                .estimatedCost(estimatedCost)
+                .requestStatus(FuelRequestStatus.APPROVED)
+                .adminNote("Emergency request auto-approved. Priority fuel access was unlocked by admin profile approval.")
+                .build();
+
+        FuelRequest savedRequest = fuelRequestRepository.save(emergencyRequest);
+        savedRequest.setCollectionCode(generateCollectionCode(savedRequest.getId()));
+
+        return mapToResponse(fuelRequestRepository.save(savedRequest));
+    }
+
     public List<FuelRequestResponse> getUserFuelRequests(Long userId) {
         return fuelRequestRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<FuelRequestResponse> getEmergencyFuelRequestsByUser(Long userId) {
+        return fuelRequestRepository
+                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.EMERGENCY)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -302,26 +397,44 @@ public class FuelRequestService {
 
     private FuelRequestResponse mapToResponse(FuelRequest fuelRequest) {
         PumpProfile pumpProfile = fuelRequest.getPumpProfile();
+        Vehicle vehicle = fuelRequest.getVehicle();
+        EmergencyVehicleProfile emergencyProfile = fuelRequest.getEmergencyVehicleProfile();
 
         return FuelRequestResponse.builder()
                 .id(fuelRequest.getId())
                 .userId(fuelRequest.getUser().getId())
                 .userName(fuelRequest.getUser().getFullName())
                 .phoneNumber(fuelRequest.getUser().getPhoneNumber())
-                .vehicleId(fuelRequest.getVehicle().getId())
-                .vehicleBrand(fuelRequest.getVehicle().getBrand())
-                .vehicleModel(fuelRequest.getVehicle().getModel())
-                .vehicleNumberPlate(fuelRequest.getVehicle().getNumberPlate())
-                .vehicleType(fuelRequest.getVehicle().getVehicleType().name())
+                .requestSource(fuelRequest.getRequestSource())
+
+                .vehicleId(vehicle == null ? null : vehicle.getId())
+                .vehicleBrand(vehicle == null ? "-" : vehicle.getBrand())
+                .vehicleModel(vehicle == null ? "-" : vehicle.getModel())
+                .vehicleNumberPlate(vehicle == null ? "-" : vehicle.getNumberPlate())
+                .vehicleType(vehicle == null ? "-" : vehicle.getVehicleType().name())
+
+                .emergencyProfileId(emergencyProfile == null ? null : emergencyProfile.getId())
+                .emergencyAuthorityName(emergencyProfile == null ? "-" : emergencyProfile.getAuthorityName())
+                .emergencyOrganizationName(emergencyProfile == null ? "-" : emergencyProfile.getOrganizationName())
+                .emergencyVehicleType(emergencyProfile == null ? "-" : emergencyProfile.getEmergencyVehicleType().name())
+                .emergencyVehicleNumber(emergencyProfile == null ? "-" : emergencyProfile.getVehicleNumber())
+                .emergencyDriverName(emergencyProfile == null ? "-" : emergencyProfile.getDriverName())
+                .emergencyDriverLicenseNumber(emergencyProfile == null ? "-" : emergencyProfile.getDriverLicenseNumber())
+                .emergencyAssignedArea(emergencyProfile == null ? "-" : emergencyProfile.getAssignedArea())
+                .emergencyVerificationId(emergencyProfile == null ? "-" : emergencyProfile.getVerificationId())
+                .emergencyReason(fuelRequest.getEmergencyReason())
+
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())
                 .pumpAddress(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpAddress())
+
                 .fuelType(fuelRequest.getFuelType())
                 .requestedLiter(fuelRequest.getRequestedLiter())
                 .fuelLevelStatus(fuelRequest.getFuelLevelStatus())
                 .pricePerUnit(fuelRequest.getPricePerUnit())
                 .estimatedCost(fuelRequest.getEstimatedCost())
                 .collectionCode(fuelRequest.getCollectionCode())
+
                 .requestStatus(fuelRequest.getRequestStatus())
                 .adminNote(fuelRequest.getAdminNote())
                 .collectedAt(fuelRequest.getCollectedAt())

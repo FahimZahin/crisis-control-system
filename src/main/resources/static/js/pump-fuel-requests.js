@@ -95,15 +95,15 @@ async function loadAssignedRequests() {
             row.innerHTML = `
                 <td>${request.id}</td>
                 <td><strong>${request.collectionCode || "-"}</strong></td>
-                <td>${request.userName}</td>
-                <td>${request.phoneNumber}</td>
-                <td>${request.vehicleBrand} ${request.vehicleModel}<br><small>${request.vehicleNumberPlate}</small></td>
-                <td>${request.fuelType}</td>
-                <td>${request.requestedLiter}</td>
-                <td>${request.estimatedCost} BDT</td>
-                <td><span class="status-badge status-approved">${request.requestStatus}</span></td>
+                <td>${request.userName || "-"}</td>
+                <td>${request.phoneNumber || "-"}</td>
+                <td>${renderRequestVehicleFullInfo(request)}</td>
+                <td>${request.fuelType || "-"}</td>
+                <td>${request.requestedLiter || "-"}</td>
+                <td>${request.estimatedCost || "-"} BDT</td>
+                <td><span class="status-badge status-approved">${request.requestStatus || "-"}</span></td>
                 <td>
-                    <button class="btn primary tiny-btn" onclick="fillCodeAndCollect('${request.collectionCode}')">
+                    <button class="btn primary tiny-btn" onclick="fillCodeAndCollect('${request.collectionCode || ""}')">
                         Collect
                     </button>
                 </td>
@@ -117,8 +117,45 @@ async function loadAssignedRequests() {
     }
 }
 
+function renderRequestVehicleFullInfo(request) {
+    const isEmergencyRequest =
+        request.requestSource === "EMERGENCY" &&
+        request.emergencyProfileId !== null &&
+        request.emergencyProfileId !== undefined;
+
+    if (isEmergencyRequest) {
+        return `
+            <span class="emergency-source-badge">EMERGENCY VEHICLE</span><br>
+            <strong>Type:</strong> ${valueOrDash(request.emergencyVehicleType)}<br>
+            <strong>Vehicle No:</strong> ${valueOrDash(request.emergencyVehicleNumber)}<br>
+            <strong>Organization:</strong> ${valueOrDash(request.emergencyOrganizationName)}<br>
+            <strong>Authority:</strong> ${valueOrDash(request.emergencyAuthorityName || request.userName)}<br>
+            <strong>Driver:</strong> ${valueOrDash(request.emergencyDriverName)}<br>
+            <strong>Driver License:</strong> ${valueOrDash(request.emergencyDriverLicenseNumber)}<br>
+            <strong>Assigned Area:</strong> ${valueOrDash(request.emergencyAssignedArea)}<br>
+            <strong>Verification ID:</strong> ${valueOrDash(request.emergencyVerificationId)}<br>
+            <strong>Reason:</strong> ${valueOrDash(request.emergencyReason)}
+        `;
+    }
+
+    return `
+        <span class="normal-source-badge">NORMAL VEHICLE</span><br>
+        <strong>Brand:</strong> ${valueOrDash(request.vehicleBrand)}<br>
+        <strong>Model:</strong> ${valueOrDash(request.vehicleModel)}<br>
+        <strong>Plate:</strong> ${valueOrDash(request.vehicleNumberPlate)}<br>
+        <strong>Vehicle Type:</strong> ${valueOrDash(request.vehicleType)}<br>
+        <strong>Owner:</strong> ${valueOrDash(request.userName)}<br>
+        <strong>Phone:</strong> ${valueOrDash(request.phoneNumber)}
+    `;
+}
+
 function fillCodeAndCollect(collectionCode) {
-    document.getElementById("collectionCode").value = collectionCode || "";
+    if (!collectionCode || collectionCode === "null" || collectionCode === "undefined" || collectionCode === "-") {
+        showMessage("collectionMessage", "This request has no collection code. Create a new request or approve it again.", "error-text");
+        return;
+    }
+
+    document.getElementById("collectionCode").value = collectionCode;
     collectByManualCode();
 }
 
@@ -177,8 +214,11 @@ async function collectByManualCode() {
 
 function showMessage(id, message, className) {
     const element = document.getElementById(id);
-    element.className = className;
-    element.innerText = message;
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
 }
 
 function getErrorMessage(result) {
@@ -194,7 +234,13 @@ function getErrorMessage(result) {
 }
 
 function valueOrDash(value) {
-    if (value === null || value === undefined || value === "") {
+    if (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        value === "null" ||
+        value === "undefined"
+    ) {
         return "-";
     }
 

@@ -1,5 +1,6 @@
 package com.crisiscontrol.dto;
 
+import com.crisiscontrol.entity.FuelRequestSource;
 import com.crisiscontrol.entity.FuelRequestStatus;
 import com.crisiscontrol.entity.FuelType;
 import lombok.Builder;
@@ -20,11 +21,24 @@ public class FuelRequestResponse {
     private String userName;
     private String phoneNumber;
 
+    private FuelRequestSource requestSource;
+
     private Long vehicleId;
     private String vehicleBrand;
     private String vehicleModel;
     private String vehicleNumberPlate;
     private String vehicleType;
+
+    private Long emergencyProfileId;
+    private String emergencyAuthorityName;
+    private String emergencyOrganizationName;
+    private String emergencyVehicleType;
+    private String emergencyVehicleNumber;
+    private String emergencyDriverName;
+    private String emergencyDriverLicenseNumber;
+    private String emergencyAssignedArea;
+    private String emergencyVerificationId;
+    private String emergencyReason;
 
     private Long pumpId;
     private String pumpName;

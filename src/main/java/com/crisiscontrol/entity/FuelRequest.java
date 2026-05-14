@@ -28,13 +28,25 @@ public class FuelRequest {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // Normal vehicle owner request uses this.
+    // Emergency request can keep this null.
     @ManyToOne
-    @JoinColumn(name = "vehicle_id", nullable = false)
+    @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
+
+    // Emergency request uses this.
+    // Normal vehicle owner request can keep this null.
+    @ManyToOne
+    @JoinColumn(name = "emergency_profile_id")
+    private EmergencyVehicleProfile emergencyVehicleProfile;
 
     @ManyToOne
     @JoinColumn(name = "pump_id")
     private PumpProfile pumpProfile;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "request_source", nullable = false)
+    private FuelRequestSource requestSource;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "fuel_type", nullable = false)
@@ -45,6 +57,9 @@ public class FuelRequest {
 
     @Column(name = "fuel_level_status", nullable = false)
     private String fuelLevelStatus;
+
+    @Column(name = "emergency_reason", length = 1000)
+    private String emergencyReason;
 
     @Column(name = "price_per_unit", nullable = false, precision = 10, scale = 2)
     private BigDecimal pricePerUnit;
@@ -78,6 +93,14 @@ public class FuelRequest {
 
         if (this.requestStatus == null) {
             this.requestStatus = FuelRequestStatus.PENDING;
+        }
+
+        if (this.requestSource == null) {
+            this.requestSource = FuelRequestSource.VEHICLE_OWNER;
+        }
+
+        if (this.fuelLevelStatus == null || this.fuelLevelStatus.isBlank()) {
+            this.fuelLevelStatus = "UNKNOWN";
         }
     }
 

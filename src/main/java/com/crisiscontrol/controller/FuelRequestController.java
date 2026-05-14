@@ -1,5 +1,6 @@
 package com.crisiscontrol.controller;
 
+import com.crisiscontrol.dto.EmergencyFuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
@@ -30,6 +31,20 @@ public class FuelRequestController {
             @PathVariable Long userId
     ) {
         return ResponseEntity.ok(fuelRequestService.getUserFuelRequests(userId));
+    }
+
+    @PostMapping("/api/emergency-fuel-requests")
+    public ResponseEntity<FuelRequestResponse> createEmergencyFuelRequest(
+            @Valid @RequestBody EmergencyFuelRequestCreateRequest request
+    ) {
+        return ResponseEntity.ok(fuelRequestService.createEmergencyFuelRequest(request));
+    }
+
+    @GetMapping("/api/emergency-fuel-requests/user/{userId}")
+    public ResponseEntity<List<FuelRequestResponse>> getEmergencyFuelRequestsByUser(
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(fuelRequestService.getEmergencyFuelRequestsByUser(userId));
     }
 
     @GetMapping("/api/admin/fuel-requests")
