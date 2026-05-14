@@ -13,9 +13,20 @@
 </div>
 
 <script>
-    const role = localStorage.getItem("role");
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
+    const directRole = localStorage.getItem("role");
 
-    if (role === "VEHICLE_OWNER") {
+    let role = null;
+
+    if (loggedInUser && loggedInUser.role) {
+        role = loggedInUser.role;
+    } else if (directRole) {
+        role = directRole;
+    }
+
+    if (!role) {
+        window.location.href = "login.html";
+    } else if (role === "VEHICLE_OWNER") {
         window.location.href = "vehicle-owner-dashboard.html";
     } else if (role === "BUILDING_MANAGER") {
         window.location.href = "building-manager-dashboard.html";
@@ -34,6 +45,7 @@
     } else if (role === "ADMIN") {
         window.location.href = "admin-dashboard.html";
     } else {
+        localStorage.clear();
         window.location.href = "login.html";
     }
 </script>
