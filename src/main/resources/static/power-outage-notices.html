@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Power Outage Notices | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="index.html">Home</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Dhaka Power Outage Notices</h1>
+            <p>View current and scheduled DPDC/DESCO power outage notices by thana area.</p>
+        </div>
+        <span class="role-badge">PUBLIC NOTICE</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Active / Scheduled Notices</h2>
+            <button class="btn primary small-btn" id="refreshPublicNoticesBtn">Refresh</button>
+        </div>
+
+        <div id="publicOutageStatusGrid" class="thana-status-grid"></div>
+
+        <div id="publicNoticeList" class="outage-notice-grid">
+            Loading notices...
+        </div>
+    </div>
+
+</div>
+
+<script src="js/power-outage-notices.js"></script>
+
+</body>
+</html>

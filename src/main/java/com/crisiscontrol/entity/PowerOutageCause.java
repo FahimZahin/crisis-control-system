@@ -1,0 +1,14 @@
+package com.crisiscontrol.entity;
+
+public enum PowerOutageCause {
+    SCHEDULED_MAINTENANCE,
+    TRANSFORMER_FAULT,
+    CABLE_FAULT,
+    GRID_SUPPLY_ISSUE,
+    STORM_WEATHER_DAMAGE,
+    EMERGENCY_REPAIR,
+    LOAD_SHEDDING,
+    SAFETY_SHUTDOWN,
+    TECHNICAL_FAULT,
+    OTHER
+}

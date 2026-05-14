@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Utility Outage Management | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="utility-authority-dashboard.html">Utility Dashboard</a>
+        <a href="utility-profile-setup.html">Utility Profile</a>
+        <a href="power-outage-notices.html">Public Notices</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Power Outage Management</h1>
+            <p>Create fast DPDC/DESCO outage notices by selecting thana, time, duration, and cause.</p>
+        </div>
+        <span class="role-badge">UTILITY OUTAGE</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Provider</h3>
+            <p id="profileProvider">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>City Corporation</h3>
+            <p id="profileCity">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Officer</h3>
+            <p id="profileOfficer">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Zone</h3>
+            <p id="profileZone">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Thana Status Map</h2>
+                <p class="muted-text">
+                    Red = ongoing, yellow = scheduled, green = recently restored, normal = no current notice.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshThanaStatusBtn">
+                Refresh Map
+            </button>
+        </div>
+
+        <div id="thanaStatusGrid" class="thana-status-grid">
+            Loading thana status...
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Create / Update Outage Notice</h2>
+
+        <div id="areaWarningBox" class="outage-warning-box hidden-section">
+            <strong>Warning:</strong>
+            <span id="areaWarningText"></span>
+            <label class="checkbox-line">
+                <input type="checkbox" id="warningAcknowledged">
+                I understand and want to continue.
+            </label>
+        </div>
+
+        <form id="outageForm" class="settings-form-grid">
+            <input type="hidden" id="noticeId">
+
+            <div>
+                <label>Provider</label>
+                <input type="text" id="provider" readonly>
+            </div>
+
+            <div>
+                <label>City Corporation</label>
+                <input type="text" id="cityCorporation" readonly>
+            </div>
+
+            <div>
+                <label>Thana / Police Station Area</label>
+                <select id="thanaName" required>
+                    <option value="">Select thana</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Outage Type</label>
+                <select id="outageType" required>
+                    <option value="CURRENT">Current Outage</option>
+                    <option value="SCHEDULED">Scheduled Outage</option>
+                    <option value="DAILY_RECURRING">Daily Recurring</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Quick Duration</label>
+                <select id="quickDuration">
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="180">3 hours</option>
+                    <option value="CUSTOM">Custom</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Cause</label>
+                <select id="cause" required>
+                    <option value="SCHEDULED_MAINTENANCE">Scheduled Maintenance</option>
+                    <option value="TRANSFORMER_FAULT">Transformer Fault</option>
+                    <option value="CABLE_FAULT">Cable Fault</option>
+                    <option value="GRID_SUPPLY_ISSUE">Grid Supply Issue</option>
+                    <option value="STORM_WEATHER_DAMAGE">Storm / Weather Damage</option>
+                    <option value="EMERGENCY_REPAIR">Emergency Repair</option>
+                    <option value="LOAD_SHEDDING">Load Shedding</option>
+                    <option value="SAFETY_SHUTDOWN">Safety Shutdown</option>
+                    <option value="TECHNICAL_FAULT">Technical Fault</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Start Date/Time</label>
+                <input type="datetime-local" id="startDateTime">
+            </div>
+
+            <div>
+                <label>Expected Restoration Date/Time</label>
+                <input type="datetime-local" id="expectedRestorationDateTime">
+            </div>
+
+            <div id="dailyStartBox">
+                <label>Daily Start Time</label>
+                <input type="time" id="dailyStartTime">
+            </div>
+
+            <div id="dailyEndBox">
+                <label>Daily End Time</label>
+                <input type="time" id="dailyEndTime">
+            </div>
+
+            <div>
+                <label>Status</label>
+                <select id="status">
+                    <option value="ONGOING">Ongoing</option>
+                    <option value="SCHEDULED">Scheduled</option>
+                    <option value="RESTORED">Restored</option>
+                    <option value="CANCELLED">Cancelled</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Contact Number</label>
+                <input type="text" id="contactNumber" required>
+            </div>
+
+            <div class="settings-full-row">
+                <label>Auto-generated Emergency Message</label>
+                <textarea id="emergencyMessage" required></textarea>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row" id="saveOutageBtn">
+                Save Outage Notice
+            </button>
+        </form>
+
+        <p id="outageMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>My Outage Notices</h2>
+            <button class="btn primary small-btn" id="refreshMyOutagesBtn">Refresh</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Area</th>
+                    <th>Type</th>
+                    <th>Cause</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Message</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="myOutagesBody">
+                <tr>
+                    <td colspan="8">Loading notices...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination-row">
+            <button class="btn primary small-btn" id="prevOutagePageBtn">Previous</button>
+            <span id="outagePageInfo">Page 1</span>
+            <button class="btn primary small-btn" id="nextOutagePageBtn">Next</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/utility-outage-management.js"></script>
+
+</body>
+</html>
