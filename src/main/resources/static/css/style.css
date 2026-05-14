@@ -1027,3 +1027,53 @@ footer {
     background: #e9ecef;
     cursor: not-allowed;
 }
+.status-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-collected {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.table-select {
+    width: 180px;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.admin-users-table textarea {
+    width: 180px;
+    height: 70px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    resize: vertical;
+}
+
+.tiny-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+    margin: 3px;
+}

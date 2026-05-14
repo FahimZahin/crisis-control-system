@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Fuel Requests | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="admin-dashboard.html">Admin Dashboard</a>
+        <a href="admin-fuel-settings.html">Fuel Settings</a>
+        <a href="registered-users.html">Users</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Admin Fuel Requests</h1>
+            <p>View vehicle owner fuel requests, approve/reject, and assign an available pump.</p>
+        </div>
+        <span class="role-badge">ADMIN</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Requests</h3>
+            <p id="totalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pending</h3>
+            <p id="pendingRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved</h3>
+            <p id="approvedRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Rejected</h3>
+            <p id="rejectedRequests">0</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>All Fuel Requests</h2>
+            <button class="btn primary small-btn" id="refreshAdminRequestsBtn">Refresh</button>
+        </div>
+
+        <p class="muted-text">
+            For approval, select an available pump and write an optional admin note.
+        </p>
+
+        <div id="adminFuelRequestMessage"></div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Vehicle</th>
+                    <th>Fuel</th>
+                    <th>Fuel Level</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Pump</th>
+                    <th>Admin Note</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="adminFuelRequestsBody">
+                <tr>
+                    <td colspan="11">Loading requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/admin-fuel-requests.js"></script>
+
+</body>
+</html>

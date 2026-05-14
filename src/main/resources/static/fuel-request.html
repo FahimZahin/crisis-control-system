@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fuel Request | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="vehicle-owner-dashboard.html">Dashboard</a>
+        <a href="fuel-request-history.html">Request History</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Request</h1>
+            <p>Low-fuel vehicles can get system auto-approval without waiting for admin.</p>
+        </div>
+        <span class="role-badge">VEHICLE OWNER</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Fuel Type</h3>
+            <p id="selectedFuelTypePreview">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Price Per Unit</h3>
+            <p><span id="pricePerUnitPreview">0</span> BDT</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Estimated Cost</h3>
+            <p><span id="estimatedCostPreview">0</span> BDT</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Admin Limit</h3>
+            <p><span id="adminLimitPreview">0</span> BDT</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Create Fuel Request</h2>
+        <p class="muted-text">
+            Your request will be pending until admin approves and assigns an available pump.
+        </p>
+
+        <form id="fuelRequestForm" class="settings-form-grid">
+
+            <div class="settings-full-row">
+                <label>Select Vehicle</label>
+                <select id="vehicleSelect" required>
+                    <option value="">Loading vehicles...</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Fuel Type</label>
+                <select id="fuelType" required>
+                    <option value="">Select fuel type</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Requested Amount</label>
+                <input type="number" id="requestedLiter" min="0.1" step="0.01" placeholder="Enter liter/unit" required>
+            </div>
+            <div>
+                <label>Current Fuel Level</label>
+                <select id="fuelLevelStatus" required>
+                    <option value="">Select fuel level</option>
+                    <option value="EMPTY">Empty / Almost Empty</option>
+                    <option value="LOW">Low Fuel</option>
+                    <option value="MEDIUM">Medium Fuel</option>
+                    <option value="HIGH">High Fuel</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Vehicle Type</label>
+                <input type="text" id="vehicleType" readonly>
+            </div>
+
+            <div>
+                <label>Number Plate</label>
+                <input type="text" id="numberPlate" readonly>
+            </div>
+
+            <div>
+                <label>Company Mileage</label>
+                <input type="text" id="companyMileage" readonly>
+            </div>
+
+            <div>
+                <label>Tank Capacity</label>
+                <input type="text" id="tankCapacity" readonly>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Submit Fuel Request
+            </button>
+        </form>
+
+        <p id="fuelRequestMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Request Rules</h2>
+
+        <div class="feature-preview-grid">
+            <div class="feature-preview-card">
+                <h3>Admin Limit Check</h3>
+                <p>The estimated cost must be within the admin fuel limit.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Pending First</h3>
+                <p>All requests stay pending until admin approves.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Pump Assignment</h3>
+                <p>Admin assigns an open pump with available stock.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/fuel-request.js"></script>
+
+</body>
+</html>

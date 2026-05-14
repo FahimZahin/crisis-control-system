@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fuel Request History | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="vehicle-owner-dashboard.html">Dashboard</a>
+        <a href="fuel-request.html">New Request</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Request History</h1>
+            <p>View your pending, approved, rejected, and collected fuel requests.</p>
+        </div>
+        <span class="role-badge">REQUEST HISTORY</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>My Fuel Requests</h2>
+            <button class="btn primary small-btn" id="refreshRequestsBtn">Refresh</button>
+        </div>
+
+        <p class="muted-text">
+            Approved requests will show assigned pump information.
+        </p>
+
+        <div id="historyMessage"></div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Vehicle</th>
+                    <th>Fuel</th>
+                    <th>Fuel Level</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Assigned Pump</th>
+                    <th>Admin Note</th>
+                    <th>Created</th>
+                </tr>
+                </thead>
+
+                <tbody id="fuelRequestHistoryBody">
+                <tr>
+                    <td colspan="10">Loading requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/fuel-request-history.js"></script>
+
+</body>
+</html>
