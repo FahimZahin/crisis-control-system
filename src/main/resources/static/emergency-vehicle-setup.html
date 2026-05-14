@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Emergency Vehicle Setup | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="emergency-vehicle-dashboard.html">Emergency Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Emergency Vehicle Profile Setup</h1>
+            <p>Submit emergency vehicle details for admin approval and priority fuel access.</p>
+        </div>
+        <span class="role-badge">EMERGENCY VEHICLE</span>
+    </div>
+
+    <div id="approvalStatusBox" class="emergency-status-box">
+        <h2 id="approvalStatusTitle">Profile Status</h2>
+        <p id="approvalStatusText">Loading profile status...</p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Emergency Vehicle Details</h2>
+        <p class="muted-text">
+            Admin approval of this profile automatically unlocks priority/higher fuel access. No second approval is needed.
+        </p>
+
+        <form id="emergencyVehicleForm" class="settings-form-grid">
+
+            <div>
+                <label>Authority Name</label>
+                <input type="text" id="authorityName" placeholder="Enter authority name" required>
+            </div>
+
+            <div>
+                <label>Phone Number</label>
+                <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
+            </div>
+
+            <div>
+                <label>Organization Name</label>
+                <input type="text" id="organizationName" placeholder="Example: City Ambulance Service" required>
+            </div>
+
+            <div>
+                <label>Emergency Vehicle Type</label>
+                <select id="emergencyVehicleType" required>
+                    <option value="">Select type</option>
+                    <option value="AMBULANCE">Ambulance</option>
+                    <option value="FIRE_SERVICE">Fire Service</option>
+                    <option value="POLICE">Police</option>
+                    <option value="ARMY_RESCUE">Army / Rescue</option>
+                    <option value="CIVIL_DEFENSE">Civil Defense</option>
+                    <option value="DISASTER_RESPONSE">Disaster Response</option>
+                    <option value="UTILITY_REPAIR">Utility Repair Emergency</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Emergency Vehicle Number</label>
+                <input type="text" id="vehicleNumber" placeholder="Example: DHAKA METRO CHA 11-2222" required>
+            </div>
+
+            <div>
+                <label>Driver Name</label>
+                <input type="text" id="driverName" placeholder="Enter driver name" required>
+            </div>
+
+            <div>
+                <label>Driver License Number</label>
+                <input type="text" id="driverLicenseNumber" placeholder="Enter driver license number" required>
+            </div>
+
+            <div>
+                <label>Assigned Area</label>
+                <input type="text" id="assignedArea" placeholder="Example: Uttara, Dhaka" required>
+            </div>
+
+            <div class="settings-full-row">
+                <label>Emergency Service Proof / Verification ID</label>
+                <input type="text" id="verificationId" placeholder="Enter official verification ID" required>
+            </div>
+
+            <div class="settings-full-row">
+                <label>Reason / Purpose</label>
+                <textarea id="reason" placeholder="Explain emergency service purpose" required></textarea>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row" id="submitEmergencyProfileBtn">
+                Submit Emergency Vehicle Profile
+            </button>
+        </form>
+
+        <p id="emergencyVehicleMessage"></p>
+    </div>
+
+</div>
+
+<script src="js/emergency-vehicle-setup.js"></script>
+
+</body>
+</html>

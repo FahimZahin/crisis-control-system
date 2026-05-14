@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Emergency Vehicle Authority Dashboard | Crisis Control System</title>
+    <title>Emergency Vehicle Dashboard | Crisis Control System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,6 +11,7 @@
     <div class="logo">Crisis Control System</div>
     <div>
         <a href="index.html">Home</a>
+        <a href="emergency-vehicle-setup.html">Emergency Setup</a>
         <a href="profile.html">Profile</a>
         <a href="login.html" id="logoutBtn">Logout</a>
     </div>
@@ -21,43 +22,118 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Emergency Vehicle Authority Dashboard</h1>
-            <p>Manage ambulance, police, fire brigade, military, and civil defense fuel priority.</p>
+            <p>Manage emergency vehicle approval and priority fuel access.</p>
         </div>
-        <span class="role-badge">EMERGENCY VEHICLE</span>
+        <span class="role-badge">EMERGENCY AUTHORITY</span>
     </div>
 
     <div class="role-summary-grid">
-        <div class="summary-card"><h3>Organization</h3><p id="organizationName">-</p></div>
-        <div class="summary-card"><h3>Type</h3><p id="organizationType">-</p></div>
-        <div class="summary-card"><h3>Assigned Area</h3><p id="assignedArea">-</p></div>
-        <div class="summary-card"><h3>Status</h3><p id="dashboardUserStatus">-</p></div>
+        <div class="summary-card">
+            <h3>Name</h3>
+            <p id="dashboardUserName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Phone</h3>
+            <p id="dashboardUserPhone">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approval Status</h3>
+            <p id="emergencyApprovalStatus">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Priority Fuel Access</h3>
+            <p id="priorityFuelAccess">-</p>
+        </div>
+    </div>
+
+    <div id="emergencyDashboardStatusBox" class="emergency-status-box">
+        <h2 id="emergencyDashboardStatusTitle">Loading status...</h2>
+        <p id="emergencyDashboardStatusText">Please wait...</p>
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Emergency Authority Information</h2>
+        <div class="card-title-row">
+            <div>
+                <h2>Emergency Vehicle Profile</h2>
+                <p class="muted-text">
+                    Admin approval automatically unlocks higher/priority fuel access. No second approval is needed.
+                </p>
+            </div>
+
+            <a href="emergency-vehicle-setup.html" class="btn primary small-btn">Setup / View Profile</a>
+        </div>
+
         <div class="info-grid">
-            <div><label>Authority Name</label><p id="dashboardUserName">-</p></div>
-            <div><label>Phone</label><p id="dashboardUserPhone">-</p></div>
-            <div><label>Official Verification ID</label><p id="officialVerificationId">-</p></div>
-            <div><label>Role</label><p id="dashboardUserRole">-</p></div>
+            <div>
+                <label>Organization</label>
+                <p id="emergencyOrganizationName">-</p>
+            </div>
+
+            <div>
+                <label>Vehicle Type</label>
+                <p id="emergencyVehicleType">-</p>
+            </div>
+
+            <div>
+                <label>Vehicle Number</label>
+                <p id="emergencyVehicleNumber">-</p>
+            </div>
+
+            <div>
+                <label>Assigned Area</label>
+                <p id="emergencyAssignedArea">-</p>
+            </div>
+
+            <div>
+                <label>Verification ID</label>
+                <p id="emergencyVerificationId">-</p>
+            </div>
+
+            <div>
+                <label>Admin Note</label>
+                <p id="emergencyAdminNote">-</p>
+            </div>
         </div>
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Available Features Preview</h2>
+        <h2>Emergency Features</h2>
+
         <div class="feature-preview-grid">
-            <div class="feature-preview-card"><h3>Register Emergency Vehicle</h3><p>Add ambulance, fire, police, military, or civil defense vehicles.</p></div>
-            <div class="feature-preview-card"><h3>Priority Fuel Request</h3><p>Submit emergency fuel requests with top priority.</p></div>
-            <div class="feature-preview-card"><h3>Emergency QR</h3><p>Generate priority QR code for approved emergency vehicle.</p></div>
-            <div class="feature-preview-card"><h3>Assigned Area Monitoring</h3><p>Manage vehicles by assigned area.</p></div>
-            <div class="feature-preview-card"><h3>Emergency Fuel History</h3><p>Track fuel usage by emergency vehicles.</p></div>
-            <div class="feature-preview-card"><h3>Authority Notices</h3><p>Receive government crisis instructions.</p></div>
+            <a href="emergency-vehicle-setup.html" class="feature-preview-card active-feature">
+                <h3>Emergency Vehicle Setup</h3>
+                <p>Submit or view emergency vehicle profile for admin verification.</p>
+            </a>
+
+            <div class="feature-preview-card active-feature">
+                <h3>Priority Fuel Access</h3>
+                <p>Unlocked automatically after admin approves emergency vehicle profile.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Emergency Fuel Request</h3>
+                <p>Coming next: request fuel using higher emergency vehicle limit after approval.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Emergency Route Support</h3>
+                <p>Future module: route support during crisis operations.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Live Crisis Dispatch</h3>
+                <p>Future module: emergency dispatch support and priority allocation.</p>
+            </div>
         </div>
     </div>
 
 </div>
 
 <script src="js/role-dashboard.js"></script>
+<script src="js/emergency-vehicle-dashboard.js"></script>
 
 </body>
 </html>
