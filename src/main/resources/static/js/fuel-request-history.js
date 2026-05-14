@@ -23,12 +23,12 @@ async function loadFuelRequestHistory() {
         const requests = await response.json();
 
         if (!response.ok) {
-            tableBody.innerHTML = `<tr><td colspan="10">Failed to load fuel requests.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="12">Failed to load fuel requests.</td></tr>`;
             return;
         }
 
         if (requests.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="10">No fuel request submitted yet.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="12">No fuel request submitted yet.</td></tr>`;
             return;
         }
 
@@ -45,8 +45,10 @@ async function loadFuelRequestHistory() {
                 <td>${request.requestedLiter}</td>
                 <td>${request.estimatedCost} BDT</td>
                 <td><span class="status-badge ${getStatusClass(request.requestStatus)}">${request.requestStatus}</span></td>
+                <td>${renderCollectionCode(request)}</td>
                 <td>${request.pumpName}<br><small>${request.pumpAddress}</small></td>
                 <td>${request.adminNote || "-"}</td>
+                <td>${formatDate(request.collectedAt)}</td>
                 <td>${formatDate(request.createdAt)}</td>
             `;
 
@@ -54,8 +56,20 @@ async function loadFuelRequestHistory() {
         });
 
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="10">Server connection failed.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="12">Server connection failed.</td></tr>`;
     }
+}
+
+function renderCollectionCode(request) {
+    if (request.requestStatus === "APPROVED" && request.collectionCode) {
+        return `<strong class="collection-code">${request.collectionCode}</strong>`;
+    }
+
+    if (request.requestStatus === "COLLECTED" && request.collectionCode) {
+        return `<strong class="collection-code used-code">${request.collectionCode}</strong><br><small>Used</small>`;
+    }
+
+    return "-";
 }
 
 function getStatusClass(status) {

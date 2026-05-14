@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pump Fuel Requests | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="pump-authority-dashboard.html">Pump Dashboard</a>
+        <a href="pump-stock-management.html">Stock Management</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Collection Verification</h1>
+            <p>View approved fuel requests assigned to your pump and verify collection using collection code.</p>
+        </div>
+        <span class="role-badge">PUMP COLLECTION</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Pump Name</h3>
+            <p id="pumpNameSummary">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pump Status</h3>
+            <p id="pumpStatusSummary">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved Requests</h3>
+            <p id="approvedRequestCount">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Total Stock</h3>
+            <p><span id="totalStockSummary">-</span> L</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Manual QR / Collection Code Verification</h2>
+        <p class="muted-text">
+            Vehicle owner will show collection code like <strong>CCS-FUEL-REQ-1</strong>. Enter it here to verify and mark fuel as collected.
+        </p>
+
+        <form id="collectionCodeForm" class="settings-form-grid">
+            <div class="settings-full-row">
+                <label>Collection Code</label>
+                <input type="text" id="collectionCode" placeholder="Example: CCS-FUEL-REQ-1" required>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Verify Code and Mark Collected
+            </button>
+        </form>
+
+        <p id="collectionMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Approved Requests Assigned to This Pump</h2>
+                <p class="muted-text">
+                    Only APPROVED requests assigned to your pump are shown here.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshAssignedRequestsBtn">
+                Refresh
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Collection Code</th>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Vehicle</th>
+                    <th>Fuel Type</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="assignedRequestsTableBody">
+                <tr>
+                    <td colspan="10">Loading assigned requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/pump-fuel-requests.js"></script>
+
+</body>
+</html>

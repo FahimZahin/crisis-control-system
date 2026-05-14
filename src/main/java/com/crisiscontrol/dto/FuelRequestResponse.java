@@ -36,9 +36,12 @@ public class FuelRequestResponse {
     private BigDecimal pricePerUnit;
     private BigDecimal estimatedCost;
 
+    private String collectionCode;
+
     private FuelRequestStatus requestStatus;
     private String adminNote;
 
+    private LocalDateTime collectedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

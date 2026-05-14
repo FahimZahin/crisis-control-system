@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/fuel-request-history.html",
                                 "/admin-fuel-requests.html",
                                 "/api/fuel-requests/**",
+                                "/pump-fuel-requests.html",
                                 "/pump-authority-dashboard.html",
                                 "/hospital-authority-dashboard.html",
                                 "/utility-authority-dashboard.html",

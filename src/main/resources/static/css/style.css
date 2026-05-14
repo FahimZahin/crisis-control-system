@@ -1077,3 +1077,21 @@ footer {
     font-size: 12px;
     margin: 3px;
 }
+.collection-code {
+    display: inline-block;
+    background: #e8f5ff;
+    color: #0b1f3a;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.used-code {
+    background: #e9ecef;
+    color: #555;
+}
+
+#collectionCode {
+    text-transform: uppercase;
+}

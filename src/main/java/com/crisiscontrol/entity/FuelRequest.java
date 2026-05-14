@@ -7,7 +7,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "fuel_requests")
+@Table(
+        name = "fuel_requests",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_fuel_requests_collection_code", columnNames = "collection_code")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,12 +52,18 @@ public class FuelRequest {
     @Column(name = "estimated_cost", nullable = false, precision = 12, scale = 2)
     private BigDecimal estimatedCost;
 
+    @Column(name = "collection_code")
+    private String collectionCode;
+
     @Column(name = "admin_note")
     private String adminNote;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "request_status", nullable = false)
     private FuelRequestStatus requestStatus;
+
+    @Column(name = "collected_at")
+    private LocalDateTime collectedAt;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

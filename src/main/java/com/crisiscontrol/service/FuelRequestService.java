@@ -1,5 +1,6 @@
 package com.crisiscontrol.service;
 
+import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
@@ -7,8 +8,10 @@ import com.crisiscontrol.entity.*;
 import com.crisiscontrol.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -52,13 +55,15 @@ public class FuelRequestService {
         FuelLimit fuelLimit = fuelLimitRepository.findByLimitType(limitType)
                 .orElseThrow(() -> new RuntimeException("Fuel limit not set by admin"));
 
+        String fuelLevelStatus = normalizeFuelLevel(request.getFuelLevelStatus());
+
         if (estimatedCost.compareTo(fuelLimit.getLimitAmount()) > 0) {
             FuelRequest pendingRequest = FuelRequest.builder()
                     .user(user)
                     .vehicle(vehicle)
                     .fuelType(request.getFuelType())
                     .requestedLiter(request.getRequestedLiter())
-                    .fuelLevelStatus(normalizeFuelLevel(request.getFuelLevelStatus()))
+                    .fuelLevelStatus(fuelLevelStatus)
                     .pricePerUnit(fuelPrice.getPricePerUnit())
                     .estimatedCost(estimatedCost)
                     .requestStatus(FuelRequestStatus.PENDING)
@@ -67,8 +72,6 @@ public class FuelRequestService {
 
             return mapToResponse(fuelRequestRepository.save(pendingRequest));
         }
-
-        String fuelLevelStatus = normalizeFuelLevel(request.getFuelLevelStatus());
 
         if (isLowFuel(fuelLevelStatus)) {
             PumpProfile assignedPump = findAvailablePumpForFuel(
@@ -89,7 +92,10 @@ public class FuelRequestService {
                     .adminNote("Auto-approved by system because vehicle fuel level is low. Collect from assigned pump.")
                     .build();
 
-            return mapToResponse(fuelRequestRepository.save(autoApprovedRequest));
+            FuelRequest savedRequest = fuelRequestRepository.save(autoApprovedRequest);
+            savedRequest.setCollectionCode(generateCollectionCode(savedRequest.getId()));
+
+            return mapToResponse(fuelRequestRepository.save(savedRequest));
         }
 
         FuelRequest pendingRequest = FuelRequest.builder()
@@ -121,6 +127,14 @@ public class FuelRequestService {
                 .toList();
     }
 
+    public List<FuelRequestResponse> getApprovedRequestsByPump(Long pumpId) {
+        return fuelRequestRepository
+                .findByPumpProfileIdAndRequestStatusOrderByCreatedAtDesc(pumpId, FuelRequestStatus.APPROVED)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     public FuelRequestResponse approveFuelRequest(Long requestId, FuelRequestDecisionRequest decisionRequest) {
         FuelRequest fuelRequest = fuelRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Fuel request not found"));
@@ -146,6 +160,7 @@ public class FuelRequestService {
 
         fuelRequest.setPumpProfile(pumpProfile);
         fuelRequest.setRequestStatus(FuelRequestStatus.APPROVED);
+        fuelRequest.setCollectionCode(generateCollectionCode(fuelRequest.getId()));
         fuelRequest.setAdminNote(
                 isBlank(decisionRequest.getAdminNote())
                         ? "Approved by admin. Please collect from assigned pump."
@@ -164,6 +179,7 @@ public class FuelRequestService {
         }
 
         fuelRequest.setRequestStatus(FuelRequestStatus.REJECTED);
+        fuelRequest.setCollectionCode(null);
         fuelRequest.setAdminNote(
                 isBlank(decisionRequest.getAdminNote())
                         ? "Rejected by admin"
@@ -171,6 +187,77 @@ public class FuelRequestService {
         );
 
         return mapToResponse(fuelRequestRepository.save(fuelRequest));
+    }
+
+    @Transactional
+    public FuelRequestResponse collectFuelByCode(FuelCollectionRequest request) {
+        String normalizedCode = request.getCollectionCode().trim().toUpperCase();
+
+        FuelRequest fuelRequest = fuelRequestRepository.findByCollectionCode(normalizedCode)
+                .orElseThrow(() -> new RuntimeException("Invalid collection code"));
+
+        if (fuelRequest.getRequestStatus() != FuelRequestStatus.APPROVED) {
+            throw new RuntimeException("This request is not approved or already collected");
+        }
+
+        if (fuelRequest.getPumpProfile() == null) {
+            throw new RuntimeException("No pump assigned for this request");
+        }
+
+        if (!fuelRequest.getPumpProfile().getId().equals(request.getPumpId())) {
+            throw new RuntimeException("This fuel request is not assigned to your pump");
+        }
+
+        PumpProfile pumpProfile = fuelRequest.getPumpProfile();
+
+        if (pumpProfile.getPumpStatus() != PumpStatus.OPEN) {
+            throw new RuntimeException("Pump is currently closed");
+        }
+
+        PumpFuelStock pumpFuelStock = pumpFuelStockRepository
+                .findByPumpProfileAndFuelType(pumpProfile, fuelRequest.getFuelType())
+                .orElseThrow(() -> new RuntimeException("This pump does not have " + fuelRequest.getFuelType() + " stock"));
+
+        if (pumpFuelStock.getCurrentStock().compareTo(fuelRequest.getRequestedLiter()) < 0) {
+            throw new RuntimeException("Not enough " + fuelRequest.getFuelType() + " stock to complete collection");
+        }
+
+        BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
+        pumpFuelStock.setCurrentStock(updatedStock);
+        pumpFuelStockRepository.save(pumpFuelStock);
+
+        updatePumpProfileTotalStock(pumpProfile);
+
+        fuelRequest.setRequestStatus(FuelRequestStatus.COLLECTED);
+        fuelRequest.setCollectedAt(LocalDateTime.now());
+        fuelRequest.setAdminNote("Fuel collected successfully from assigned pump.");
+
+        return mapToResponse(fuelRequestRepository.save(fuelRequest));
+    }
+
+    private void updatePumpProfileTotalStock(PumpProfile pumpProfile) {
+        List<PumpFuelStock> stocks = pumpFuelStockRepository.findByPumpProfileIdOrderByFuelTypeAsc(pumpProfile.getId());
+
+        BigDecimal totalCapacity = BigDecimal.ZERO;
+        BigDecimal totalCurrentStock = BigDecimal.ZERO;
+        StringBuilder fuelTypesBuilder = new StringBuilder();
+
+        for (PumpFuelStock stock : stocks) {
+            totalCapacity = totalCapacity.add(stock.getFuelCapacity());
+            totalCurrentStock = totalCurrentStock.add(stock.getCurrentStock());
+
+            if (!fuelTypesBuilder.isEmpty()) {
+                fuelTypesBuilder.append(",");
+            }
+
+            fuelTypesBuilder.append(stock.getFuelType().name());
+        }
+
+        pumpProfile.setFuelCapacity(totalCapacity);
+        pumpProfile.setCurrentStock(totalCurrentStock);
+        pumpProfile.setFuelTypes(fuelTypesBuilder.toString());
+
+        pumpProfileRepository.save(pumpProfile);
     }
 
     private PumpProfile findAvailablePumpForFuel(FuelType fuelType, BigDecimal requestedLiter) {
@@ -187,6 +274,10 @@ public class FuelRequestService {
         }
 
         throw new RuntimeException("No open pump has enough " + fuelType + " stock right now");
+    }
+
+    private String generateCollectionCode(Long requestId) {
+        return "CCS-FUEL-REQ-" + requestId;
     }
 
     private boolean isLowFuel(String fuelLevelStatus) {
@@ -230,8 +321,10 @@ public class FuelRequestService {
                 .fuelLevelStatus(fuelRequest.getFuelLevelStatus())
                 .pricePerUnit(fuelRequest.getPricePerUnit())
                 .estimatedCost(fuelRequest.getEstimatedCost())
+                .collectionCode(fuelRequest.getCollectionCode())
                 .requestStatus(fuelRequest.getRequestStatus())
                 .adminNote(fuelRequest.getAdminNote())
+                .collectedAt(fuelRequest.getCollectedAt())
                 .createdAt(fuelRequest.getCreatedAt())
                 .updatedAt(fuelRequest.getUpdatedAt())
                 .build();

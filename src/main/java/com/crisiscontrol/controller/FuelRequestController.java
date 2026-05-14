@@ -1,5 +1,6 @@
 package com.crisiscontrol.controller;
 
+import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
@@ -50,5 +51,19 @@ public class FuelRequestController {
             @RequestBody FuelRequestDecisionRequest request
     ) {
         return ResponseEntity.ok(fuelRequestService.rejectFuelRequest(requestId, request));
+    }
+
+    @GetMapping("/api/pumps/{pumpId}/assigned-fuel-requests")
+    public ResponseEntity<List<FuelRequestResponse>> getApprovedRequestsByPump(
+            @PathVariable Long pumpId
+    ) {
+        return ResponseEntity.ok(fuelRequestService.getApprovedRequestsByPump(pumpId));
+    }
+
+    @PutMapping("/api/pumps/fuel-requests/collect")
+    public ResponseEntity<FuelRequestResponse> collectFuelByCode(
+            @Valid @RequestBody FuelCollectionRequest request
+    ) {
+        return ResponseEntity.ok(fuelRequestService.collectFuelByCode(request));
     }
 }
