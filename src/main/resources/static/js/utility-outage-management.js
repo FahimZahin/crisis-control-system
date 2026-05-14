@@ -710,6 +710,7 @@ function setupLogout() {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", function () {
             localStorage.clear();
+            window.location.href = "login.html";
         });
     }
 }
