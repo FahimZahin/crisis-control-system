@@ -19,6 +19,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final HospitalSupportCalculationService hospitalSupportCalculationService;
 
     public AuthResponse register(RegisterRequest request) {
         validateCommonFields(request);
@@ -78,6 +79,16 @@ public class AuthService {
                 .adminCode(emptyToNull(request.getAdminCode()))
                 .build();
 
+        if (request.getRole() == Role.HOSPITAL_AUTHORITY) {
+            double backupHours = hospitalSupportCalculationService.calculateBackupHours(
+                    request.getHospitalGeneratorCapacity(),
+                    request.getHospitalCurrentDieselReserve()
+            );
+
+            user.setHospitalEstimatedBackupHours(backupHours);
+            user.setHospitalDieselStatus(hospitalSupportCalculationService.resolveDieselStatus(backupHours));
+        }
+
         User savedUser = userRepository.save(user);
 
         return buildAuthResponse("Registration successful", savedUser);
@@ -93,6 +104,10 @@ public class AuthService {
 
         if (user.getStatus() == UserStatus.BLOCKED) {
             throw new RuntimeException("User account is blocked");
+        }
+
+        if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            user = hospitalSupportCalculationService.recalculateAndSave(user);
         }
 
         return buildAuthResponse("Login successful", user);
@@ -383,6 +398,8 @@ public class AuthService {
                 .hospitalUnderThana(user.getHospitalUnderThana())
                 .hospitalGeneratorCapacity(user.getHospitalGeneratorCapacity())
                 .hospitalCurrentDieselReserve(user.getHospitalCurrentDieselReserve())
+                .hospitalEstimatedBackupHours(user.getHospitalEstimatedBackupHours())
+                .hospitalDieselStatus(user.getHospitalDieselStatus())
                 .emergencyContactNumber(user.getEmergencyContactNumber())
 
                 .utilityOrganizationType(user.getUtilityOrganizationType())

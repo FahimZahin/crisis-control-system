@@ -48,6 +48,8 @@ public class AuthResponse {
     private String hospitalUnderThana;
     private String hospitalGeneratorCapacity;
     private Double hospitalCurrentDieselReserve;
+    private Double hospitalEstimatedBackupHours;
+    private String hospitalDieselStatus;
     private String emergencyContactNumber;
 
     // Utility authority info

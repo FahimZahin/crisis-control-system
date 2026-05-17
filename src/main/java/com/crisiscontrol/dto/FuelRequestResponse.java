@@ -47,6 +47,9 @@ public class FuelRequestResponse {
     private String hospitalUrgencyLevel;
     private String hospitalReason;
     private String hospitalContactNumber;
+    private Double hospitalCurrentDieselReserve;
+    private Double hospitalEstimatedBackupHours;
+    private String hospitalDieselStatus;
 
     private Long pumpId;
     private String pumpName;

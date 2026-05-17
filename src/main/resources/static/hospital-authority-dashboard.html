@@ -34,18 +34,74 @@
         </div>
 
         <div class="summary-card">
-            <h3>Hospital Under Thana</h3>
-            <p id="hospitalUnderThana">-</p>
+            <h3>Backup Power Estimate</h3>
+            <p id="hospitalEstimatedBackupHours">-</p>
         </div>
 
         <div class="summary-card">
-            <h3>Generator Capacity</h3>
-            <p id="hospitalGeneratorCapacity">-</p>
+            <h3>Diesel Status</h3>
+            <p id="hospitalDieselStatus">-</p>
         </div>
 
         <div class="summary-card">
             <h3>Current Diesel Reserve</h3>
             <p id="hospitalCurrentDieselReserve">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Hospital Generator Backup Status</h2>
+                <p class="muted-text">
+                    Press refresh after pump collection to load updated diesel reserve, backup hours, and status without logout.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshHospitalProfileBtn">
+                Refresh Profile
+            </button>
+        </div>
+
+        <p id="hospitalDashboardMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Backup Hours</th>
+                    <th>Meaning</th>
+                    <th>Can Request Diesel?</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><span class="status-badge status-rejected">CRITICAL</span></td>
+                    <td>Less than 6 hours</td>
+                    <td>Hospital cannot survive minimum backup target.</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><span class="status-badge status-pending">MIDDLE</span></td>
+                    <td>6 to less than 8 hours</td>
+                    <td>Backup is weak but minimum 6 hours is available.</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><span class="status-badge status-approved">RISK FREE</span></td>
+                    <td>8 to less than 12 hours</td>
+                    <td>Hospital has safer backup coverage.</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><span class="status-badge status-collected">ENOUGH</span></td>
+                    <td>12 hours or more</td>
+                    <td>Hospital has enough generator diesel reserve.</td>
+                    <td>No</td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -74,6 +130,16 @@
             </div>
 
             <div>
+                <label>Hospital Under Thana</label>
+                <p id="hospitalUnderThana">-</p>
+            </div>
+
+            <div>
+                <label>Generator Capacity</label>
+                <p id="hospitalGeneratorCapacity">-</p>
+            </div>
+
+            <div>
                 <label>Hospital Registration Number</label>
                 <p id="hospitalRegistrationNumber">-</p>
             </div>
@@ -96,7 +162,7 @@
 
             <a href="hospital-generator-request.html" class="feature-preview-card active-feature">
                 <h3>Request Generator Diesel Support</h3>
-                <p>Request DIESEL support for hospital generator backup during power outage.</p>
+                <p>Request DIESEL support only if hospital backup is less than 6 hours and status is CRITICAL.</p>
             </a>
 
             <a href="hospital-generator-request-history.html" class="feature-preview-card active-feature">

@@ -1,4 +1,4 @@
-const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
+let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 
 document.addEventListener("DOMContentLoaded", function () {
     if (!loggedInUser) {
@@ -13,8 +13,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     setupLogout();
-    fillHospitalDefaults();
     setupFormEvents();
+    refreshHospitalProfile();
 });
 
 function setupFormEvents() {
@@ -25,120 +25,169 @@ function setupFormEvents() {
         submitHospitalGeneratorRequest();
     });
 
+    const refreshBtn = document.getElementById("refreshHospitalProfileBtn");
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", refreshHospitalProfile);
+    }
+
     document.getElementById("outageSituation").addEventListener("change", generateCrisisReason);
     document.getElementById("criticalUnit").addEventListener("change", generateCrisisReason);
     document.getElementById("backupHoursNeeded").addEventListener("input", generateCrisisReason);
     document.getElementById("requiredDieselLiter").addEventListener("input", generateCrisisReason);
-    document.getElementById("urgencyLevel").addEventListener("change", generateCrisisReason);
+    document.getElementById("contactNumber").addEventListener("input", generateCrisisReason);
 }
 
-function fillHospitalDefaults() {
-    const hospitalName = loggedInUser.hospitalName || "";
-    const hospitalUnderThana = loggedInUser.hospitalUnderThana || "";
-    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "";
-    const currentDieselReserve = loggedInUser.hospitalCurrentDieselReserve ?? "";
+async function refreshHospitalProfile() {
+    const userId = loggedInUser.userId || localStorage.getItem("userId");
+
+    if (!userId) {
+        showMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/hospital-authority/profile/" + userId + "?time=" + Date.now());
+        const profile = await response.json();
+
+        if (!response.ok) {
+            showMessage(getErrorMessage(profile), "error-text");
+            return;
+        }
+
+        loggedInUser = profile;
+        localStorage.setItem("loggedInUser", JSON.stringify(profile));
+
+        fillHospitalData();
+        updateRequestAvailability();
+        generateCrisisReason();
+
+        showMessage("Hospital profile refreshed successfully.", "success-text");
+
+    } catch (error) {
+        showMessage("Server connection failed while refreshing hospital profile.", "error-text");
+    }
+}
+
+function fillHospitalData() {
+    const hospitalName = loggedInUser.hospitalName || "-";
+    const hospitalUnderThana = loggedInUser.hospitalUnderThana || "-";
+    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "-";
+    const currentDieselReserve = loggedInUser.hospitalCurrentDieselReserve ?? "-";
+    const backupHours = loggedInUser.hospitalEstimatedBackupHours ?? 0;
+    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
     const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
 
-    document.getElementById("hospitalNameSummary").innerText = hospitalName || "-";
-    document.getElementById("hospitalUnderThanaSummary").innerText = hospitalUnderThana || "-";
-    document.getElementById("generatorCapacitySummary").innerText = generatorCapacity || "-";
-    document.getElementById("currentDieselReserveSummary").innerText =
-        currentDieselReserve === "" ? "-" : currentDieselReserve;
+    document.getElementById("hospitalNameInfo").innerText = hospitalName;
+    document.getElementById("hospitalUnderThanaInfo").innerText = hospitalUnderThana;
+    document.getElementById("generatorCapacityInfo").innerText = generatorCapacity;
+    document.getElementById("contactInfo").innerText = contactNumber || "-";
 
-    document.getElementById("hospitalNameInput").value = hospitalName;
-    document.getElementById("hospitalUnderThanaInput").value = hospitalUnderThana;
-    document.getElementById("generatorCapacity").value = generatorCapacity;
-    document.getElementById("currentDieselReserve").value = currentDieselReserve;
+    document.getElementById("backupHoursSummary").innerText = backupHours + " hours";
+    document.getElementById("dieselStatusSummary").innerText = dieselStatus;
+    document.getElementById("currentDieselReserveSummary").innerText = currentDieselReserve;
+
     document.getElementById("contactNumber").value = contactNumber;
+    document.getElementById("urgencyLevel").value = dieselStatus;
+}
 
-    if (!hospitalUnderThana || !generatorCapacity || currentDieselReserve === "") {
+function updateRequestAvailability() {
+    const backupHours = Number(loggedInUser.hospitalEstimatedBackupHours || 0);
+    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
+    const canApply = backupHours < 6 && dieselStatus === "CRITICAL";
+
+    document.getElementById("canApplySummary").innerText = canApply ? "YES" : "NO";
+
+    const formElements = [
+        "outageSituation",
+        "criticalUnit",
+        "backupHoursNeeded",
+        "requiredDieselLiter",
+        "contactNumber",
+        "submitHospitalGeneratorRequestBtn"
+    ];
+
+    formElements.forEach(function (id) {
+        const element = document.getElementById(id);
+
+        if (element) {
+            element.disabled = !canApply;
+        }
+    });
+
+    if (!canApply) {
         showMessage(
-            "Hospital under thana, generator capacity, and current diesel reserve are missing. Please update/re-register hospital information.",
+            "Generator diesel request is disabled because current backup is "
+            + backupHours
+            + " hours and status is "
+            + dieselStatus
+            + ". Hospital can apply only when backup is less than 6 hours and status is CRITICAL.",
             "error-text"
         );
     }
-
-    generateCrisisReason();
 }
 
 function generateCrisisReason() {
-    const hospitalName = document.getElementById("hospitalNameInput").value.trim();
-    const hospitalUnderThana = document.getElementById("hospitalUnderThanaInput").value.trim();
+    const hospitalName = loggedInUser.hospitalName || "Hospital";
+    const hospitalUnderThana = loggedInUser.hospitalUnderThana || "-";
+    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "-";
+    const currentReserve = loggedInUser.hospitalCurrentDieselReserve ?? "-";
+    const backupHours = loggedInUser.hospitalEstimatedBackupHours ?? 0;
+    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
+
     const situation = document.getElementById("outageSituation").value;
     const criticalUnit = document.getElementById("criticalUnit").value;
-    const generatorCapacity = document.getElementById("generatorCapacity").value.trim();
-    const backupHours = document.getElementById("backupHoursNeeded").value;
-    const currentReserve = document.getElementById("currentDieselReserve").value;
+    const backupHoursNeeded = document.getElementById("backupHoursNeeded").value;
     const requiredDiesel = document.getElementById("requiredDieselLiter").value;
-    const urgency = document.getElementById("urgencyLevel").value;
 
-    let message = "";
-
-    if (hospitalName) {
-        message += hospitalName + " requests generator DIESEL support";
-    } else {
-        message += "Hospital requests generator DIESEL support";
-    }
-
-    if (hospitalUnderThana) {
-        message += " for hospital under " + hospitalUnderThana + " thana";
-    }
+    let message = hospitalName + " requests generator DIESEL support";
+    message += " for hospital under " + hospitalUnderThana + " thana.";
+    message += " Current diesel reserve: " + currentReserve + " liter(s).";
+    message += " Registered generator capacity: " + generatorCapacity + ".";
+    message += " Current estimated backup: " + backupHours + " hour(s).";
+    message += " Current diesel status: " + dieselStatus + ".";
 
     if (situation) {
-        message += ". Situation: " + formatEnum(situation);
+        message += " Situation: " + formatEnum(situation) + ".";
     }
 
     if (criticalUnit) {
-        message += ". Critical unit affected: " + formatEnum(criticalUnit);
+        message += " Critical unit affected: " + formatEnum(criticalUnit) + ".";
     }
 
-    if (generatorCapacity) {
-        message += ". Registered generator capacity: " + generatorCapacity;
-    }
-
-    if (backupHours) {
-        message += ". Expected backup needed: " + backupHours + " hour(s)";
-    }
-
-    if (currentReserve !== "") {
-        message += ". Current registered diesel reserve: " + currentReserve + " liter(s)";
+    if (backupHoursNeeded) {
+        message += " Expected backup needed: " + backupHoursNeeded + " hour(s).";
     }
 
     if (requiredDiesel) {
-        message += ". Requested diesel: " + requiredDiesel + " liter(s)";
-    }
-
-    if (urgency) {
-        message += ". Urgency: " + urgency;
+        message += " Requested diesel: " + requiredDiesel + " liter(s).";
     }
 
     document.getElementById("generatedReasonPreview").value = message;
 }
 
 async function submitHospitalGeneratorRequest() {
-    const hospitalUnderThana = document.getElementById("hospitalUnderThanaInput").value.trim();
-    const generatorCapacity = document.getElementById("generatorCapacity").value.trim();
-    const currentDieselReserve = document.getElementById("currentDieselReserve").value;
-    const generatedReason = document.getElementById("generatedReasonPreview").value.trim();
+    const backupHours = Number(loggedInUser.hospitalEstimatedBackupHours || 0);
+    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
 
-    const data = {
-        userId: Number(loggedInUser.userId || localStorage.getItem("userId")),
-        affectedThana: hospitalUnderThana,
-        hospitalName: document.getElementById("hospitalNameInput").value.trim(),
-        generatorCapacity: generatorCapacity,
-        requiredDieselLiter: Number(document.getElementById("requiredDieselLiter").value),
-        urgencyLevel: document.getElementById("urgencyLevel").value,
-        reason: generatedReason,
-        contactNumber: document.getElementById("contactNumber").value.trim()
-    };
-
-    if (!hospitalUnderThana || !generatorCapacity || currentDieselReserve === "") {
+    if (backupHours >= 6 || dieselStatus !== "CRITICAL") {
         showMessage(
-            "Hospital registration data is incomplete. Hospital under thana, generator capacity, and current diesel reserve must exist first.",
+            "Request blocked. Hospital can apply only when backup is less than 6 hours and status is CRITICAL.",
             "error-text"
         );
         return;
     }
+
+    const data = {
+        userId: Number(loggedInUser.userId || localStorage.getItem("userId")),
+        affectedThana: loggedInUser.hospitalUnderThana,
+        hospitalName: loggedInUser.hospitalName,
+        generatorCapacity: loggedInUser.hospitalGeneratorCapacity,
+        requiredDieselLiter: Number(document.getElementById("requiredDieselLiter").value),
+        urgencyLevel: dieselStatus,
+        reason: document.getElementById("generatedReasonPreview").value.trim(),
+        contactNumber: document.getElementById("contactNumber").value.trim()
+    };
 
     if (!data.userId) {
         showMessage("User ID not found. Please login again.", "error-text");
@@ -150,8 +199,8 @@ async function submitHospitalGeneratorRequest() {
         return;
     }
 
-    if (!data.urgencyLevel || !generatedReason || !data.contactNumber) {
-        showMessage("Please fill all required request fields before submitting.", "error-text");
+    if (!document.getElementById("outageSituation").value || !document.getElementById("criticalUnit").value || !document.getElementById("backupHoursNeeded").value) {
+        showMessage("Please fill outage situation, critical unit, and expected backup hours needed.", "error-text");
         return;
     }
 
@@ -180,7 +229,7 @@ async function submitHospitalGeneratorRequest() {
             }
 
             document.getElementById("hospitalGeneratorRequestForm").reset();
-            fillHospitalDefaults();
+            refreshHospitalProfile();
         } else {
             showMessage(getErrorMessage(result), "error-text");
         }

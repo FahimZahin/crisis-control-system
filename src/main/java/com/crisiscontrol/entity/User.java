@@ -116,6 +116,12 @@ public class User {
     @Column(name = "hospital_current_diesel_reserve")
     private Double hospitalCurrentDieselReserve;
 
+    @Column(name = "hospital_estimated_backup_hours")
+    private Double hospitalEstimatedBackupHours;
+
+    @Column(name = "hospital_diesel_status")
+    private String hospitalDieselStatus;
+
     @Column(name = "emergency_contact_number")
     private String emergencyContactNumber;
 

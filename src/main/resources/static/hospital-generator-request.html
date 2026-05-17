@@ -23,46 +23,79 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Hospital Generator Diesel Support</h1>
-            <p>Request DIESEL support only when hospital backup power is needed during outage or scheduled outage risk.</p>
+            <p>Hospital can request DIESEL only when generator backup is less than 6 hours.</p>
         </div>
         <span class="role-badge">HOSPITAL DIESEL</span>
     </div>
 
     <div class="role-summary-grid">
         <div class="summary-card">
-            <h3>Hospital Name</h3>
-            <p id="hospitalNameSummary">-</p>
+            <h3>Backup Power Estimate</h3>
+            <p id="backupHoursSummary">-</p>
         </div>
 
         <div class="summary-card">
-            <h3>Hospital Under Thana</h3>
-            <p id="hospitalUnderThanaSummary">-</p>
-        </div>
-
-        <div class="summary-card">
-            <h3>Generator Capacity</h3>
-            <p id="generatorCapacitySummary">-</p>
+            <h3>Diesel Status</h3>
+            <p id="dieselStatusSummary">-</p>
         </div>
 
         <div class="summary-card">
             <h3>Current Diesel Reserve</h3>
             <p><span id="currentDieselReserveSummary">-</span> L</p>
         </div>
+
+        <div class="summary-card">
+            <h3>Can Apply?</h3>
+            <p id="canApplySummary">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Current Hospital Generator Status</h2>
+                <p class="muted-text">
+                    Press refresh after pump collection to update diesel reserve and backup status without logout.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshHospitalProfileBtn">
+                Refresh Profile
+            </button>
+        </div>
+
+        <p id="hospitalGeneratorRequestMessage"></p>
+
+        <div class="info-grid">
+            <div>
+                <label>Hospital Name</label>
+                <p id="hospitalNameInfo">-</p>
+            </div>
+
+            <div>
+                <label>Hospital Under Thana</label>
+                <p id="hospitalUnderThanaInfo">-</p>
+            </div>
+
+            <div>
+                <label>Generator Capacity</label>
+                <p id="generatorCapacityInfo">-</p>
+            </div>
+
+            <div>
+                <label>Emergency Contact</label>
+                <p id="contactInfo">-</p>
+            </div>
+        </div>
     </div>
 
     <div class="role-dashboard-section">
         <h2>Create Generator Diesel Request</h2>
         <p class="muted-text">
-            Hospital under thana, generator capacity, and current diesel reserve are loaded from registration.
-            This request uses DIESEL only.
+            Request form is enabled only when the calculated backup is less than 6 hours and status is CRITICAL.
         </p>
 
         <form id="hospitalGeneratorRequestForm" class="settings-form-grid">
-
-            <div>
-                <label>Hospital Under Thana</label>
-                <input type="text" id="hospitalUnderThanaInput" readonly>
-            </div>
 
             <div>
                 <label>Outage Situation</label>
@@ -73,11 +106,6 @@
                     <option value="LOW_GENERATOR_RESERVE">Generator diesel reserve is low</option>
                     <option value="CRITICAL_BACKUP_NEED">Critical backup power needed</option>
                 </select>
-            </div>
-
-            <div>
-                <label>Hospital Name</label>
-                <input type="text" id="hospitalNameInput" readonly>
             </div>
 
             <div>
@@ -95,18 +123,8 @@
             </div>
 
             <div>
-                <label>Generator Capacity</label>
-                <input type="text" id="generatorCapacity" readonly>
-            </div>
-
-            <div>
                 <label>Expected Backup Hours Needed</label>
                 <input type="number" id="backupHoursNeeded" min="1" step="0.5" placeholder="Example: 4" required>
-            </div>
-
-            <div>
-                <label>Current Diesel Reserve</label>
-                <input type="number" id="currentDieselReserve" readonly>
             </div>
 
             <div>
@@ -115,33 +133,24 @@
             </div>
 
             <div>
-                <label>Urgency Level</label>
-                <select id="urgencyLevel" required>
-                    <option value="">Select urgency</option>
-                    <option value="CRITICAL">CRITICAL - Life support / ICU risk</option>
-                    <option value="HIGH">HIGH - Emergency service affected</option>
-                    <option value="MEDIUM">MEDIUM - Scheduled outage preparation</option>
-                    <option value="LOW">LOW - Reserve refill</option>
-                </select>
-            </div>
-
-            <div>
                 <label>Contact Number</label>
                 <input type="text" id="contactNumber" required>
             </div>
 
+            <div>
+                <label>System Urgency</label>
+                <input type="text" id="urgencyLevel" readonly>
+            </div>
 
             <div class="settings-full-row">
                 <label>Auto Generated Crisis Message</label>
                 <textarea id="generatedReasonPreview" readonly></textarea>
             </div>
 
-            <button type="submit" class="btn primary full-width settings-full-row">
+            <button type="submit" class="btn primary full-width settings-full-row" id="submitHospitalGeneratorRequestBtn">
                 Submit Generator Diesel Request
             </button>
         </form>
-
-        <p id="hospitalGeneratorRequestMessage"></p>
     </div>
 
 </div>

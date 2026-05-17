@@ -23,7 +23,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Generator Diesel Request History</h1>
-            <p>Track approval status, assigned pump, collection code, and diesel collection.</p>
+            <p>Track approval status, assigned pump, collection code, diesel reserve, and backup status.</p>
         </div>
         <span class="role-badge">REQUEST HISTORY</span>
     </div>
@@ -35,18 +35,18 @@
         </div>
 
         <div class="summary-card">
-            <h3>Pending</h3>
-            <p id="pendingHospitalRequests">0</p>
+            <h3>Current Reserve</h3>
+            <p><span id="historyCurrentReserve">-</span> L</p>
         </div>
 
         <div class="summary-card">
-            <h3>Approved</h3>
-            <p id="approvedHospitalRequests">0</p>
+            <h3>Backup Hours</h3>
+            <p id="historyBackupHours">-</p>
         </div>
 
         <div class="summary-card">
-            <h3>Collected</h3>
-            <p id="collectedHospitalRequests">0</p>
+            <h3>Diesel Status</h3>
+            <p id="historyDieselStatus">-</p>
         </div>
     </div>
 
@@ -55,7 +55,7 @@
             <div>
                 <h2>My Generator Diesel Requests</h2>
                 <p class="muted-text">
-                    View generator diesel support request status and collection code.
+                    Press refresh after pump collection to see updated hospital diesel reserve and backup status.
                 </p>
             </div>
 
@@ -79,13 +79,14 @@
                     <th>Status</th>
                     <th>Pump</th>
                     <th>Collection Code</th>
+                    <th>Hospital Backup After Update</th>
                     <th>Admin Note</th>
                 </tr>
                 </thead>
 
                 <tbody id="hospitalHistoryBody">
                 <tr>
-                    <td colspan="10">Loading request history...</td>
+                    <td colspan="11">Loading request history...</td>
                 </tr>
                 </tbody>
             </table>

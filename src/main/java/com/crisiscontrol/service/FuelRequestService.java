@@ -50,6 +50,7 @@ public class FuelRequestService {
     private final PumpProfileRepository pumpProfileRepository;
     private final PumpFuelStockRepository pumpFuelStockRepository;
     private final EmergencyVehicleRepository emergencyVehicleRepository;
+    private final HospitalSupportCalculationService hospitalSupportCalculationService;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -202,6 +203,18 @@ public class FuelRequestService {
             throw new RuntimeException("Only Hospital Authority can request generator diesel support");
         }
 
+        user = hospitalSupportCalculationService.recalculateAndSave(user);
+
+        if (!hospitalSupportCalculationService.canApplyForGeneratorDiesel(user)) {
+            throw new RuntimeException(
+                    "Generator diesel request is not allowed. Current backup is "
+                            + valueOrZero(user.getHospitalEstimatedBackupHours())
+                            + " hours and status is "
+                            + valueOrDash(user.getHospitalDieselStatus())
+                            + ". Hospital can apply only when backup is less than 6 hours and status is CRITICAL."
+            );
+        }
+
         FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
@@ -217,7 +230,7 @@ public class FuelRequestService {
 
         if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) <= 0 && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            adminNote = "Auto-approved for hospital generator support. Collect diesel from assigned pump.";
+            adminNote = "Auto-approved because hospital backup is CRITICAL and an open pump has enough DIESEL stock.";
         } else if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) > 0) {
             adminNote = "Request exceeds generator diesel limit. Waiting for admin review.";
         } else if (assignedPump == null) {
@@ -230,13 +243,13 @@ public class FuelRequestService {
                 .requestSource(FuelRequestSource.HOSPITAL_GENERATOR)
                 .fuelType(FuelType.DIESEL)
                 .requestedLiter(request.getRequiredDieselLiter())
-                .fuelLevelStatus("GENERATOR_DIESEL_SUPPORT")
+                .fuelLevelStatus("HOSPITAL_" + user.getHospitalDieselStatus())
                 .hospitalName(valueOrDefault(request.getHospitalName(), user.getHospitalName()))
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
                 .hospitalAddress(user.getHospitalAddress())
-                .affectedThana(request.getAffectedThana())
-                .generatorCapacity(request.getGeneratorCapacity())
-                .hospitalUrgencyLevel(request.getUrgencyLevel())
+                .affectedThana(user.getHospitalUnderThana())
+                .generatorCapacity(user.getHospitalGeneratorCapacity())
+                .hospitalUrgencyLevel(user.getHospitalDieselStatus())
                 .hospitalReason(request.getReason())
                 .hospitalContactNumber(request.getContactNumber())
                 .pricePerUnit(dieselPrice.getPricePerUnit())
@@ -271,6 +284,12 @@ public class FuelRequestService {
     }
 
     public List<FuelRequestResponse> getHospitalGeneratorFuelRequestsByUser(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user != null && user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            hospitalSupportCalculationService.recalculateAndSave(user);
+        }
+
         return fuelRequestRepository
                 .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.HOSPITAL_GENERATOR)
                 .stream()
@@ -386,11 +405,33 @@ public class FuelRequestService {
 
         updatePumpProfileTotalStock(pumpProfile);
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
+            updateHospitalDieselReserveAfterCollection(fuelRequest);
+        }
+
         fuelRequest.setRequestStatus(FuelRequestStatus.COLLECTED);
         fuelRequest.setCollectedAt(LocalDateTime.now());
         fuelRequest.setAdminNote("Fuel collected successfully from assigned pump.");
 
         return mapToResponse(fuelRequestRepository.save(fuelRequest));
+    }
+
+    private void updateHospitalDieselReserveAfterCollection(FuelRequest fuelRequest) {
+        User hospitalUser = fuelRequest.getUser();
+
+        Double currentReserve = hospitalUser.getHospitalCurrentDieselReserve();
+
+        if (currentReserve == null) {
+            currentReserve = 0.0;
+        }
+
+        double collectedDiesel = fuelRequest.getRequestedLiter().doubleValue();
+        double updatedReserve = currentReserve + collectedDiesel;
+
+        updatedReserve = Math.round(updatedReserve * 100.0) / 100.0;
+
+        hospitalUser.setHospitalCurrentDieselReserve(updatedReserve);
+        hospitalSupportCalculationService.recalculateAndSave(hospitalUser);
     }
 
     private void updatePumpProfileTotalStock(PumpProfile pumpProfile) {
@@ -476,12 +517,17 @@ public class FuelRequestService {
         PumpProfile pumpProfile = fuelRequest.getPumpProfile();
         Vehicle vehicle = fuelRequest.getVehicle();
         EmergencyVehicleProfile emergencyProfile = fuelRequest.getEmergencyVehicleProfile();
+        User requestUser = fuelRequest.getUser();
+
+        if (requestUser.getRole() == Role.HOSPITAL_AUTHORITY) {
+            requestUser = hospitalSupportCalculationService.recalculateAndSave(requestUser);
+        }
 
         return FuelRequestResponse.builder()
                 .id(fuelRequest.getId())
-                .userId(fuelRequest.getUser().getId())
-                .userName(fuelRequest.getUser().getFullName())
-                .phoneNumber(fuelRequest.getUser().getPhoneNumber())
+                .userId(requestUser.getId())
+                .userName(requestUser.getFullName())
+                .phoneNumber(requestUser.getPhoneNumber())
                 .requestSource(fuelRequest.getRequestSource())
 
                 .vehicleId(vehicle == null ? null : vehicle.getId())
@@ -509,6 +555,9 @@ public class FuelRequestService {
                 .hospitalUrgencyLevel(valueOrDash(fuelRequest.getHospitalUrgencyLevel()))
                 .hospitalReason(valueOrDash(fuelRequest.getHospitalReason()))
                 .hospitalContactNumber(valueOrDash(fuelRequest.getHospitalContactNumber()))
+                .hospitalCurrentDieselReserve(requestUser.getHospitalCurrentDieselReserve())
+                .hospitalEstimatedBackupHours(requestUser.getHospitalEstimatedBackupHours())
+                .hospitalDieselStatus(requestUser.getHospitalDieselStatus())
 
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())
@@ -543,6 +592,14 @@ public class FuelRequestService {
     private String valueOrDash(String value) {
         if (value == null || value.trim().isEmpty()) {
             return "-";
+        }
+
+        return value;
+    }
+
+    private double valueOrZero(Double value) {
+        if (value == null) {
+            return 0.0;
         }
 
         return value;

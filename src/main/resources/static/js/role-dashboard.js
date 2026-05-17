@@ -1,4 +1,4 @@
-const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || {};
+let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || {};
 
 document.addEventListener("DOMContentLoaded", function () {
     loadUserInfo();
@@ -10,6 +10,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (document.getElementById("pumpDashboardName")) {
         loadPumpForDashboard();
+    }
+
+    if (document.getElementById("refreshHospitalProfileBtn")) {
+        document.getElementById("refreshHospitalProfileBtn").addEventListener("click", refreshHospitalProfile);
     }
 
     setupFeatureButtons();
@@ -52,7 +56,25 @@ function loadUserInfo() {
     setTextIfExists("emergencyContactNumber", loggedInUser.emergencyContactNumber || "Not Provided");
     setTextIfExists("hospitalUnderThana", loggedInUser.hospitalUnderThana || "Not Provided");
     setTextIfExists("hospitalGeneratorCapacity", loggedInUser.hospitalGeneratorCapacity || "Not Provided");
-    setTextIfExists("hospitalCurrentDieselReserve", loggedInUser.hospitalCurrentDieselReserve !== null && loggedInUser.hospitalCurrentDieselReserve !== undefined ? loggedInUser.hospitalCurrentDieselReserve + " L" : "Not Provided");
+
+    setTextIfExists(
+        "hospitalCurrentDieselReserve",
+        loggedInUser.hospitalCurrentDieselReserve !== null && loggedInUser.hospitalCurrentDieselReserve !== undefined
+            ? loggedInUser.hospitalCurrentDieselReserve + " L"
+            : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalEstimatedBackupHours",
+        loggedInUser.hospitalEstimatedBackupHours !== null && loggedInUser.hospitalEstimatedBackupHours !== undefined
+            ? loggedInUser.hospitalEstimatedBackupHours + " hours"
+            : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalDieselStatus",
+        loggedInUser.hospitalDieselStatus || "Not Provided"
+    );
 
     setTextIfExists("utilityOrganizationType", loggedInUser.utilityOrganizationType || "Not Provided");
     setTextIfExists("utilityEmployeeId", loggedInUser.utilityEmployeeId || "Not Provided");
@@ -71,6 +93,46 @@ function loadUserInfo() {
     setTextIfExists("localAuthorityId", loggedInUser.localAuthorityId || "Not Provided");
     setTextIfExists("district", loggedInUser.district || "Not Provided");
     setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || "Not Provided");
+}
+
+async function refreshHospitalProfile() {
+    const userId = loggedInUser.userId || localStorage.getItem("userId");
+
+    if (!userId) {
+        showHospitalDashboardMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/hospital-authority/profile/" + userId + "?time=" + Date.now());
+        const profile = await response.json();
+
+        if (!response.ok) {
+            showHospitalDashboardMessage(getErrorMessage(profile), "error-text");
+            return;
+        }
+
+        loggedInUser = profile;
+        localStorage.setItem("loggedInUser", JSON.stringify(profile));
+
+        localStorage.setItem("fullName", profile.fullName || "");
+        localStorage.setItem("phoneNumber", profile.phoneNumber || "");
+        localStorage.setItem("role", profile.role || "");
+        localStorage.setItem("status", profile.status || "");
+        localStorage.setItem("userId", profile.userId || "");
+
+        loadUserInfo();
+
+        showHospitalDashboardMessage(
+            "Profile refreshed. Backup: " + valueOrDash(profile.hospitalEstimatedBackupHours) +
+            " hours, Status: " + valueOrDash(profile.hospitalDieselStatus) +
+            ", Diesel Reserve: " + valueOrDash(profile.hospitalCurrentDieselReserve) + " L",
+            "success-text"
+        );
+
+    } catch (error) {
+        showHospitalDashboardMessage("Server connection failed while refreshing hospital profile.", "error-text");
+    }
 }
 
 async function loadPumpForDashboard() {
@@ -122,6 +184,7 @@ function fillPumpDashboard(pump) {
     } else {
         setTextIfExists("pumpDashboardTime", valueOrDash(pump.openingTime) + " - " + valueOrDash(pump.closingTime));
     }
+
     renderPumpFuelStockTable(pump.fuelStocks);
 }
 
@@ -243,6 +306,15 @@ function showDashboardPumpMessage(message, className) {
     }
 }
 
+function showHospitalDashboardMessage(message, className) {
+    const messageBox = document.getElementById("hospitalDashboardMessage");
+
+    if (messageBox) {
+        messageBox.className = className;
+        messageBox.innerText = message;
+    }
+}
+
 function setTextIfExists(id, value) {
     const element = document.getElementById(id);
 
@@ -278,6 +350,7 @@ function formatDate(dateValue) {
 
     return dateValue.replace("T", " ").substring(0, 19);
 }
+
 function renderPumpFuelStockTable(fuelStocks) {
     const tableBody = document.getElementById("pumpFuelStockTableBody");
 
