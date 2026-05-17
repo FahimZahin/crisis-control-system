@@ -5,6 +5,7 @@ import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
+import com.crisiscontrol.dto.HospitalGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.entity.EmergencyVehicleApprovalStatus;
 import com.crisiscontrol.entity.EmergencyVehicleProfile;
 import com.crisiscontrol.entity.FuelLimit;
@@ -119,7 +120,7 @@ public class FuelRequestService {
                     .build();
 
             FuelRequest savedRequest = fuelRequestRepository.save(autoApprovedRequest);
-            savedRequest.setCollectionCode(generateCollectionCode(savedRequest.getId()));
+            savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
 
             return mapToResponse(fuelRequestRepository.save(savedRequest));
         }
@@ -164,13 +165,6 @@ public class FuelRequestService {
 
         BigDecimal estimatedCost = request.getRequestedLiter().multiply(fuelPrice.getPricePerUnit());
 
-        /*
-         * Emergency rule:
-         * Admin approval of emergency vehicle profile automatically unlocks priority fuel access.
-         * No second approval is needed for emergency/higher fuel request.
-         * We only check that emergency fuel limit setting exists for policy tracking,
-         * but we do not block approved emergency vehicles by normal vehicle owner limit.
-         */
         fuelLimitRepository.findByLimitType(FuelLimitType.EMERGENCY_VEHICLE)
                 .orElseThrow(() -> new RuntimeException("Emergency vehicle fuel limit not set by admin"));
 
@@ -195,9 +189,70 @@ public class FuelRequestService {
                 .build();
 
         FuelRequest savedRequest = fuelRequestRepository.save(emergencyRequest);
-        savedRequest.setCollectionCode(generateCollectionCode(savedRequest.getId()));
+        savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
 
         return mapToResponse(fuelRequestRepository.save(savedRequest));
+    }
+
+    public FuelRequestResponse createHospitalGeneratorFuelRequest(HospitalGeneratorFuelRequestCreateRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != Role.HOSPITAL_AUTHORITY) {
+            throw new RuntimeException("Only Hospital Authority can request generator diesel support");
+        }
+
+        FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
+                .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
+
+        FuelLimit generatorLimit = fuelLimitRepository.findByLimitType(FuelLimitType.GENERATOR_DIESEL)
+                .orElseThrow(() -> new RuntimeException("Generator diesel limit not set by admin"));
+
+        BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+
+        PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
+
+        FuelRequestStatus status = FuelRequestStatus.PENDING;
+        String adminNote = "Hospital generator diesel request is waiting for admin review.";
+
+        if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) <= 0 && assignedPump != null) {
+            status = FuelRequestStatus.APPROVED;
+            adminNote = "Auto-approved for hospital generator support. Collect diesel from assigned pump.";
+        } else if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) > 0) {
+            adminNote = "Request exceeds generator diesel limit. Waiting for admin review.";
+        } else if (assignedPump == null) {
+            adminNote = "No open pump has enough DIESEL stock right now. Waiting for admin review.";
+        }
+
+        FuelRequest hospitalRequest = FuelRequest.builder()
+                .user(user)
+                .pumpProfile(status == FuelRequestStatus.APPROVED ? assignedPump : null)
+                .requestSource(FuelRequestSource.HOSPITAL_GENERATOR)
+                .fuelType(FuelType.DIESEL)
+                .requestedLiter(request.getRequiredDieselLiter())
+                .fuelLevelStatus("GENERATOR_DIESEL_SUPPORT")
+                .hospitalName(valueOrDefault(request.getHospitalName(), user.getHospitalName()))
+                .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
+                .hospitalAddress(user.getHospitalAddress())
+                .affectedThana(request.getAffectedThana())
+                .generatorCapacity(request.getGeneratorCapacity())
+                .hospitalUrgencyLevel(request.getUrgencyLevel())
+                .hospitalReason(request.getReason())
+                .hospitalContactNumber(request.getContactNumber())
+                .pricePerUnit(dieselPrice.getPricePerUnit())
+                .estimatedCost(estimatedCost)
+                .requestStatus(status)
+                .adminNote(adminNote)
+                .build();
+
+        FuelRequest savedRequest = fuelRequestRepository.save(hospitalRequest);
+
+        if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
+            savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
+            savedRequest = fuelRequestRepository.save(savedRequest);
+        }
+
+        return mapToResponse(savedRequest);
     }
 
     public List<FuelRequestResponse> getUserFuelRequests(Long userId) {
@@ -210,6 +265,14 @@ public class FuelRequestService {
     public List<FuelRequestResponse> getEmergencyFuelRequestsByUser(Long userId) {
         return fuelRequestRepository
                 .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.EMERGENCY)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<FuelRequestResponse> getHospitalGeneratorFuelRequestsByUser(Long userId) {
+        return fuelRequestRepository
+                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.HOSPITAL_GENERATOR)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -255,7 +318,7 @@ public class FuelRequestService {
 
         fuelRequest.setPumpProfile(pumpProfile);
         fuelRequest.setRequestStatus(FuelRequestStatus.APPROVED);
-        fuelRequest.setCollectionCode(generateCollectionCode(fuelRequest.getId()));
+        fuelRequest.setCollectionCode(generateCollectionCode(fuelRequest));
         fuelRequest.setAdminNote(
                 isBlank(decisionRequest.getAdminNote())
                         ? "Approved by admin. Please collect from assigned pump."
@@ -356,6 +419,16 @@ public class FuelRequestService {
     }
 
     private PumpProfile findAvailablePumpForFuel(FuelType fuelType, BigDecimal requestedLiter) {
+        PumpProfile pump = findAvailablePumpForFuelOrNull(fuelType, requestedLiter);
+
+        if (pump == null) {
+            throw new RuntimeException("No open pump has enough " + fuelType + " stock right now");
+        }
+
+        return pump;
+    }
+
+    private PumpProfile findAvailablePumpForFuelOrNull(FuelType fuelType, BigDecimal requestedLiter) {
         List<PumpProfile> openPumps = pumpProfileRepository.findByPumpStatusOrderByUpdatedAtDesc(PumpStatus.OPEN);
 
         for (PumpProfile pump : openPumps) {
@@ -368,11 +441,15 @@ public class FuelRequestService {
             }
         }
 
-        throw new RuntimeException("No open pump has enough " + fuelType + " stock right now");
+        return null;
     }
 
-    private String generateCollectionCode(Long requestId) {
-        return "CCS-FUEL-REQ-" + requestId;
+    private String generateCollectionCode(FuelRequest fuelRequest) {
+        if (fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
+            return "CCS-HOSPITAL-FUEL-" + fuelRequest.getId();
+        }
+
+        return "CCS-FUEL-REQ-" + fuelRequest.getId();
     }
 
     private boolean isLowFuel(String fuelLevelStatus) {
@@ -424,6 +501,15 @@ public class FuelRequestService {
                 .emergencyVerificationId(emergencyProfile == null ? "-" : emergencyProfile.getVerificationId())
                 .emergencyReason(fuelRequest.getEmergencyReason())
 
+                .hospitalName(valueOrDash(fuelRequest.getHospitalName()))
+                .hospitalRegistrationNumber(valueOrDash(fuelRequest.getHospitalRegistrationNumber()))
+                .hospitalAddress(valueOrDash(fuelRequest.getHospitalAddress()))
+                .affectedThana(valueOrDash(fuelRequest.getAffectedThana()))
+                .generatorCapacity(valueOrDash(fuelRequest.getGeneratorCapacity()))
+                .hospitalUrgencyLevel(valueOrDash(fuelRequest.getHospitalUrgencyLevel()))
+                .hospitalReason(valueOrDash(fuelRequest.getHospitalReason()))
+                .hospitalContactNumber(valueOrDash(fuelRequest.getHospitalContactNumber()))
+
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())
                 .pumpAddress(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpAddress())
@@ -434,7 +520,6 @@ public class FuelRequestService {
                 .pricePerUnit(fuelRequest.getPricePerUnit())
                 .estimatedCost(fuelRequest.getEstimatedCost())
                 .collectionCode(fuelRequest.getCollectionCode())
-
                 .requestStatus(fuelRequest.getRequestStatus())
                 .adminNote(fuelRequest.getAdminNote())
                 .collectedAt(fuelRequest.getCollectedAt())
@@ -445,5 +530,21 @@ public class FuelRequestService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String valueOrDefault(String value, String defaultValue) {
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+
+        return value;
+    }
+
+    private String valueOrDash(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "-";
+        }
+
+        return value;
     }
 }

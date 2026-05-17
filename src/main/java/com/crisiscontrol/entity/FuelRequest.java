@@ -29,13 +29,13 @@ public class FuelRequest {
     private User user;
 
     // Normal vehicle owner request uses this.
-    // Emergency request can keep this null.
+    // Emergency and hospital generator requests can keep this null.
     @ManyToOne
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
     // Emergency request uses this.
-    // Normal vehicle owner request can keep this null.
+    // Normal and hospital generator requests can keep this null.
     @ManyToOne
     @JoinColumn(name = "emergency_profile_id")
     private EmergencyVehicleProfile emergencyVehicleProfile;
@@ -60,6 +60,31 @@ public class FuelRequest {
 
     @Column(name = "emergency_reason", length = 1000)
     private String emergencyReason;
+
+    // Hospital generator diesel support fields
+    @Column(name = "hospital_name")
+    private String hospitalName;
+
+    @Column(name = "hospital_registration_number")
+    private String hospitalRegistrationNumber;
+
+    @Column(name = "hospital_address")
+    private String hospitalAddress;
+
+    @Column(name = "affected_thana")
+    private String affectedThana;
+
+    @Column(name = "generator_capacity")
+    private String generatorCapacity;
+
+    @Column(name = "hospital_urgency_level")
+    private String hospitalUrgencyLevel;
+
+    @Column(name = "hospital_reason", length = 1000)
+    private String hospitalReason;
+
+    @Column(name = "hospital_contact_number")
+    private String hospitalContactNumber;
 
     @Column(name = "price_per_unit", nullable = false, precision = 10, scale = 2)
     private BigDecimal pricePerUnit;

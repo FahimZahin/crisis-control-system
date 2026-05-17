@@ -21,7 +21,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public AuthResponse register(RegisterRequest request) {
-
         validateCommonFields(request);
         validateRoleSpecificFields(request);
 
@@ -53,6 +52,9 @@ public class AuthService {
                 .hospitalName(emptyToNull(request.getHospitalName()))
                 .hospitalRegistrationNumber(emptyToNull(request.getHospitalRegistrationNumber()))
                 .hospitalAddress(emptyToNull(request.getHospitalAddress()))
+                .hospitalUnderThana(emptyToNull(request.getHospitalUnderThana()))
+                .hospitalGeneratorCapacity(emptyToNull(request.getHospitalGeneratorCapacity()))
+                .hospitalCurrentDieselReserve(request.getHospitalCurrentDieselReserve())
                 .emergencyContactNumber(emptyToNull(request.getEmergencyContactNumber()))
 
                 .utilityOrganizationType(emptyToNull(request.getUtilityOrganizationType()))
@@ -82,7 +84,6 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-
         User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
                 .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
 
@@ -98,7 +99,6 @@ public class AuthService {
     }
 
     private void validateCommonFields(RegisterRequest request) {
-
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("Password and confirm password do not match");
         }
@@ -113,7 +113,6 @@ public class AuthService {
     }
 
     private void validateRoleSpecificFields(RegisterRequest request) {
-
         Role role = request.getRole();
 
         if (role == Role.VEHICLE_OWNER) {
@@ -138,7 +137,6 @@ public class AuthService {
     }
 
     private void validateVehicleOwner(RegisterRequest request) {
-
         if (isBlank(request.getDrivingLicenseNumber())) {
             throw new RuntimeException("Driving license number is required for vehicle owner");
         }
@@ -149,7 +147,6 @@ public class AuthService {
     }
 
     private void validateBuildingManager(RegisterRequest request) {
-
         if (isBlank(request.getBuildingName())) {
             throw new RuntimeException("Building name is required for building manager");
         }
@@ -172,7 +169,6 @@ public class AuthService {
     }
 
     private void validatePumpAuthority(RegisterRequest request) {
-
         if (isBlank(request.getPumpName())) {
             throw new RuntimeException("Pump name is required for pump authority");
         }
@@ -219,7 +215,6 @@ public class AuthService {
     }
 
     private void validateHospitalAuthority(RegisterRequest request) {
-
         if (isBlank(request.getHospitalName())) {
             throw new RuntimeException("Hospital name is required for hospital authority");
         }
@@ -232,6 +227,18 @@ public class AuthService {
             throw new RuntimeException("Hospital address is required for hospital authority");
         }
 
+        if (isBlank(request.getHospitalUnderThana())) {
+            throw new RuntimeException("Hospital under thana is required for hospital authority");
+        }
+
+        if (isBlank(request.getHospitalGeneratorCapacity())) {
+            throw new RuntimeException("Hospital generator capacity is required for hospital authority");
+        }
+
+        if (request.getHospitalCurrentDieselReserve() == null || request.getHospitalCurrentDieselReserve() < 0) {
+            throw new RuntimeException("Valid hospital current diesel reserve is required");
+        }
+
         if (isBlank(request.getEmergencyContactNumber())) {
             throw new RuntimeException("Emergency contact number is required for hospital authority");
         }
@@ -242,7 +249,6 @@ public class AuthService {
     }
 
     private void validateUtilityAuthority(RegisterRequest request) {
-
         if (isBlank(request.getUtilityOrganizationType())) {
             throw new RuntimeException("Utility organization type is required");
         }
@@ -265,7 +271,6 @@ public class AuthService {
     }
 
     private void validateEmergencyVehicleAuthority(RegisterRequest request) {
-
         if (isBlank(request.getOrganizationName())) {
             throw new RuntimeException("Organization name is required");
         }
@@ -288,7 +293,6 @@ public class AuthService {
     }
 
     private void validateGovernmentAuthority(RegisterRequest request) {
-
         if (isBlank(request.getGovernmentEmployeeId())) {
             throw new RuntimeException("Government employee ID is required");
         }
@@ -311,7 +315,6 @@ public class AuthService {
     }
 
     private void validateLocalAuthority(RegisterRequest request) {
-
         if (isBlank(request.getLocalAuthorityId())) {
             throw new RuntimeException("Local authority ID is required");
         }
@@ -338,7 +341,6 @@ public class AuthService {
     }
 
     private void validateAdmin(RegisterRequest request) {
-
         if (isBlank(request.getAdminCode())) {
             throw new RuntimeException("Admin secret code is required");
         }
@@ -348,21 +350,9 @@ public class AuthService {
         }
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
-    }
-
-    private String emptyToNull(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return null;
-        }
-
-        return value.trim();
-    }
     private AuthResponse buildAuthResponse(String message, User user) {
         return AuthResponse.builder()
                 .message(message)
-
                 .userId(user.getId())
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
@@ -390,6 +380,9 @@ public class AuthService {
                 .hospitalName(user.getHospitalName())
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
                 .hospitalAddress(user.getHospitalAddress())
+                .hospitalUnderThana(user.getHospitalUnderThana())
+                .hospitalGeneratorCapacity(user.getHospitalGeneratorCapacity())
+                .hospitalCurrentDieselReserve(user.getHospitalCurrentDieselReserve())
                 .emergencyContactNumber(user.getEmergencyContactNumber())
 
                 .utilityOrganizationType(user.getUtilityOrganizationType())
@@ -405,10 +398,22 @@ public class AuthService {
                 .governmentEmployeeId(user.getGovernmentEmployeeId())
                 .departmentName(user.getDepartmentName())
                 .designation(user.getDesignation())
+
                 .localAuthorityId(user.getLocalAuthorityId())
                 .district(user.getDistrict())
                 .thanaOrUpazila(user.getThanaOrUpazila())
-
                 .build();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String emptyToNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 }

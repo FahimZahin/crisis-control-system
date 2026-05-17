@@ -1,81 +1,81 @@
-package com.crisiscontrol.security;
+package com.crisiscontrol.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
                                 "/index.html",
-                                "/register.html",
                                 "/login.html",
+                                "/register.html",
                                 "/dashboard.html",
-                                "/css/**",
-                                "/js/**",
-                                "/api/auth/register",
-                                "/api/auth/login",
-                                "/profile-setup.html",
-                                "/images/**",
+
                                 "/vehicle-owner-dashboard.html",
+                                "/admin-dashboard.html",
+                                "/pump-authority-dashboard.html",
+                                "/emergency-vehicle-dashboard.html",
+                                "/utility-authority-dashboard.html",
+                                "/hospital-authority-dashboard.html",
                                 "/building-manager-dashboard.html",
+                                "/government-dashboard.html",
+                                "/local-authority-dashboard.html",
+
+                                "/profile.html",
+                                "/profile-setup.html",
+
+                                "/registered-users.html",
                                 "/admin-fuel-settings.html",
-                                "/api/vehicles/**",
-                                "/pump-stock-management.html",
-                                "/api/pumps/**",
+                                "/admin-fuel-requests.html",
+                                "/admin-emergency-vehicles.html",
+
                                 "/fuel-request.html",
                                 "/fuel-request-history.html",
-                                "/admin-fuel-requests.html",
-                                "/api/fuel-requests/**",
+
+                                "/pump-stock-management.html",
                                 "/pump-fuel-requests.html",
+
                                 "/emergency-vehicle-setup.html",
-                                "/admin-emergency-vehicles.html",
-                                "/api/emergency-vehicles/**",
                                 "/emergency-fuel-request.html",
                                 "/emergency-fuel-request-history.html",
-                                "/api/emergency-fuel-requests/**",
+
                                 "/utility-profile-setup.html",
                                 "/utility-outage-management.html",
                                 "/power-outage-notices.html",
-                                "/api/utility/**",
-                                "/api/power-outages/**",
-                                "/pump-authority-dashboard.html",
-                                "/hospital-authority-dashboard.html",
-                                "/utility-authority-dashboard.html",
-                                "/emergency-vehicle-dashboard.html",
-                                "/government-dashboard.html",
-                                "/local-authority-dashboard.html",
-                                "/profile.html",
-                                "/api/admin/**",
-                                "/registered-users.html",
-                                "/api/users/**",
-                                "/admin-dashboard.html"
+
+                                "/hospital-generator-request.html",
+                                "/hospital-generator-request-history.html",
+
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/api/**"
                         ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(formLogin -> formLogin.disable());
+                        .anyRequest().permitAll()
+                );
 
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

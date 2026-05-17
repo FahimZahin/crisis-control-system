@@ -119,6 +119,9 @@ function buildRegistrationData(selectedRole) {
         hospitalRegistrationNumber: null,
         hospitalAddress: null,
         emergencyContactNumber: null,
+        hospitalUnderThana: null,
+        hospitalGeneratorCapacity: null,
+        hospitalCurrentDieselReserve: null,
 
         utilityOrganizationType: null,
         utilityEmployeeId: null,
@@ -168,6 +171,9 @@ function buildRegistrationData(selectedRole) {
         data.hospitalName = getValue("hospitalName");
         data.hospitalRegistrationNumber = getValue("hospitalRegistrationNumber");
         data.hospitalAddress = getValue("hospitalAddress");
+        data.hospitalUnderThana = getValue("hospitalUnderThana");
+        data.hospitalGeneratorCapacity = getValue("hospitalGeneratorCapacity");
+        data.hospitalCurrentDieselReserve = getNumberValue("hospitalCurrentDieselReserve");
         data.emergencyContactNumber = getValue("emergencyContactNumber");
     }
 
@@ -266,8 +272,17 @@ function validateFrontendData(data) {
     }
 
     if (data.role === "HOSPITAL_AUTHORITY") {
-        if (!data.hospitalName || !data.hospitalRegistrationNumber || !data.hospitalAddress || !data.emergencyContactNumber) {
-            return "Hospital name, registration number, address, and emergency contact number are required.";
+        if (
+            !data.hospitalName
+            || !data.hospitalRegistrationNumber
+            || !data.hospitalAddress
+            || !data.hospitalUnderThana
+            || !data.hospitalGeneratorCapacity
+            || data.hospitalCurrentDieselReserve === null
+            || data.hospitalCurrentDieselReserve < 0
+            || !data.emergencyContactNumber
+        ) {
+            return "Hospital name, registration number, address, hospital under thana, generator capacity, current diesel reserve, and emergency contact number are required.";
         }
     }
 

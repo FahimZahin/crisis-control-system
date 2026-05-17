@@ -16,7 +16,6 @@ import java.time.LocalDateTime;
 public class FuelRequestResponse {
 
     private Long id;
-
     private Long userId;
     private String userName;
     private String phoneNumber;
@@ -40,6 +39,15 @@ public class FuelRequestResponse {
     private String emergencyVerificationId;
     private String emergencyReason;
 
+    private String hospitalName;
+    private String hospitalRegistrationNumber;
+    private String hospitalAddress;
+    private String affectedThana;
+    private String generatorCapacity;
+    private String hospitalUrgencyLevel;
+    private String hospitalReason;
+    private String hospitalContactNumber;
+
     private Long pumpId;
     private String pumpName;
     private String pumpAddress;
@@ -51,7 +59,6 @@ public class FuelRequestResponse {
     private BigDecimal estimatedCost;
 
     private String collectionCode;
-
     private FuelRequestStatus requestStatus;
     private String adminNote;
 

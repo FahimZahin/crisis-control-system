@@ -11,6 +11,7 @@
     <div class="logo">Crisis Control System</div>
     <div>
         <a href="dashboard.html">Home</a>
+        <a href="power-outage-notices.html">Power Outage Notices</a>
         <a href="profile.html">Profile</a>
         <a href="login.html" id="logoutBtn">Logout</a>
     </div>
@@ -21,39 +22,87 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Hospital Authority Dashboard</h1>
-            <p>Manage hospital emergency fuel and power support during crisis.</p>
+            <p>Manage hospital outage awareness and generator diesel support during crisis.</p>
         </div>
         <span class="role-badge">HOSPITAL AUTHORITY</span>
     </div>
 
     <div class="role-summary-grid">
-        <div class="summary-card"><h3>Hospital Name</h3><p id="hospitalName">-</p></div>
-        <div class="summary-card"><h3>Emergency Contact</h3><p id="emergencyContactNumber">-</p></div>
-        <div class="summary-card"><h3>Status</h3><p id="dashboardUserStatus">-</p></div>
-        <div class="summary-card"><h3>Role</h3><p id="dashboardUserRole">-</p></div>
-    </div>
+        <div class="summary-card">
+            <h3>Hospital Name</h3>
+            <p id="hospitalName">-</p>
+        </div>
 
-    <div class="role-dashboard-section">
-        <h2>Hospital Registration Information</h2>
-        <div class="info-grid">
-            <div><label>Authority Name</label><p id="dashboardUserName">-</p></div>
-            <div><label>Phone</label><p id="dashboardUserPhone">-</p></div>
-            <div><label>Hospital Registration Number</label><p id="hospitalRegistrationNumber">-</p></div>
-            <div><label>Hospital Address</label><p id="hospitalAddress">-</p></div>
+        <div class="summary-card">
+            <h3>Hospital Under Thana</h3>
+            <p id="hospitalUnderThana">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Generator Capacity</h3>
+            <p id="hospitalGeneratorCapacity">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Current Diesel Reserve</h3>
+            <p id="hospitalCurrentDieselReserve">-</p>
         </div>
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Available Features Preview</h2>
+        <h2>Hospital Registration Information</h2>
+
+        <div class="info-grid">
+            <div>
+                <label>Authority Name</label>
+                <p id="dashboardUserName">-</p>
+            </div>
+
+            <div>
+                <label>Phone</label>
+                <p id="dashboardUserPhone">-</p>
+            </div>
+
+            <div>
+                <label>Emergency Contact</label>
+                <p id="emergencyContactNumber">-</p>
+            </div>
+
+            <div>
+                <label>Status</label>
+                <p id="dashboardUserStatus">-</p>
+            </div>
+
+            <div>
+                <label>Hospital Registration Number</label>
+                <p id="hospitalRegistrationNumber">-</p>
+            </div>
+
+            <div>
+                <label>Hospital Address</label>
+                <p id="hospitalAddress">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Hospital Crisis Features</h2>
+
         <div class="feature-preview-grid">
             <a href="power-outage-notices.html" class="feature-preview-card active-feature">
-                <h3>Power Outage Updates</h3>
-                <p>View DPDC/DESCO outage notices and expected restoration time by thana.</p>
+                <h3>View Power Outage Notices</h3>
+                <p>Check DPDC/DESCO outage notices, affected thana, cause, and expected restoration time.</p>
             </a>
-            <div class="feature-preview-card"><h3>Generator Support</h3><p>Request diesel for hospital generator backup.</p></div>
-            <div class="feature-preview-card"><h3>Critical Notice</h3><p>Send urgent crisis notice to government authority.</p></div>
-            <div class="feature-preview-card"><h3>Request History</h3><p>View previous hospital fuel and diesel requests.</p></div>
-            <div class="feature-preview-card"><h3>Power Outage Updates</h3><p>View utility outage and restoration notices.</p></div>
+
+            <a href="hospital-generator-request.html" class="feature-preview-card active-feature">
+                <h3>Request Generator Diesel Support</h3>
+                <p>Request DIESEL support for hospital generator backup during power outage.</p>
+            </a>
+
+            <a href="hospital-generator-request-history.html" class="feature-preview-card active-feature">
+                <h3>Generator Diesel Request History</h3>
+                <p>Track approval status, assigned pump, collection code, admin note, and collection history.</p>
+            </a>
         </div>
     </div>
 

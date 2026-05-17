@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Generator Request History | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="hospital-authority-dashboard.html">Hospital Dashboard</a>
+        <a href="hospital-generator-request.html">New Request</a>
+        <a href="power-outage-notices.html">Power Outage Notices</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Generator Diesel Request History</h1>
+            <p>Track approval status, assigned pump, collection code, and diesel collection.</p>
+        </div>
+        <span class="role-badge">REQUEST HISTORY</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Requests</h3>
+            <p id="totalHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pending</h3>
+            <p id="pendingHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved</h3>
+            <p id="approvedHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Collected</h3>
+            <p id="collectedHospitalRequests">0</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>My Generator Diesel Requests</h2>
+                <p class="muted-text">
+                    View generator diesel support request status and collection code.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshHospitalHistoryBtn">
+                Refresh
+            </button>
+        </div>
+
+        <p id="hospitalHistoryMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Thana</th>
+                    <th>Generator</th>
+                    <th>Urgency</th>
+                    <th>Diesel</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Pump</th>
+                    <th>Collection Code</th>
+                    <th>Admin Note</th>
+                </tr>
+                </thead>
+
+                <tbody id="hospitalHistoryBody">
+                <tr>
+                    <td colspan="10">Loading request history...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/hospital-generator-request-history.js"></script>
+
+</body>
+</html>

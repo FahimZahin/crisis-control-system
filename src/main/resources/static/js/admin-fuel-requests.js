@@ -76,7 +76,7 @@ function renderFuelRequests() {
     const tableBody = document.getElementById("adminFuelRequestsBody");
 
     if (allRequests.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="11">No fuel request found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10">No fuel request found.</td></tr>`;
         return;
     }
 
@@ -87,34 +87,75 @@ function renderFuelRequests() {
 
         row.innerHTML = `
             <td>${request.id}</td>
-            <td>${request.userName}<br><small>${request.phoneNumber}</small></td>
-            <td>${request.vehicleBrand} ${request.vehicleModel}<br><small>${request.vehicleNumberPlate}</small></td>
+            <td>
+                <strong>${request.userName}</strong><br>
+                ${request.phoneNumber || request.hospitalContactNumber || "-"}<br>
+                <small>${request.requestSource || "-"}</small>
+            </td>
+            <td>${renderRequestInfo(request)}</td>
             <td>${request.fuelType}</td>
             <td>${request.fuelLevelStatus || "-"}</td>
-            <td>${request.requestedLiter}</td>
+            <td>${request.requestedLiter} L</td>
             <td>${request.estimatedCost} BDT</td>
-            <td><span class="status-badge ${getStatusClass(request.requestStatus)}">${request.requestStatus}</span></td>
-            <td>${request.pumpName}<br><small>${request.pumpAddress}</small></td>
+            <td><span class="${getStatusClass(request.requestStatus)}">${request.requestStatus}</span></td>
             <td>
-                <textarea id="adminNote-${request.id}" placeholder="Admin note">${request.adminNote || ""}</textarea>
+                <strong>${request.pumpName}</strong><br>
+                ${request.pumpAddress}
             </td>
-            <td>${getActionButtons(request)}</td>
+            <td>${request.adminNote || ""}</td>
+            <td>${getActionArea(request)}</td>
         `;
 
         tableBody.appendChild(row);
-
-        if (request.requestStatus === "PENDING") {
-            const pumpSelectCell = document.createElement("div");
-            pumpSelectCell.innerHTML = getPumpSelect(request.id);
-
-            const actionCell = row.children[9];
-            actionCell.insertBefore(pumpSelectCell, actionCell.firstChild);
-        }
     });
 }
 
+function renderRequestInfo(request) {
+    if (request.requestSource === "HOSPITAL_GENERATOR") {
+        return `
+            <strong>Hospital Generator Diesel</strong><br>
+            Hospital: ${valueOrDash(request.hospitalName)}<br>
+            Reg: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
+            Thana: ${valueOrDash(request.affectedThana)}<br>
+            Generator: ${valueOrDash(request.generatorCapacity)}<br>
+            Urgency: ${valueOrDash(request.hospitalUrgencyLevel)}<br>
+            Reason: ${valueOrDash(request.hospitalReason)}
+        `;
+    }
+
+    if (request.requestSource === "EMERGENCY") {
+        return `
+            <strong>Emergency Vehicle</strong><br>
+            Organization: ${valueOrDash(request.emergencyOrganizationName)}<br>
+            Vehicle No: ${valueOrDash(request.emergencyVehicleNumber)}<br>
+            Type: ${valueOrDash(request.emergencyVehicleType)}<br>
+            Area: ${valueOrDash(request.emergencyAssignedArea)}
+        `;
+    }
+
+    return `
+        <strong>Normal Vehicle</strong><br>
+        ${valueOrDash(request.vehicleBrand)} ${valueOrDash(request.vehicleModel)}<br>
+        Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
+        Type: ${valueOrDash(request.vehicleType)}
+    `;
+}
+
+function getActionArea(request) {
+    if (request.requestStatus !== "PENDING") {
+        return `No action`;
+    }
+
+    return `
+        ${getPumpSelect(request.id)}
+        <textarea id="adminNote-${request.id}" rows="2" placeholder="Admin note"></textarea>
+        <button class="btn primary tiny-btn" onclick="approveRequest(${request.id})">Approve</button>
+        <button class="btn danger tiny-btn" onclick="rejectRequest(${request.id})">Reject</button>
+    `;
+}
+
 function getPumpSelect(requestId) {
-    let html = `<select id="pumpSelect-${requestId}" class="table-select">`;
+    let html = `<select id="pumpSelect-${requestId}">`;
     html += `<option value="">Select Pump</option>`;
 
     availablePumps.forEach(function (pump) {
@@ -124,17 +165,6 @@ function getPumpSelect(requestId) {
     html += `</select>`;
 
     return html;
-}
-
-function getActionButtons(request) {
-    if (request.requestStatus !== "PENDING") {
-        return `<span class="muted-text">No action</span>`;
-    }
-
-    return `
-        <button class="btn primary tiny-btn" onclick="approveRequest(${request.id})">Approve</button>
-        <button class="btn danger tiny-btn" onclick="rejectRequest(${request.id})">Reject</button>
-    `;
 }
 
 async function approveRequest(requestId) {
@@ -182,7 +212,6 @@ async function approveRequest(requestId) {
 
 async function rejectRequest(requestId) {
     const adminNote = document.getElementById("adminNote-" + requestId).value;
-
     const confirmed = confirm("Reject this fuel request?");
 
     if (!confirmed) {
@@ -231,6 +260,14 @@ function getStatusClass(status) {
     }
 
     return "status-pending";
+}
+
+function valueOrDash(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
 }
 
 function showMessage(message, className) {

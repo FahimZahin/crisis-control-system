@@ -107,6 +107,15 @@ public class User {
     @Column(name = "hospital_address")
     private String hospitalAddress;
 
+    @Column(name = "hospital_under_thana")
+    private String hospitalUnderThana;
+
+    @Column(name = "hospital_generator_capacity")
+    private String hospitalGeneratorCapacity;
+
+    @Column(name = "hospital_current_diesel_reserve")
+    private Double hospitalCurrentDieselReserve;
+
     @Column(name = "emergency_contact_number")
     private String emergencyContactNumber;
 
@@ -123,7 +132,7 @@ public class User {
     @Column(name = "office_address")
     private String officeAddress;
 
-
+    // Emergency vehicle authority fields
     @Column(name = "organization_name")
     private String organizationName;
 
@@ -136,7 +145,7 @@ public class User {
     @Column(name = "assigned_area")
     private String assignedArea;
 
-
+    // Government authority fields
     @Column(name = "government_employee_id", unique = true)
     private String governmentEmployeeId;
 
@@ -146,6 +155,7 @@ public class User {
     @Column(name = "designation")
     private String designation;
 
+    // Local authority fields
     @Column(name = "local_authority_id", unique = true)
     private String localAuthorityId;
 
@@ -155,6 +165,7 @@ public class User {
     @Column(name = "thana_or_upazila")
     private String thanaOrUpazila;
 
+    // Admin field
     @Column(name = "admin_code")
     private String adminCode;
 

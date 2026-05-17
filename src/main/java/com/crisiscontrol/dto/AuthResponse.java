@@ -14,7 +14,6 @@ import lombok.Setter;
 public class AuthResponse {
 
     private String message;
-
     private Long userId;
     private String fullName;
     private String phoneNumber;
@@ -46,6 +45,9 @@ public class AuthResponse {
     private String hospitalName;
     private String hospitalRegistrationNumber;
     private String hospitalAddress;
+    private String hospitalUnderThana;
+    private String hospitalGeneratorCapacity;
+    private Double hospitalCurrentDieselReserve;
     private String emergencyContactNumber;
 
     // Utility authority info

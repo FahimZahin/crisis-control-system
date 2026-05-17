@@ -39,7 +39,6 @@ async function loadPumpAndRequests() {
             response = await fetch("http://localhost:8081/api/pumps/create-from-user/" + userId, {
                 method: "POST"
             });
-
             pump = await response.json();
         }
 
@@ -94,16 +93,16 @@ async function loadAssignedRequests() {
 
             row.innerHTML = `
                 <td>${request.id}</td>
-                <td><strong>${request.collectionCode || "-"}</strong></td>
+                <td>${request.collectionCode || "-"}</td>
                 <td>${request.userName || "-"}</td>
-                <td>${request.phoneNumber || "-"}</td>
-                <td>${renderRequestVehicleFullInfo(request)}</td>
+                <td>${request.phoneNumber || request.hospitalContactNumber || "-"}</td>
+                <td>${renderRequestFullInfo(request)}</td>
                 <td>${request.fuelType || "-"}</td>
-                <td>${request.requestedLiter || "-"}</td>
+                <td>${request.requestedLiter || "-"} L</td>
                 <td>${request.estimatedCost || "-"} BDT</td>
-                <td><span class="status-badge status-approved">${request.requestStatus || "-"}</span></td>
+                <td>${request.requestStatus || "-"}</td>
                 <td>
-                    <button class="btn primary tiny-btn" onclick="fillCodeAndCollect('${request.collectionCode || ""}')">
+                    <button class="btn primary tiny-btn" onclick="fillCodeAndCollect('${request.collectionCode}')">
                         Collect
                     </button>
                 </td>
@@ -117,46 +116,58 @@ async function loadAssignedRequests() {
     }
 }
 
-function renderRequestVehicleFullInfo(request) {
-    const isEmergencyRequest =
-        request.requestSource === "EMERGENCY" &&
-        request.emergencyProfileId !== null &&
-        request.emergencyProfileId !== undefined;
+function renderRequestFullInfo(request) {
+    if (request.requestSource === "HOSPITAL_GENERATOR") {
+        return `
+            <strong>HOSPITAL GENERATOR DIESEL</strong><br>
+            Hospital: ${valueOrDash(request.hospitalName)}<br>
+            Registration: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
+            Address: ${valueOrDash(request.hospitalAddress)}<br>
+            Affected Thana: ${valueOrDash(request.affectedThana)}<br>
+            Generator: ${valueOrDash(request.generatorCapacity)}<br>
+            Urgency: ${valueOrDash(request.hospitalUrgencyLevel)}<br>
+            Reason: ${valueOrDash(request.hospitalReason)}<br>
+            Contact: ${valueOrDash(request.hospitalContactNumber)}
+        `;
+    }
+
+    const isEmergencyRequest = request.requestSource === "EMERGENCY"
+        && request.emergencyProfileId !== null
+        && request.emergencyProfileId !== undefined;
 
     if (isEmergencyRequest) {
         return `
-            <span class="emergency-source-badge">EMERGENCY VEHICLE</span><br>
-            <strong>Type:</strong> ${valueOrDash(request.emergencyVehicleType)}<br>
-            <strong>Vehicle No:</strong> ${valueOrDash(request.emergencyVehicleNumber)}<br>
-            <strong>Organization:</strong> ${valueOrDash(request.emergencyOrganizationName)}<br>
-            <strong>Authority:</strong> ${valueOrDash(request.emergencyAuthorityName || request.userName)}<br>
-            <strong>Driver:</strong> ${valueOrDash(request.emergencyDriverName)}<br>
-            <strong>Driver License:</strong> ${valueOrDash(request.emergencyDriverLicenseNumber)}<br>
-            <strong>Assigned Area:</strong> ${valueOrDash(request.emergencyAssignedArea)}<br>
-            <strong>Verification ID:</strong> ${valueOrDash(request.emergencyVerificationId)}<br>
-            <strong>Reason:</strong> ${valueOrDash(request.emergencyReason)}
+            <strong>EMERGENCY VEHICLE</strong><br>
+            Type: ${valueOrDash(request.emergencyVehicleType)}<br>
+            Vehicle No: ${valueOrDash(request.emergencyVehicleNumber)}<br>
+            Organization: ${valueOrDash(request.emergencyOrganizationName)}<br>
+            Authority: ${valueOrDash(request.emergencyAuthorityName || request.userName)}<br>
+            Driver: ${valueOrDash(request.emergencyDriverName)}<br>
+            Driver License: ${valueOrDash(request.emergencyDriverLicenseNumber)}<br>
+            Assigned Area: ${valueOrDash(request.emergencyAssignedArea)}<br>
+            Verification ID: ${valueOrDash(request.emergencyVerificationId)}<br>
+            Reason: ${valueOrDash(request.emergencyReason)}
         `;
     }
 
     return `
-        <span class="normal-source-badge">NORMAL VEHICLE</span><br>
-        <strong>Brand:</strong> ${valueOrDash(request.vehicleBrand)}<br>
-        <strong>Model:</strong> ${valueOrDash(request.vehicleModel)}<br>
-        <strong>Plate:</strong> ${valueOrDash(request.vehicleNumberPlate)}<br>
-        <strong>Vehicle Type:</strong> ${valueOrDash(request.vehicleType)}<br>
-        <strong>Owner:</strong> ${valueOrDash(request.userName)}<br>
-        <strong>Phone:</strong> ${valueOrDash(request.phoneNumber)}
+        <strong>NORMAL VEHICLE</strong><br>
+        Brand: ${valueOrDash(request.vehicleBrand)}<br>
+        Model: ${valueOrDash(request.vehicleModel)}<br>
+        Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
+        Vehicle Type: ${valueOrDash(request.vehicleType)}<br>
+        Owner: ${valueOrDash(request.userName)}<br>
+        Phone: ${valueOrDash(request.phoneNumber)}
     `;
 }
 
 function fillCodeAndCollect(collectionCode) {
     if (!collectionCode || collectionCode === "null" || collectionCode === "undefined" || collectionCode === "-") {
-        showMessage("collectionMessage", "This request has no collection code. Create a new request or approve it again.", "error-text");
+        showMessage("collectionMessage", "This request has no collection code.", "error-text");
         return;
     }
 
     document.getElementById("collectionCode").value = collectionCode;
-    collectByManualCode();
 }
 
 async function collectByManualCode() {
@@ -165,14 +176,14 @@ async function collectByManualCode() {
         return;
     }
 
-    const collectionCode = document.getElementById("collectionCode").value.trim().toUpperCase();
+    const collectionCode = document.getElementById("collectionCode").value.trim();
 
     if (!collectionCode) {
         showMessage("collectionMessage", "Please enter collection code.", "error-text");
         return;
     }
 
-    const confirmed = confirm("Verify and mark this fuel request as collected?");
+    const confirmed = confirm("Verify this collection code and mark fuel as collected?");
 
     if (!confirmed) {
         return;
@@ -195,12 +206,7 @@ async function collectByManualCode() {
         const result = await response.json();
 
         if (response.ok) {
-            showMessage(
-                "collectionMessage",
-                "Fuel collection successful. Stock deducted and request marked COLLECTED.",
-                "success-text"
-            );
-
+            showMessage("collectionMessage", "Fuel collection verified successfully. Stock deducted.", "success-text");
             document.getElementById("collectionCode").value = "";
             loadPumpAndRequests();
         } else {
@@ -208,8 +214,16 @@ async function collectByManualCode() {
         }
 
     } catch (error) {
-        showMessage("collectionMessage", "Server connection failed while verifying collection code.", "error-text");
+        showMessage("collectionMessage", "Server connection failed while verifying collection.", "error-text");
     }
+}
+
+function valueOrDash(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
 }
 
 function showMessage(id, message, className) {
@@ -231,20 +245,6 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
-}
-
-function valueOrDash(value) {
-    if (
-        value === null ||
-        value === undefined ||
-        value === "" ||
-        value === "null" ||
-        value === "undefined"
-    ) {
-        return "-";
-    }
-
-    return value;
 }
 
 function setupLogout() {

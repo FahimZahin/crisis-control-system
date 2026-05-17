@@ -50,6 +50,9 @@ function loadUserInfo() {
     setTextIfExists("hospitalRegistrationNumber", loggedInUser.hospitalRegistrationNumber || "Not Provided");
     setTextIfExists("hospitalAddress", loggedInUser.hospitalAddress || "Not Provided");
     setTextIfExists("emergencyContactNumber", loggedInUser.emergencyContactNumber || "Not Provided");
+    setTextIfExists("hospitalUnderThana", loggedInUser.hospitalUnderThana || "Not Provided");
+    setTextIfExists("hospitalGeneratorCapacity", loggedInUser.hospitalGeneratorCapacity || "Not Provided");
+    setTextIfExists("hospitalCurrentDieselReserve", loggedInUser.hospitalCurrentDieselReserve !== null && loggedInUser.hospitalCurrentDieselReserve !== undefined ? loggedInUser.hospitalCurrentDieselReserve + " L" : "Not Provided");
 
     setTextIfExists("utilityOrganizationType", loggedInUser.utilityOrganizationType || "Not Provided");
     setTextIfExists("utilityEmployeeId", loggedInUser.utilityEmployeeId || "Not Provided");

@@ -5,6 +5,7 @@ import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
+import com.crisiscontrol.dto.HospitalGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.service.FuelRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,20 @@ public class FuelRequestController {
             @PathVariable Long userId
     ) {
         return ResponseEntity.ok(fuelRequestService.getEmergencyFuelRequestsByUser(userId));
+    }
+
+    @PostMapping("/api/hospital-generator-fuel-requests")
+    public ResponseEntity<FuelRequestResponse> createHospitalGeneratorFuelRequest(
+            @Valid @RequestBody HospitalGeneratorFuelRequestCreateRequest request
+    ) {
+        return ResponseEntity.ok(fuelRequestService.createHospitalGeneratorFuelRequest(request));
+    }
+
+    @GetMapping("/api/hospital-generator-fuel-requests/user/{userId}")
+    public ResponseEntity<List<FuelRequestResponse>> getHospitalGeneratorFuelRequestsByUser(
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(fuelRequestService.getHospitalGeneratorFuelRequestsByUser(userId));
     }
 
     @GetMapping("/api/admin/fuel-requests")

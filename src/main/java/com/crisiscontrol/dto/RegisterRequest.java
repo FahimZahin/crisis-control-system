@@ -52,6 +52,9 @@ public class RegisterRequest {
     private String hospitalName;
     private String hospitalRegistrationNumber;
     private String hospitalAddress;
+    private String hospitalUnderThana;
+    private String hospitalGeneratorCapacity;
+    private Double hospitalCurrentDieselReserve;
     private String emergencyContactNumber;
 
     // Utility authority fields
