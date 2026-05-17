@@ -23,7 +23,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Hospital Generator Diesel Support</h1>
-            <p>Hospital can request DIESEL only when generator backup is less than 6 hours.</p>
+            <p>Hospital can request DIESEL anytime. CRITICAL requests may auto-approve; others wait for admin approval.</p>
         </div>
         <span class="role-badge">HOSPITAL DIESEL</span>
     </div>
@@ -45,8 +45,8 @@
         </div>
 
         <div class="summary-card">
-            <h3>Can Apply?</h3>
-            <p id="canApplySummary">-</p>
+            <h3>Approval Mode</h3>
+            <p id="approvalModeSummary">-</p>
         </div>
     </div>
 
@@ -92,7 +92,7 @@
     <div class="role-dashboard-section">
         <h2>Create Generator Diesel Request</h2>
         <p class="muted-text">
-            Request form is enabled only when the calculated backup is less than 6 hours and status is CRITICAL.
+            Enter either Expected Backup Hours Needed or Required Diesel Liter. The system will calculate the other value automatically.
         </p>
 
         <form id="hospitalGeneratorRequestForm" class="settings-form-grid">
@@ -103,33 +103,18 @@
                     <option value="">Select situation</option>
                     <option value="ONGOING_OUTAGE">Ongoing outage in hospital thana</option>
                     <option value="SCHEDULED_OUTAGE">Scheduled outage announced</option>
-                    <option value="LOW_GENERATOR_RESERVE">Generator diesel reserve is low</option>
-                    <option value="CRITICAL_BACKUP_NEED">Critical backup power needed</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Critical Unit Affected</label>
-                <select id="criticalUnit" required>
-                    <option value="">Select critical unit</option>
-                    <option value="ICU">ICU</option>
-                    <option value="EMERGENCY_WARD">Emergency Ward</option>
-                    <option value="OPERATION_THEATRE">Operation Theatre</option>
-                    <option value="OXYGEN_SUPPLY">Oxygen Supply</option>
-                    <option value="VACCINE_MEDICINE_STORAGE">Vaccine / Medicine Storage</option>
-                    <option value="FULL_HOSPITAL_BACKUP">Full Hospital Backup</option>
-                    <option value="OTHER">Other</option>
+                    <option value="PRECAUTIONARY_REFILL">Precautionary refill for hospital backup</option>
                 </select>
             </div>
 
             <div>
                 <label>Expected Backup Hours Needed</label>
-                <input type="number" id="backupHoursNeeded" min="1" step="0.5" placeholder="Example: 4" required>
+                <input type="number" id="backupHoursNeeded" min="1" step="0.5" placeholder="Example: 4">
             </div>
 
             <div>
                 <label>Required Diesel Liter</label>
-                <input type="number" id="requiredDieselLiter" min="1" step="0.01" placeholder="Example: 50" required>
+                <input type="number" id="requiredDieselLiter" min="1" step="0.01" placeholder="Example: 50">
             </div>
 
             <div>
@@ -138,8 +123,13 @@
             </div>
 
             <div>
-                <label>System Urgency</label>
+                <label>System Status</label>
                 <input type="text" id="urgencyLevel" readonly>
+            </div>
+
+            <div>
+                <label>Hourly Diesel Consumption</label>
+                <input type="text" id="hourlyDieselConsumption" readonly>
             </div>
 
             <div class="settings-full-row">

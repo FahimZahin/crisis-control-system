@@ -122,12 +122,12 @@ function renderRequestFullInfo(request) {
             <strong>HOSPITAL GENERATOR DIESEL</strong><br>
             Hospital: ${valueOrDash(request.hospitalName)}<br>
             Registration: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
-            Address: ${valueOrDash(request.hospitalAddress)}<br>
-            Affected Thana: ${valueOrDash(request.affectedThana)}<br>
+            Thana: ${valueOrDash(request.affectedThana)}<br>
             Generator: ${valueOrDash(request.generatorCapacity)}<br>
-            Urgency: ${valueOrDash(request.hospitalUrgencyLevel)}<br>
-            Reason: ${valueOrDash(request.hospitalReason)}<br>
-            Contact: ${valueOrDash(request.hospitalContactNumber)}
+            Status: ${valueOrDash(request.hospitalDieselStatus || request.hospitalUrgencyLevel)}<br>
+            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hours<br>
+            Reserve: ${valueOrDash(request.hospitalCurrentDieselReserve)} L<br>
+            Requested: ${renderRequestTime(request)}
         `;
     }
 
@@ -146,7 +146,8 @@ function renderRequestFullInfo(request) {
             Driver License: ${valueOrDash(request.emergencyDriverLicenseNumber)}<br>
             Assigned Area: ${valueOrDash(request.emergencyAssignedArea)}<br>
             Verification ID: ${valueOrDash(request.emergencyVerificationId)}<br>
-            Reason: ${valueOrDash(request.emergencyReason)}
+            Reason: ${valueOrDash(request.emergencyReason)}<br>
+            Requested: ${renderRequestTime(request)}
         `;
     }
 
@@ -157,7 +158,8 @@ function renderRequestFullInfo(request) {
         Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
         Vehicle Type: ${valueOrDash(request.vehicleType)}<br>
         Owner: ${valueOrDash(request.userName)}<br>
-        Phone: ${valueOrDash(request.phoneNumber)}
+        Phone: ${valueOrDash(request.phoneNumber)}<br>
+        Requested: ${renderRequestTime(request)}
     `;
 }
 
@@ -247,6 +249,51 @@ function getErrorMessage(result) {
     return "Request failed.";
 }
 
+
+function renderRequestTime(request) {
+    if (!request.createdAt) {
+        return "-";
+    }
+
+    return formatDateTime(request.createdAt) + " (" + timeAgo(request.createdAt) + ")";
+}
+
+function timeAgo(dateValue) {
+    const date = new Date(dateValue);
+    const now = new Date();
+
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) {
+        return "just now";
+    }
+
+    if (diffMinutes < 60) {
+        return diffMinutes + " min ago";
+    }
+
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffHours < 24) {
+        return diffHours + " hr ago";
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+    return diffDays + " day(s) ago";
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return value.replace("T", " ").substring(0, 16);
+}
 function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");
 

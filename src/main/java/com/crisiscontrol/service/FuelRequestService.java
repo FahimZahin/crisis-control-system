@@ -205,51 +205,47 @@ public class FuelRequestService {
 
         user = hospitalSupportCalculationService.recalculateAndSave(user);
 
-        if (!hospitalSupportCalculationService.canApplyForGeneratorDiesel(user)) {
-            throw new RuntimeException(
-                    "Generator diesel request is not allowed. Current backup is "
-                            + valueOrZero(user.getHospitalEstimatedBackupHours())
-                            + " hours and status is "
-                            + valueOrDash(user.getHospitalDieselStatus())
-                            + ". Hospital can apply only when backup is less than 6 hours and status is CRITICAL."
-            );
-        }
-
         FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
-        FuelLimit generatorLimit = fuelLimitRepository.findByLimitType(FuelLimitType.GENERATOR_DIESEL)
-                .orElseThrow(() -> new RuntimeException("Generator diesel limit not set by admin"));
-
         BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+
+        boolean isCritical = "CRITICAL".equals(user.getHospitalDieselStatus())
+                && valueOrZero(user.getHospitalEstimatedBackupHours()) < 6;
 
         PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
 
         FuelRequestStatus status = FuelRequestStatus.PENDING;
-        String adminNote = "Hospital generator diesel request is waiting for admin review.";
+        PumpProfile finalAssignedPump = null;
+        String adminNote;
 
-        if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) <= 0 && assignedPump != null) {
+        if (isCritical && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            adminNote = "Auto-approved because hospital backup is CRITICAL and an open pump has enough DIESEL stock.";
-        } else if (estimatedCost.compareTo(generatorLimit.getLimitAmount()) > 0) {
-            adminNote = "Request exceeds generator diesel limit. Waiting for admin review.";
-        } else if (assignedPump == null) {
-            adminNote = "No open pump has enough DIESEL stock right now. Waiting for admin review.";
+            finalAssignedPump = assignedPump;
+            adminNote = "Auto-approved. Hospital backup status is CRITICAL and an open pump has enough DIESEL stock.";
+        } else if (isCritical) {
+            adminNote = "Hospital is CRITICAL, but no open pump has enough DIESEL stock right now. Waiting for admin approval.";
+        } else {
+            adminNote = "Hospital request received. Current status is "
+                    + valueOrDash(user.getHospitalDieselStatus())
+                    + " with "
+                    + valueOrZero(user.getHospitalEstimatedBackupHours())
+                    + " backup hours. Waiting for admin approval.";
         }
 
         FuelRequest hospitalRequest = FuelRequest.builder()
                 .user(user)
-                .pumpProfile(status == FuelRequestStatus.APPROVED ? assignedPump : null)
+                .pumpProfile(finalAssignedPump)
                 .requestSource(FuelRequestSource.HOSPITAL_GENERATOR)
                 .fuelType(FuelType.DIESEL)
                 .requestedLiter(request.getRequiredDieselLiter())
-                .fuelLevelStatus("HOSPITAL_" + user.getHospitalDieselStatus())
+                .fuelLevelStatus("HOSPITAL_" + valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalName(valueOrDefault(request.getHospitalName(), user.getHospitalName()))
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
                 .hospitalAddress(user.getHospitalAddress())
                 .affectedThana(user.getHospitalUnderThana())
                 .generatorCapacity(user.getHospitalGeneratorCapacity())
-                .hospitalUrgencyLevel(user.getHospitalDieselStatus())
+                .hospitalUrgencyLevel(valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalReason(request.getReason())
                 .hospitalContactNumber(request.getContactNumber())
                 .pricePerUnit(dieselPrice.getPricePerUnit())

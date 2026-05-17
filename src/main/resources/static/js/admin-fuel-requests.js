@@ -12,9 +12,15 @@ document.addEventListener("DOMContentLoaded", function () {
     setupLogout();
     loadAdminPageData();
 
-    document.getElementById("refreshAdminRequestsBtn").addEventListener("click", function () {
-        loadAdminPageData();
-    });
+    const refreshBtn = document.getElementById("refreshAdminRequestsBtn");
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+            loadAdminPageData();
+        });
+    }
+
+    setInterval(renderFuelRequests, 60000);
 });
 
 async function loadAdminPageData() {
@@ -24,7 +30,7 @@ async function loadAdminPageData() {
 
 async function loadAvailablePumps() {
     try {
-        const response = await fetch("http://localhost:8081/api/pumps/available");
+        const response = await fetch("http://localhost:8081/api/pumps/available?time=" + Date.now());
         availablePumps = await response.json();
 
         if (!response.ok) {
@@ -40,11 +46,11 @@ async function loadFuelRequests() {
     const tableBody = document.getElementById("adminFuelRequestsBody");
 
     try {
-        const response = await fetch("http://localhost:8081/api/admin/fuel-requests");
+        const response = await fetch("http://localhost:8081/api/admin/fuel-requests?time=" + Date.now());
         allRequests = await response.json();
 
         if (!response.ok) {
-            tableBody.innerHTML = `<tr><td colspan="10">Failed to load fuel requests.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="11">Failed to load fuel requests.</td></tr>`;
             return;
         }
 
@@ -52,31 +58,35 @@ async function loadFuelRequests() {
         renderFuelRequests();
 
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="10">Server connection failed.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="11">Server connection failed.</td></tr>`;
     }
 }
 
 function updateSummaryCards() {
-    document.getElementById("totalRequests").innerText = allRequests.length;
+    setTextIfExists("totalRequests", allRequests.length);
 
-    document.getElementById("pendingRequests").innerText = allRequests.filter(function (request) {
+    setTextIfExists("pendingRequests", allRequests.filter(function (request) {
         return request.requestStatus === "PENDING";
-    }).length;
+    }).length);
 
-    document.getElementById("approvedRequests").innerText = allRequests.filter(function (request) {
+    setTextIfExists("approvedRequests", allRequests.filter(function (request) {
         return request.requestStatus === "APPROVED";
-    }).length;
+    }).length);
 
-    document.getElementById("rejectedRequests").innerText = allRequests.filter(function (request) {
+    setTextIfExists("rejectedRequests", allRequests.filter(function (request) {
         return request.requestStatus === "REJECTED";
-    }).length;
+    }).length);
 }
 
 function renderFuelRequests() {
     const tableBody = document.getElementById("adminFuelRequestsBody");
 
+    if (!tableBody) {
+        return;
+    }
+
     if (allRequests.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="10">No fuel request found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="11">No fuel request found.</td></tr>`;
         return;
     }
 
@@ -88,21 +98,22 @@ function renderFuelRequests() {
         row.innerHTML = `
             <td>${request.id}</td>
             <td>
-                <strong>${request.userName}</strong><br>
-                ${request.phoneNumber || request.hospitalContactNumber || "-"}<br>
-                <small>${request.requestSource || "-"}</small>
+                <strong>${valueOrDash(request.userName)}</strong><br>
+                ${valueOrDash(request.phoneNumber || request.hospitalContactNumber)}<br>
+                <small>${valueOrDash(request.requestSource)}</small><br>
+                <small>${renderRequestTime(request)}</small>
             </td>
             <td>${renderRequestInfo(request)}</td>
-            <td>${request.fuelType}</td>
-            <td>${request.fuelLevelStatus || "-"}</td>
-            <td>${request.requestedLiter} L</td>
-            <td>${request.estimatedCost} BDT</td>
-            <td><span class="${getStatusClass(request.requestStatus)}">${request.requestStatus}</span></td>
+            <td>${valueOrDash(request.fuelType)}</td>
+            <td>${valueOrDash(request.fuelLevelStatus)}</td>
+            <td>${valueOrDash(request.requestedLiter)} L</td>
+            <td>${valueOrDash(request.estimatedCost)} BDT</td>
+            <td><span class="${getStatusClass(request.requestStatus)}">${valueOrDash(request.requestStatus)}</span></td>
             <td>
-                <strong>${request.pumpName}</strong><br>
-                ${request.pumpAddress}
+                <strong>${valueOrDash(request.pumpName)}</strong><br>
+                ${valueOrDash(request.pumpAddress)}
             </td>
-            <td>${request.adminNote || ""}</td>
+            <td>${renderAdminNote(request)}</td>
             <td>${getActionArea(request)}</td>
         `;
 
@@ -118,8 +129,9 @@ function renderRequestInfo(request) {
             Reg: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
             Thana: ${valueOrDash(request.affectedThana)}<br>
             Generator: ${valueOrDash(request.generatorCapacity)}<br>
-            Urgency: ${valueOrDash(request.hospitalUrgencyLevel)}<br>
-            Reason: ${valueOrDash(request.hospitalReason)}
+            Status: ${valueOrDash(request.hospitalDieselStatus || request.hospitalUrgencyLevel)}<br>
+            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hours<br>
+            Reserve: ${valueOrDash(request.hospitalCurrentDieselReserve)} L
         `;
     }
 
@@ -139,6 +151,28 @@ function renderRequestInfo(request) {
         Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
         Type: ${valueOrDash(request.vehicleType)}
     `;
+}
+
+function renderAdminNote(request) {
+    if (request.requestSource === "HOSPITAL_GENERATOR") {
+        if (request.requestStatus === "PENDING") {
+            return "Hospital generator diesel request is waiting for admin approval.";
+        }
+
+        if (request.requestStatus === "APPROVED") {
+            return "Hospital generator diesel request approved.";
+        }
+
+        if (request.requestStatus === "COLLECTED") {
+            return "Hospital diesel collected from assigned pump.";
+        }
+
+        if (request.requestStatus === "REJECTED") {
+            return "Hospital generator diesel request rejected.";
+        }
+    }
+
+    return valueOrDash(request.adminNote);
 }
 
 function getActionArea(request) {
@@ -246,6 +280,51 @@ async function rejectRequest(requestId) {
     }
 }
 
+function renderRequestTime(request) {
+    if (!request.createdAt) {
+        return "Requested: -";
+    }
+
+    return "Requested: " + formatDateTime(request.createdAt) + " (" + timeAgo(request.createdAt) + ")";
+}
+
+function timeAgo(dateValue) {
+    const date = new Date(dateValue);
+    const now = new Date();
+
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) {
+        return "just now";
+    }
+
+    if (diffMinutes < 60) {
+        return diffMinutes + " min ago";
+    }
+
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffHours < 24) {
+        return diffHours + " hr ago";
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+    return diffDays + " day(s) ago";
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return value.replace("T", " ").substring(0, 16);
+}
+
 function getStatusClass(status) {
     if (status === "APPROVED") {
         return "status-approved";
@@ -262,6 +341,14 @@ function getStatusClass(status) {
     return "status-pending";
 }
 
+function setTextIfExists(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = value;
+    }
+}
+
 function valueOrDash(value) {
     if (value === null || value === undefined || value === "") {
         return "-";
@@ -272,8 +359,11 @@ function valueOrDash(value) {
 
 function showMessage(message, className) {
     const element = document.getElementById("adminFuelRequestMessage");
-    element.className = className;
-    element.innerText = message;
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
 }
 
 function getErrorMessage(result) {
@@ -294,7 +384,6 @@ function setupLogout() {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", function () {
             localStorage.clear();
-            window.location.href = "login.html";
         });
     }
 }
