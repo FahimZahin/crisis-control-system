@@ -30,4 +30,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByLocalAuthorityId(String localAuthorityId);
 
     List<User> findByRole(Role role);
+
+    List<User> findAllByOrderByCreatedAtDesc();
 }
