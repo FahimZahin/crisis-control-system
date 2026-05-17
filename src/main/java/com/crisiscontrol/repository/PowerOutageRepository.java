@@ -14,10 +14,22 @@ public interface PowerOutageRepository extends JpaRepository<PowerOutageNotice, 
     List<PowerOutageNotice> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<PowerOutageNotice> findByStatusInOrderByCreatedAtDesc(List<PowerOutageStatus> statuses);
+    List<PowerOutageNotice> findByStatusAndExpectedRestorationDateTimeLessThanEqual(
+            PowerOutageStatus status,
+            LocalDateTime expectedRestorationDateTime
+    );
 
     List<PowerOutageNotice> findByThanaNameIgnoreCaseOrderByCreatedAtDesc(String thanaName);
 
     boolean existsByThanaNameIgnoreCaseAndStatus(String thanaName, PowerOutageStatus status);
 
-    boolean existsByThanaNameIgnoreCaseAndCreatedAtAfter(String thanaName, LocalDateTime createdAt);
+    boolean existsByThanaNameIgnoreCaseAndCreatedAtAfter(
+            String thanaName,
+            LocalDateTime createdAt
+    );
+
+    boolean existsByThanaNameIgnoreCaseAndRestoredAtAfter(
+            String thanaName,
+            LocalDateTime restoredAt
+    );
 }

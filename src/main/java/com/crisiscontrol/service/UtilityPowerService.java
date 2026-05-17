@@ -4,18 +4,12 @@ import com.crisiscontrol.dto.PowerOutageRequest;
 import com.crisiscontrol.dto.PowerOutageResponse;
 import com.crisiscontrol.dto.UtilityProfileRequest;
 import com.crisiscontrol.dto.UtilityProfileResponse;
-import com.crisiscontrol.entity.CityCorporation;
-import com.crisiscontrol.entity.PowerOutageNotice;
-import com.crisiscontrol.entity.PowerOutageStatus;
-import com.crisiscontrol.entity.PowerOutageType;
-import com.crisiscontrol.entity.Role;
-import com.crisiscontrol.entity.User;
-import com.crisiscontrol.entity.UtilityProfile;
-import com.crisiscontrol.entity.UtilityProvider;
+import com.crisiscontrol.entity.*;
 import com.crisiscontrol.repository.PowerOutageRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.UtilityProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -34,19 +28,57 @@ public class UtilityPowerService {
             "System is currently available only for Dhaka city corporation areas under DPDC and DESCO.";
 
     private static final List<String> DESCO_DNCC_THANAS = List.of(
-            "Uttara East", "Uttara West", "Dakshinkhan", "Uttarkhan", "Khilkhet",
-            "Turag", "Gulshan", "Banani", "Badda", "Baridhara", "Mirpur",
-            "Pallabi", "Rupnagar", "Shah Ali", "Kafrul", "Darus Salam",
-            "Agargaon", "Sher-e-Bangla Nagar", "Cantonment"
+            "Uttara East",
+            "Uttara West",
+            "Dakshinkhan",
+            "Uttarkhan",
+            "Khilkhet",
+            "Turag",
+            "Gulshan",
+            "Banani",
+            "Badda",
+            "Baridhara",
+            "Mirpur",
+            "Pallabi",
+            "Rupnagar",
+            "Shah Ali",
+            "Kafrul",
+            "Darus Salam",
+            "Agargaon",
+            "Sher-e-Bangla Nagar",
+            "Cantonment"
     );
 
     private static final List<String> DPDC_DSCC_THANAS = List.of(
-            "Ramna", "Shahbagh", "Dhanmondi", "Kalabagan", "New Market",
-            "Hazaribagh", "Lalbagh", "Chawkbazar", "Kotwali", "Sutrapur",
-            "Wari", "Gendaria", "Bangshal", "Motijheel", "Paltan", "Shyampur",
-            "Kadamtali", "Jatrabari", "Demra", "Kamrangirchar", "Khilgaon",
-            "Sabujbagh", "Mugda"
+            "Ramna",
+            "Shahbagh",
+            "Dhanmondi",
+            "Kalabagan",
+            "New Market",
+            "Hazaribagh",
+            "Lalbagh",
+            "Chawkbazar",
+            "Kotwali",
+            "Sutrapur",
+            "Wari",
+            "Gendaria",
+            "Bangshal",
+            "Motijheel",
+            "Paltan",
+            "Shyampur",
+            "Kadamtali",
+            "Jatrabari",
+            "Demra",
+            "Kamrangirchar",
+            "Khilgaon",
+            "Sabujbagh",
+            "Mugda"
     );
+
+    @Scheduled(fixedRate = 60000)
+    public void autoRestoreExpiredOutagesScheduler() {
+        autoRestoreExpiredOutages();
+    }
 
     public UtilityProfileResponse createOrUpdateUtilityProfile(UtilityProfileRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -54,7 +86,8 @@ public class UtilityPowerService {
 
         validateUtilityUser(user);
 
-        if (request.getProvider() == UtilityProvider.BPDB || request.getProvider() == UtilityProvider.PALLI_BIDYUT) {
+        if (request.getProvider() == UtilityProvider.BPDB
+                || request.getProvider() == UtilityProvider.PALLI_BIDYUT) {
             throw new RuntimeException(NOT_AVAILABLE_MESSAGE);
         }
 
@@ -88,8 +121,7 @@ public class UtilityPowerService {
     }
 
     public UtilityProfileResponse getUtilityProfileByUser(Long userId) {
-        UtilityProfile profile = utilityProfileRepository.findByUserId(userId)
-                .orElse(null);
+        UtilityProfile profile = utilityProfileRepository.findByUserId(userId).orElse(null);
 
         if (profile != null) {
             return mapProfileToResponse(profile);
@@ -127,7 +159,10 @@ public class UtilityPowerService {
                 .officerName(valueOrDefault(user.getFullName(), "Utility Officer"))
                 .employeeId(employeeId)
                 .officialPhone(valueOrDefault(user.getPhoneNumber(), "Not Provided"))
-                .officeAddress(valueOrDefault(user.getOfficeAddress(), valueOrDefault(user.getAddress(), "Not Provided")))
+                .officeAddress(valueOrDefault(
+                        user.getOfficeAddress(),
+                        valueOrDefault(user.getAddress(), "Not Provided")
+                ))
                 .serviceZone(valueOrDefault(user.getServiceArea(), "Dhaka City"))
                 .build();
 
@@ -135,6 +170,8 @@ public class UtilityPowerService {
     }
 
     public PowerOutageResponse createPowerOutage(PowerOutageRequest request) {
+        autoRestoreExpiredOutages();
+
         UtilityProfile profile = utilityProfileRepository.findByUserId(request.getUserId())
                 .orElseGet(() -> createProfileFromRegistration(request.getUserId()));
 
@@ -147,14 +184,23 @@ public class UtilityPowerService {
                 PowerOutageStatus.ONGOING
         );
 
-        boolean recent = powerOutageRepository.existsByThanaNameIgnoreCaseAndCreatedAtAfter(
+        boolean recentRestored = powerOutageRepository.existsByThanaNameIgnoreCaseAndRestoredAtAfter(
+                request.getThanaName(),
+                LocalDateTime.now().minusHours(1)
+        );
+
+        boolean recentCreated = powerOutageRepository.existsByThanaNameIgnoreCaseAndCreatedAtAfter(
                 request.getThanaName(),
                 LocalDateTime.now().minusHours(24)
         );
 
-        if ((ongoing || recent) && !Boolean.TRUE.equals(request.getWarningAcknowledged())) {
+        if ((ongoing || recentRestored || recentCreated) && !Boolean.TRUE.equals(request.getWarningAcknowledged())) {
             if (ongoing) {
                 throw new RuntimeException("This thana already has an ongoing outage notice. Creating another current outage may confuse users.");
+            }
+
+            if (recentRestored) {
+                throw new RuntimeException("This thana was restored recently. Please confirm before creating another notice.");
             }
 
             throw new RuntimeException("Recent outage happened here. Please confirm before creating another notice.");
@@ -176,12 +222,15 @@ public class UtilityPowerService {
                 .emergencyMessage(request.getEmergencyMessage())
                 .contactNumber(request.getContactNumber())
                 .warningAcknowledged(Boolean.TRUE.equals(request.getWarningAcknowledged()))
+                .restoredAt(status == PowerOutageStatus.RESTORED ? LocalDateTime.now() : null)
                 .build();
 
         return mapNoticeToResponse(powerOutageRepository.save(notice));
     }
 
     public List<PowerOutageResponse> getAllPowerOutages() {
+        autoRestoreExpiredOutages();
+
         return powerOutageRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
                 .map(this::mapNoticeToResponse)
@@ -189,21 +238,23 @@ public class UtilityPowerService {
     }
 
     public List<PowerOutageResponse> getActivePowerOutages() {
+        autoRestoreExpiredOutages();
+
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+
         return powerOutageRepository.findByStatusInOrderByCreatedAtDesc(
-                        List.of(PowerOutageStatus.ONGOING, PowerOutageStatus.SCHEDULED, PowerOutageStatus.RESTORED)
+                        List.of(
+                                PowerOutageStatus.ONGOING,
+                                PowerOutageStatus.SCHEDULED,
+                                PowerOutageStatus.RESTORED
+                        )
                 )
                 .stream()
+                .map(this::autoRestoreIfExpired)
                 .filter(notice -> {
-                    PowerOutageNotice updatedNotice = autoRestoreIfExpired(notice);
-
-                    if (updatedNotice.getStatus() == PowerOutageStatus.RESTORED) {
-                        LocalDateTime restoredTime = updatedNotice.getUpdatedAt();
-
-                        if (restoredTime == null) {
-                            return false;
-                        }
-
-                        return restoredTime.isAfter(LocalDateTime.now().minusHours(1));
+                    if (notice.getStatus() == PowerOutageStatus.RESTORED) {
+                        return notice.getRestoredAt() != null
+                                && notice.getRestoredAt().isAfter(oneHourAgo);
                     }
 
                     return true;
@@ -213,6 +264,8 @@ public class UtilityPowerService {
     }
 
     public List<PowerOutageResponse> getPowerOutagesByUser(Long userId) {
+        autoRestoreExpiredOutages();
+
         UtilityProfile profile = utilityProfileRepository.findByUserId(userId)
                 .orElseGet(() -> createProfileFromRegistration(userId));
 
@@ -223,18 +276,36 @@ public class UtilityPowerService {
     }
 
     public List<PowerOutageResponse> getRecentPowerOutagesByThana(String thanaName) {
+        autoRestoreExpiredOutages();
+
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+
         return powerOutageRepository.findByThanaNameIgnoreCaseOrderByCreatedAtDesc(thanaName)
                 .stream()
-                .filter(notice ->
-                        notice.getStatus() == PowerOutageStatus.ONGOING ||
-                                notice.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24)) ||
-                                notice.getUpdatedAt().isAfter(LocalDateTime.now().minusHours(24))
-                )
+                .map(this::autoRestoreIfExpired)
+                .filter(notice -> {
+                    if (notice.getStatus() == PowerOutageStatus.ONGOING) {
+                        return true;
+                    }
+
+                    if (notice.getStatus() == PowerOutageStatus.SCHEDULED) {
+                        return true;
+                    }
+
+                    if (notice.getStatus() == PowerOutageStatus.RESTORED) {
+                        return notice.getRestoredAt() != null
+                                && notice.getRestoredAt().isAfter(oneHourAgo);
+                    }
+
+                    return false;
+                })
                 .map(this::mapNoticeToResponse)
                 .toList();
     }
 
     public PowerOutageResponse updatePowerOutage(Long id, PowerOutageRequest request) {
+        autoRestoreExpiredOutages();
+
         PowerOutageNotice notice = powerOutageRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Power outage notice not found"));
 
@@ -242,10 +313,13 @@ public class UtilityPowerService {
 
         validateThanaForProvider(profile, request.getThanaName());
 
+        PowerOutageStatus oldStatus = notice.getStatus();
+        PowerOutageStatus newStatus = resolveStatus(request);
+
         notice.setThanaName(request.getThanaName());
         notice.setOutageType(request.getOutageType());
         notice.setCause(request.getCause());
-        notice.setStatus(resolveStatus(request));
+        notice.setStatus(newStatus);
         notice.setStartDateTime(parseDateTime(request.getStartDateTime()));
         notice.setExpectedRestorationDateTime(parseDateTime(request.getExpectedRestorationDateTime()));
         notice.setDailyStartTime(parseTime(request.getDailyStartTime()));
@@ -253,6 +327,14 @@ public class UtilityPowerService {
         notice.setEmergencyMessage(request.getEmergencyMessage());
         notice.setContactNumber(request.getContactNumber());
         notice.setWarningAcknowledged(Boolean.TRUE.equals(request.getWarningAcknowledged()));
+
+        if (newStatus == PowerOutageStatus.RESTORED && oldStatus != PowerOutageStatus.RESTORED) {
+            notice.setRestoredAt(LocalDateTime.now());
+        }
+
+        if (newStatus != PowerOutageStatus.RESTORED) {
+            notice.setRestoredAt(null);
+        }
 
         return mapNoticeToResponse(powerOutageRepository.save(notice));
     }
@@ -262,6 +344,42 @@ public class UtilityPowerService {
                 .orElseThrow(() -> new RuntimeException("Power outage notice not found"));
 
         powerOutageRepository.delete(notice);
+    }
+
+    private void autoRestoreExpiredOutages() {
+        List<PowerOutageNotice> expiredNotices =
+                powerOutageRepository.findByStatusAndExpectedRestorationDateTimeLessThanEqual(
+                        PowerOutageStatus.ONGOING,
+                        LocalDateTime.now()
+                );
+
+        for (PowerOutageNotice notice : expiredNotices) {
+            notice.setStatus(PowerOutageStatus.RESTORED);
+
+            if (notice.getRestoredAt() == null) {
+                notice.setRestoredAt(LocalDateTime.now());
+            }
+
+            powerOutageRepository.save(notice);
+        }
+    }
+
+    private PowerOutageNotice autoRestoreIfExpired(PowerOutageNotice notice) {
+        if (
+                notice.getStatus() == PowerOutageStatus.ONGOING
+                        && notice.getExpectedRestorationDateTime() != null
+                        && !notice.getExpectedRestorationDateTime().isAfter(LocalDateTime.now())
+        ) {
+            notice.setStatus(PowerOutageStatus.RESTORED);
+
+            if (notice.getRestoredAt() == null) {
+                notice.setRestoredAt(LocalDateTime.now());
+            }
+
+            return powerOutageRepository.save(notice);
+        }
+
+        return notice;
     }
 
     private void validateUtilityUser(User user) {
@@ -281,7 +399,8 @@ public class UtilityPowerService {
             throw new RuntimeException("Utility provider is missing from registration data");
         }
 
-        String normalized = providerText.trim().toUpperCase()
+        String normalized = providerText.trim()
+                .toUpperCase()
                 .replace(" ", "_")
                 .replace("-", "_");
 
@@ -371,26 +490,16 @@ public class UtilityPowerService {
                 .updatedAt(profile.getUpdatedAt())
                 .build();
     }
-    private PowerOutageNotice autoRestoreIfExpired(PowerOutageNotice notice) {
-        if (
-                notice.getStatus() == PowerOutageStatus.ONGOING &&
-                        notice.getExpectedRestorationDateTime() != null &&
-                        !notice.getExpectedRestorationDateTime().isAfter(LocalDateTime.now())
-        ) {
-            notice.setStatus(PowerOutageStatus.RESTORED);
-            return powerOutageRepository.save(notice);
-        }
 
-        return notice;
-    }
     private PowerOutageResponse mapNoticeToResponse(PowerOutageNotice notice) {
         notice = autoRestoreIfExpired(notice);
+
         boolean ongoing = powerOutageRepository.existsByThanaNameIgnoreCaseAndStatus(
                 notice.getThanaName(),
                 PowerOutageStatus.ONGOING
         );
 
-        boolean recent = powerOutageRepository.existsByThanaNameIgnoreCaseAndCreatedAtAfter(
+        boolean recentRestored = powerOutageRepository.existsByThanaNameIgnoreCaseAndRestoredAtAfter(
                 notice.getThanaName(),
                 LocalDateTime.now().minusHours(1)
         );
@@ -415,7 +524,8 @@ public class UtilityPowerService {
                 .contactNumber(notice.getContactNumber())
                 .warningAcknowledged(notice.getWarningAcknowledged())
                 .ongoingInSameThana(ongoing)
-                .recentOutageInSameThana(recent)
+                .recentOutageInSameThana(recentRestored)
+                .restoredAt(notice.getRestoredAt())
                 .createdAt(notice.getCreatedAt())
                 .updatedAt(notice.getUpdatedAt())
                 .build();

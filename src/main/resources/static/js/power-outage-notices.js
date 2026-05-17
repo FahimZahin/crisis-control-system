@@ -4,7 +4,10 @@ document.addEventListener("DOMContentLoaded", function () {
     setupLogout();
     loadPublicNotices();
 
-    document.getElementById("refreshPublicNoticesBtn").addEventListener("click", loadPublicNotices);
+    const refreshBtn = document.getElementById("refreshPublicNoticesBtn");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", loadPublicNotices);
+    }
 });
 
 async function loadPublicNotices() {
@@ -19,9 +22,16 @@ async function loadPublicNotices() {
             return;
         }
 
+        publicNotices = publicNotices.filter(function (notice) {
+            if (notice.status === "RESTORED") {
+                return isRecentlyRestored(notice);
+            }
+
+            return true;
+        });
+
         renderPublicStatusGrid();
         renderPublicNoticeCards();
-
     } catch (error) {
         list.innerHTML = "Server connection failed.";
     }
@@ -32,17 +42,24 @@ function renderPublicStatusGrid() {
     const thanaMap = {};
 
     publicNotices.forEach(function (notice) {
-        if (!thanaMap[notice.thanaName]) {
-            thanaMap[notice.thanaName] = notice.status;
+        const thana = notice.thanaName;
+
+        if (!thanaMap[thana]) {
+            thanaMap[thana] = getPublicVisualStatus(notice);
             return;
         }
 
+        const currentStatus = thanaMap[thana];
+
         if (notice.status === "ONGOING") {
-            thanaMap[notice.thanaName] = "ONGOING";
-        } else if (notice.status === "SCHEDULED" && thanaMap[notice.thanaName] !== "ONGOING") {
-            thanaMap[notice.thanaName] = "SCHEDULED";
-        } else if (notice.status === "RESTORED" && !["ONGOING", "SCHEDULED"].includes(thanaMap[notice.thanaName])) {
-            thanaMap[notice.thanaName] = "RESTORED";
+            thanaMap[thana] = "ONGOING";
+        } else if (notice.status === "SCHEDULED" && currentStatus !== "ONGOING") {
+            thanaMap[thana] = "SCHEDULED";
+        } else if (
+            isRecentlyRestored(notice)
+            && !["ONGOING", "SCHEDULED"].includes(currentStatus)
+        ) {
+            thanaMap[thana] = "RECENTLY RESTORED";
         }
     });
 
@@ -59,11 +76,29 @@ function renderPublicStatusGrid() {
     });
 }
 
+function getPublicVisualStatus(notice) {
+    if (notice.status === "ONGOING") {
+        return "ONGOING";
+    }
+
+    if (notice.status === "SCHEDULED") {
+        return "SCHEDULED";
+    }
+
+    if (isRecentlyRestored(notice)) {
+        return "RECENTLY RESTORED";
+    }
+
+    return "NORMAL";
+}
+
 function renderPublicNoticeCards() {
     const list = document.getElementById("publicNoticeList");
 
     if (publicNotices.length === 0) {
-        list.innerHTML = `<div class="empty-dashboard-box">No active or scheduled outage notice found.</div>`;
+        list.innerHTML = `
+            <p>No active, scheduled, or recently restored outage notice found.</p>
+        `;
         return;
     }
 
@@ -74,42 +109,42 @@ function renderPublicNoticeCards() {
         card.className = "outage-notice-card " + getNoticeCardClass(notice.status);
 
         card.innerHTML = `
-            <div class="card-title-row">
-                <div>
-                    <h3>${notice.provider} - ${notice.thanaName}</h3>
-                    <p>${formatEnum(notice.cityCorporation)}</p>
-                </div>
-                <span class="outage-status-badge ${getStatusClass(notice.status)}">${notice.status}</span>
-            </div>
+            <h3>${notice.provider} - ${notice.thanaName}</h3>
 
-            <div class="info-grid">
+            <p>${formatEnum(notice.cityCorporation)}</p>
+
+            <span class="${getStatusClass(notice.status)}">${notice.status}</span>
+
+            <div class="notice-detail-grid">
                 <div>
-                    <label>Outage Type</label>
+                    <strong>Outage Type</strong>
                     <p>${notice.outageType}</p>
                 </div>
 
                 <div>
-                    <label>Cause</label>
+                    <strong>Cause</strong>
                     <p>${formatEnum(notice.cause)}</p>
                 </div>
 
                 <div>
-                    <label>Time</label>
+                    <strong>Time</strong>
                     <p>${renderTimeInfo(notice)}</p>
                 </div>
 
                 <div>
-                    <label>Contact</label>
+                    <strong>Contact</strong>
                     <p>${notice.contactNumber}</p>
                 </div>
 
                 <div>
-                    <label>Officer</label>
+                    <strong>Officer</strong>
                     <p>${notice.officerName}</p>
                 </div>
             </div>
 
-            <p class="outage-message">${renderHighlightedPublicMessage(notice)}</p>
+            <div class="notice-message">
+                ${renderHighlightedPublicMessage(notice)}
+            </div>
         `;
 
         list.appendChild(card);
@@ -142,6 +177,17 @@ function renderHighlightedPublicMessage(notice) {
     return message;
 }
 
+function isRecentlyRestored(notice) {
+    if (notice.status !== "RESTORED" || !notice.restoredAt) {
+        return false;
+    }
+
+    const restoredAt = new Date(notice.restoredAt);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    return restoredAt >= oneHourAgo;
+}
+
 function getThanaClass(status) {
     if (status === "ONGOING") {
         return "thana-ongoing";
@@ -149,6 +195,10 @@ function getThanaClass(status) {
 
     if (status === "SCHEDULED") {
         return "thana-scheduled";
+    }
+
+    if (status === "RECENTLY RESTORED") {
+        return "thana-restored";
     }
 
     if (status === "RESTORED") {

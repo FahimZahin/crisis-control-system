@@ -14,7 +14,6 @@ import java.time.LocalTime;
 public class PowerOutageResponse {
 
     private Long id;
-
     private Long userId;
     private Long utilityProfileId;
 
@@ -23,8 +22,8 @@ public class PowerOutageResponse {
 
     private UtilityProvider provider;
     private CityCorporation cityCorporation;
-    private String thanaName;
 
+    private String thanaName;
     private PowerOutageType outageType;
     private PowerOutageCause cause;
     private PowerOutageStatus status;
@@ -42,6 +41,7 @@ public class PowerOutageResponse {
     private Boolean ongoingInSameThana;
     private Boolean recentOutageInSameThana;
 
+    private LocalDateTime restoredAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

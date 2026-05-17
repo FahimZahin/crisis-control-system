@@ -71,6 +71,9 @@ public class PowerOutageNotice {
     @Column(name = "warning_acknowledged", nullable = false)
     private Boolean warningAcknowledged;
 
+    @Column(name = "restored_at")
+    private LocalDateTime restoredAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -85,10 +88,22 @@ public class PowerOutageNotice {
         if (this.warningAcknowledged == null) {
             this.warningAcknowledged = false;
         }
+
+        if (this.status == PowerOutageStatus.RESTORED && this.restoredAt == null) {
+            this.restoredAt = LocalDateTime.now();
+        }
     }
 
     @PreUpdate
     public void beforeUpdate() {
         this.updatedAt = LocalDateTime.now();
+
+        if (this.status == PowerOutageStatus.RESTORED && this.restoredAt == null) {
+            this.restoredAt = LocalDateTime.now();
+        }
+
+        if (this.status != PowerOutageStatus.RESTORED) {
+            this.restoredAt = null;
+        }
     }
 }
