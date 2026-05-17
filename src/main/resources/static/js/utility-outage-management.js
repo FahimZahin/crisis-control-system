@@ -5,7 +5,6 @@ let myOutages = [];
 let activeOutages = [];
 let selectedNoticeId = null;
 let countdownTimer = null;
-let isRefreshingAfterExpiry = false;
 
 let currentOutagePage = 1;
 const outagesPerPage = 10;
@@ -16,6 +15,12 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
+    if (loggedInUser.role !== "UTILITY_AUTHORITY") {
+        alert("Only Utility Authority can access this page.");
+        window.location.href = "dashboard.html";
+        return;
+    }
+
     setupLogout();
     setupEvents();
     loadPageData();
@@ -23,39 +28,71 @@ document.addEventListener("DOMContentLoaded", function () {
     countdownTimer = setInterval(function () {
         updateCountdowns();
         autoRefreshIfExpired();
-        renderThanaStatusGrid();
-        renderMyOutagesTableWithoutReset();
     }, 1000);
 });
 
 function setupEvents() {
-    document.getElementById("outageType").addEventListener("change", function () {
-        handleOutageTypeChange();
-        generateEmergencyMessage();
-    });
-
-    document.getElementById("quickDuration").addEventListener("change", function () {
-        applyQuickDuration();
-        generateEmergencyMessage();
-    });
-
-    document.getElementById("thanaName").addEventListener("change", function () {
-        checkRecentOutageWarning();
-        generateEmergencyMessage();
-    });
-
-    document.getElementById("cause").addEventListener("change", generateEmergencyMessage);
-    document.getElementById("startDateTime").addEventListener("change", generateEmergencyMessage);
-    document.getElementById("expectedRestorationDateTime").addEventListener("change", generateEmergencyMessage);
-    document.getElementById("dailyStartTime").addEventListener("change", generateEmergencyMessage);
-    document.getElementById("dailyEndTime").addEventListener("change", generateEmergencyMessage);
-
-    document.getElementById("outageForm").addEventListener("submit", function (event) {
-        event.preventDefault();
-        saveOutageNotice();
-    });
-
+    const outageType = document.getElementById("outageType");
+    const quickDuration = document.getElementById("quickDuration");
+    const thanaName = document.getElementById("thanaName");
+    const cause = document.getElementById("cause");
+    const startDateTime = document.getElementById("startDateTime");
+    const expectedRestorationDateTime = document.getElementById("expectedRestorationDateTime");
+    const dailyStartTime = document.getElementById("dailyStartTime");
+    const dailyEndTime = document.getElementById("dailyEndTime");
+    const outageForm = document.getElementById("outageForm");
     const refreshMyOutagesBtn = document.getElementById("refreshMyOutagesBtn");
+    const refreshThanaStatusBtn = document.getElementById("refreshThanaStatusBtn");
+    const prevBtn = document.getElementById("prevOutagePageBtn");
+    const nextBtn = document.getElementById("nextOutagePageBtn");
+
+    if (outageType) {
+        outageType.addEventListener("change", function () {
+            handleOutageTypeChange();
+            generateEmergencyMessage();
+        });
+    }
+
+    if (quickDuration) {
+        quickDuration.addEventListener("change", function () {
+            applyQuickDuration();
+            generateEmergencyMessage();
+        });
+    }
+
+    if (thanaName) {
+        thanaName.addEventListener("change", function () {
+            checkRecentOutageWarning();
+            generateEmergencyMessage();
+        });
+    }
+
+    if (cause) {
+        cause.addEventListener("change", generateEmergencyMessage);
+    }
+
+    if (startDateTime) {
+        startDateTime.addEventListener("change", generateEmergencyMessage);
+    }
+
+    if (expectedRestorationDateTime) {
+        expectedRestorationDateTime.addEventListener("change", generateEmergencyMessage);
+    }
+
+    if (dailyStartTime) {
+        dailyStartTime.addEventListener("change", generateEmergencyMessage);
+    }
+
+    if (dailyEndTime) {
+        dailyEndTime.addEventListener("change", generateEmergencyMessage);
+    }
+
+    if (outageForm) {
+        outageForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            saveOutageNotice();
+        });
+    }
 
     if (refreshMyOutagesBtn) {
         refreshMyOutagesBtn.addEventListener("click", async function () {
@@ -63,16 +100,11 @@ function setupEvents() {
         });
     }
 
-    const refreshThanaStatusBtn = document.getElementById("refreshThanaStatusBtn");
-
     if (refreshThanaStatusBtn) {
         refreshThanaStatusBtn.addEventListener("click", async function () {
             await refreshWholePageData();
         });
     }
-
-    const prevBtn = document.getElementById("prevOutagePageBtn");
-    const nextBtn = document.getElementById("nextOutagePageBtn");
 
     if (prevBtn) {
         prevBtn.addEventListener("click", function () {
@@ -100,54 +132,155 @@ async function loadPageData() {
     await loadActiveOutages();
     await loadMyOutages();
     handleOutageTypeChange();
+    generateEmergencyMessage();
 }
 
 async function refreshWholePageData() {
+    await loadUtilityProfile();
     await loadActiveOutages();
     await loadMyOutages();
     renderThanaStatusGrid();
     updateCountdowns();
-    showMessage("outageMessage", "Page refreshed. Outage colors and countdown updated.", "success-text");
+    showMessage("outageMessage", "Page refreshed successfully.", "success-text");
 }
 
 async function loadUtilityProfile() {
     const userId = loggedInUser.userId || localStorage.getItem("userId");
 
+    utilityProfile = buildFallbackUtilityProfileFromLoggedInUser();
+
     try {
-        const response = await fetch("http://localhost:8081/api/utility/profile/user/" + userId);
-        const profile = await response.json();
+        const response = await fetch("http://localhost:8081/api/utility/profile/user/" + userId + "?time=" + Date.now());
 
-        if (!response.ok) {
-            showMessage("outageMessage", "Please complete utility profile first.", "error-text");
-            setTimeout(function () {
-                window.location.href = "utility-profile-setup.html";
-            }, 1000);
-            return;
+        if (response.ok) {
+            const profile = await response.json();
+
+            utilityProfile = {
+                ...utilityProfile,
+                ...profile
+            };
         }
-
-        utilityProfile = profile;
-
-        document.getElementById("profileProvider").innerText = profile.provider;
-        document.getElementById("profileCity").innerText = formatEnum(profile.cityCorporation);
-        document.getElementById("profileOfficer").innerText = profile.officerName;
-        document.getElementById("profileZone").innerText = profile.serviceZone;
-
-        document.getElementById("provider").value = profile.provider;
-        document.getElementById("cityCorporation").value = formatEnum(profile.cityCorporation);
-        document.getElementById("contactNumber").value = profile.officialPhone || "";
-
-        renderThanaDropdown(profile.allowedThanas || []);
-
     } catch (error) {
-        showMessage("outageMessage", "Server connection failed while loading utility profile.", "error-text");
+        // keep fallback utilityProfile from registration data
     }
+
+    renderUtilityProfileSummary();
+    fillUtilityFormDefaults();
+    renderThanaDropdown(utilityProfile.allowedThanas || []);
+}
+
+function buildFallbackUtilityProfileFromLoggedInUser() {
+    const provider = loggedInUser.utilityProvider || loggedInUser.provider || "";
+    const cityCorporation = loggedInUser.cityCorporation || deriveCityCorporationFromProvider(provider);
+    const allowedThanas = getAllowedThanasByProvider(provider);
+
+    return {
+        provider: provider,
+        cityCorporation: cityCorporation,
+        officerName: loggedInUser.fullName || loggedInUser.authorityName || "",
+        serviceZone: loggedInUser.district || loggedInUser.thanaOrUpazila || loggedInUser.zone || "",
+        officialPhone: loggedInUser.phoneNumber || "",
+        allowedThanas: allowedThanas
+    };
+}
+
+function renderUtilityProfileSummary() {
+    setText("profileProvider", utilityProfile.provider || "-");
+    setText("profileCity", formatEnum(utilityProfile.cityCorporation || "-"));
+    setText("profileOfficer", utilityProfile.officerName || loggedInUser.fullName || "-");
+    setText("profileZone", utilityProfile.serviceZone || loggedInUser.thanaOrUpazila || "-");
+}
+
+function fillUtilityFormDefaults() {
+    setInputValue("provider", utilityProfile.provider || "");
+    setInputValue("cityCorporation", formatEnum(utilityProfile.cityCorporation || ""));
+    setInputValue("contactNumber", utilityProfile.officialPhone || loggedInUser.phoneNumber || "");
+
+    if (!document.getElementById("startDateTime").value) {
+        setNowAsStart();
+    }
+}
+
+function deriveCityCorporationFromProvider(provider) {
+    if (provider === "DESCO") {
+        return "DHAKA_NORTH_CITY_CORPORATION";
+    }
+
+    if (provider === "DPDC") {
+        return "DHAKA_SOUTH_CITY_CORPORATION";
+    }
+
+    return "";
+}
+
+function getAllowedThanasByProvider(provider) {
+    if (provider === "DESCO") {
+        return [
+            "Uttara East",
+            "Uttara West",
+            "Dakshinkhan",
+            "Uttarkhan",
+            "Khilkhet",
+            "Turag",
+            "Gulshan",
+            "Banani",
+            "Badda",
+            "Baridhara",
+            "Mirpur",
+            "Pallabi",
+            "Rupnagar",
+            "Shah Ali",
+            "Kafrul",
+            "Darus Salam",
+            "Agargaon",
+            "Sher-e-Bangla Nagar",
+            "Cantonment"
+        ];
+    }
+
+    if (provider === "DPDC") {
+        return [
+            "Ramna",
+            "Shahbagh",
+            "Dhanmondi",
+            "Kalabagan",
+            "New Market",
+            "Hazaribagh",
+            "Lalbagh",
+            "Chawkbazar",
+            "Kotwali",
+            "Sutrapur",
+            "Wari",
+            "Gendaria",
+            "Bangshal",
+            "Motijheel",
+            "Paltan",
+            "Shyampur",
+            "Kadamtali",
+            "Jatrabari",
+            "Demra",
+            "Kamrangirchar",
+            "Khilgaon",
+            "Sabujbagh",
+            "Mugda"
+        ];
+    }
+
+    return [];
 }
 
 function renderThanaDropdown(thanas) {
     const select = document.getElementById("thanaName");
+
+    if (!select) {
+        return;
+    }
+
+    const safeThanas = Array.isArray(thanas) ? thanas : [];
+
     select.innerHTML = `<option value="">Select thana</option>`;
 
-    thanas.forEach(function (thana) {
+    safeThanas.forEach(function (thana) {
         const option = document.createElement("option");
         option.value = thana;
         option.innerText = thana;
@@ -156,44 +289,21 @@ function renderThanaDropdown(thanas) {
 }
 
 async function loadActiveOutages() {
-    const grid = document.getElementById("thanaStatusGrid");
-
     try {
         const response = await fetch("http://localhost:8081/api/power-outages/active?time=" + Date.now());
-        const data = await response.json();
 
         if (!response.ok) {
             activeOutages = [];
-            renderThanaStatusGrid();
+            document.getElementById("thanaStatusGrid").innerHTML = "Failed to load thana status.";
             return;
         }
 
-        activeOutages = data.filter(function (notice) {
-            const displayStatus = getDisplayStatus(notice);
-
-            if (displayStatus === "ONGOING") {
-                return true;
-            }
-
-            if (displayStatus === "SCHEDULED") {
-                return true;
-            }
-
-            if (displayStatus === "RESTORED") {
-                return isRecentlyRestored(notice);
-            }
-
-            return false;
-        });
-
+        activeOutages = await response.json();
         renderThanaStatusGrid();
 
     } catch (error) {
         activeOutages = [];
-
-        if (grid) {
-            grid.innerHTML = "Failed to load thana status.";
-        }
+        document.getElementById("thanaStatusGrid").innerHTML = "Failed to load thana status.";
     }
 }
 
@@ -204,7 +314,7 @@ function renderThanaStatusGrid() {
         return;
     }
 
-    if (!utilityProfile || !utilityProfile.allowedThanas) {
+    if (!utilityProfile || !Array.isArray(utilityProfile.allowedThanas) || utilityProfile.allowedThanas.length === 0) {
         grid.innerHTML = "No thana loaded.";
         return;
     }
@@ -229,60 +339,44 @@ function getThanaVisualStatus(thana) {
     });
 
     const hasOngoing = notices.some(function (notice) {
-        return getDisplayStatus(notice) === "ONGOING";
+        return getEffectiveOutageStatus(notice) === "ONGOING";
     });
 
     if (hasOngoing) {
-        return {
-            className: "thana-ongoing",
-            label: "ONGOING"
-        };
+        return { className: "thana-ongoing", label: "ONGOING" };
     }
 
     const hasScheduled = notices.some(function (notice) {
-        return getDisplayStatus(notice) === "SCHEDULED";
+        return getEffectiveOutageStatus(notice) === "SCHEDULED";
     });
 
     if (hasScheduled) {
-        return {
-            className: "thana-scheduled",
-            label: "SCHEDULED"
-        };
+        return { className: "thana-scheduled", label: "SCHEDULED" };
     }
 
     const hasRecentlyRestored = notices.some(function (notice) {
-        return getDisplayStatus(notice) === "RESTORED" && isRecentlyRestored(notice);
+        return isRecentlyRestored(notice);
     });
 
     if (hasRecentlyRestored) {
-        return {
-            className: "thana-restored",
-            label: "RECENTLY RESTORED"
-        };
+        return { className: "thana-restored", label: "RECENTLY RESTORED" };
     }
 
-    return {
-        className: "thana-normal",
-        label: "NORMAL"
-    };
+    return { className: "thana-normal", label: "NORMAL" };
 }
 
-function getDisplayStatus(notice) {
+function getEffectiveOutageStatus(notice) {
     if (!notice) {
         return "UNKNOWN";
     }
 
-    if (notice.status === "CANCELLED" || notice.status === "REJECTED") {
-        return notice.status;
+    if (notice.outageType === "DAILY_RECURRING") {
+        return notice.status || "SCHEDULED";
     }
 
     const now = new Date();
     const startTime = parseBackendDateTime(notice.startDateTime);
     const endTime = parseBackendDateTime(notice.expectedRestorationDateTime);
-
-    if (notice.outageType === "DAILY_RECURRING") {
-        return notice.status || "SCHEDULED";
-    }
 
     if (startTime && startTime > now) {
         return "SCHEDULED";
@@ -300,13 +394,7 @@ function getDisplayStatus(notice) {
 }
 
 function isRecentlyRestored(notice) {
-    if (!notice) {
-        return false;
-    }
-
-    const displayStatus = getDisplayStatus(notice);
-
-    if (displayStatus !== "RESTORED") {
+    if (getEffectiveOutageStatus(notice) !== "RESTORED") {
         return false;
     }
 
@@ -320,18 +408,20 @@ function isRecentlyRestored(notice) {
         return false;
     }
 
-    const now = new Date();
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    return restoredAt <= now && restoredAt > oneHourAgo;
+    return restoredAt >= oneHourAgo;
 }
 
 async function checkRecentOutageWarning() {
     const thanaName = document.getElementById("thanaName").value;
     const warningBox = document.getElementById("areaWarningBox");
     const warningText = document.getElementById("areaWarningText");
+    const warningAcknowledged = document.getElementById("warningAcknowledged");
 
-    document.getElementById("warningAcknowledged").checked = false;
+    if (warningAcknowledged) {
+        warningAcknowledged.checked = false;
+    }
 
     if (!thanaName) {
         warningBox.classList.add("hidden-section");
@@ -340,56 +430,27 @@ async function checkRecentOutageWarning() {
 
     try {
         const response = await fetch("http://localhost:8081/api/power-outages/thana/" + encodeURIComponent(thanaName) + "/recent?time=" + Date.now());
-        const recentData = await response.json();
 
-        if (!response.ok || recentData.length === 0) {
+        if (!response.ok) {
             warningBox.classList.add("hidden-section");
             return;
         }
 
-        const recent = recentData.filter(function (notice) {
-            const displayStatus = getDisplayStatus(notice);
+        const recent = await response.json();
 
-            if (displayStatus === "ONGOING") {
-                return true;
-            }
-
-            if (displayStatus === "SCHEDULED") {
-                return true;
-            }
-
-            if (displayStatus === "RESTORED") {
-                return isRecentlyRestored(notice);
-            }
-
-            return false;
-        });
-
-        if (recent.length === 0) {
+        if (!Array.isArray(recent) || recent.length === 0) {
             warningBox.classList.add("hidden-section");
             return;
         }
 
         const hasOngoing = recent.some(function (notice) {
-            return getDisplayStatus(notice) === "ONGOING";
-        });
-
-        const hasScheduled = recent.some(function (notice) {
-            return getDisplayStatus(notice) === "SCHEDULED";
-        });
-
-        const hasRecentRestored = recent.some(function (notice) {
-            return getDisplayStatus(notice) === "RESTORED" && isRecentlyRestored(notice);
+            return getEffectiveOutageStatus(notice) === "ONGOING";
         });
 
         warningBox.classList.remove("hidden-section");
 
         if (hasOngoing) {
             warningText.innerText = "This thana already has an ongoing outage notice. Creating another current outage may confuse users.";
-        } else if (hasScheduled) {
-            warningText.innerText = "This thana already has a scheduled outage notice. Please confirm before creating another notice.";
-        } else if (hasRecentRestored) {
-            warningText.innerText = "This thana was restored recently. Please confirm before creating another notice.";
         } else {
             warningText.innerText = "Recent outage happened here. Please confirm before creating another notice.";
         }
@@ -408,28 +469,28 @@ function handleOutageTypeChange() {
         document.getElementById("status").value = "ONGOING";
         setNowAsStart();
         applyQuickDuration();
-        dailyStartBox.style.display = "none";
-        dailyEndBox.style.display = "none";
+        if (dailyStartBox) dailyStartBox.style.display = "none";
+        if (dailyEndBox) dailyEndBox.style.display = "none";
         return;
     }
 
     if (outageType === "SCHEDULED") {
         document.getElementById("status").value = "SCHEDULED";
-        dailyStartBox.style.display = "none";
-        dailyEndBox.style.display = "none";
+        if (dailyStartBox) dailyStartBox.style.display = "none";
+        if (dailyEndBox) dailyEndBox.style.display = "none";
         return;
     }
 
     if (outageType === "DAILY_RECURRING") {
         document.getElementById("status").value = "SCHEDULED";
-        dailyStartBox.style.display = "block";
-        dailyEndBox.style.display = "block";
+        if (dailyStartBox) dailyStartBox.style.display = "block";
+        if (dailyEndBox) dailyEndBox.style.display = "block";
     }
 }
 
 function setNowAsStart() {
     const now = new Date();
-    document.getElementById("startDateTime").value = toDatetimeLocal(now);
+    setInputValue("startDateTime", toDatetimeLocal(now));
 }
 
 function applyQuickDuration() {
@@ -439,13 +500,13 @@ function applyQuickDuration() {
         return;
     }
 
-    const startValue = document.getElementById("startDateTime").value;
+    const startInput = document.getElementById("startDateTime");
 
-    if (!startValue) {
+    if (!startInput.value) {
         setNowAsStart();
     }
 
-    const start = new Date(document.getElementById("startDateTime").value);
+    const start = new Date(startInput.value);
     start.setMinutes(start.getMinutes() + Number(duration));
 
     document.getElementById("expectedRestorationDateTime").value = toDatetimeLocal(start);
@@ -460,8 +521,14 @@ function generateEmergencyMessage() {
     const end = document.getElementById("expectedRestorationDateTime").value;
     const dailyStart = document.getElementById("dailyStartTime").value;
     const dailyEnd = document.getElementById("dailyEndTime").value;
+    const emergencyMessage = document.getElementById("emergencyMessage");
+
+    if (!emergencyMessage) {
+        return;
+    }
 
     if (!thana) {
+        emergencyMessage.value = "";
         return;
     }
 
@@ -475,7 +542,7 @@ function generateEmergencyMessage() {
         message = `${provider} notice: Daily recurring power outage in ${thana} area. Reason: ${cause}. Daily start time: ${dailyStart || "-"}. Daily end time: ${dailyEnd || "-"}.`;
     }
 
-    document.getElementById("emergencyMessage").value = message;
+    emergencyMessage.value = message;
 }
 
 async function saveOutageNotice() {
@@ -501,6 +568,11 @@ async function saveOutageNotice() {
         contactNumber: document.getElementById("contactNumber").value,
         warningAcknowledged: warningAcknowledged
     };
+
+    if (!data.thanaName) {
+        showMessage("outageMessage", "Please select thana.", "error-text");
+        return;
+    }
 
     try {
         const noticeId = document.getElementById("noticeId").value;
@@ -541,30 +613,28 @@ async function loadMyOutages() {
 
     try {
         const response = await fetch("http://localhost:8081/api/power-outages/user/" + userId + "?time=" + Date.now());
-        myOutages = await response.json();
 
         if (!response.ok) {
-            tableBody.innerHTML = `<tr><td colspan="8">Failed to load notices.</td></tr>`;
+            myOutages = [];
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="8">Failed to load notices.</td></tr>`;
+            }
             return;
         }
 
+        myOutages = await response.json();
         currentOutagePage = 1;
         renderMyOutagesTable();
 
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="8">Server connection failed.</td></tr>`;
+        myOutages = [];
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="8">Server connection failed.</td></tr>`;
+        }
     }
 }
 
 function renderMyOutagesTable() {
-    renderMyOutagesTableCore(true);
-}
-
-function renderMyOutagesTableWithoutReset() {
-    renderMyOutagesTableCore(false);
-}
-
-function renderMyOutagesTableCore(allowEmptyMessage) {
     const tableBody = document.getElementById("myOutagesBody");
 
     if (!tableBody) {
@@ -572,10 +642,7 @@ function renderMyOutagesTableCore(allowEmptyMessage) {
     }
 
     if (myOutages.length === 0) {
-        if (allowEmptyMessage) {
-            tableBody.innerHTML = `<tr><td colspan="8">No outage notice created yet.</td></tr>`;
-        }
-
+        tableBody.innerHTML = `<tr><td colspan="8">No outage notice created yet.</td></tr>`;
         updatePaginationControls();
         return;
     }
@@ -587,7 +654,8 @@ function renderMyOutagesTableCore(allowEmptyMessage) {
     tableBody.innerHTML = "";
 
     pageItems.forEach(function (notice) {
-        const displayStatus = getDisplayStatus(notice);
+        const effectiveStatus = getEffectiveOutageStatus(notice);
+
         const row = document.createElement("tr");
 
         row.innerHTML = `
@@ -595,8 +663,8 @@ function renderMyOutagesTableCore(allowEmptyMessage) {
             <td>${notice.thanaName}</td>
             <td>${notice.outageType}</td>
             <td>${formatEnum(notice.cause)}</td>
-            <td><span class="outage-status-badge ${getStatusClass(displayStatus)}">${displayStatus}</span></td>
-            <td>${renderTimeInfo(notice)}</td>
+            <td><span class="outage-status-badge ${getStatusClass(effectiveStatus)}">${effectiveStatus}</span></td>
+            <td>${renderTimeInfo(notice, effectiveStatus)}</td>
             <td>${renderHighlightedMessage(notice)}</td>
             <td>
                 <button class="btn primary tiny-btn" onclick="editNotice(${notice.id})">Edit</button>
@@ -644,10 +712,6 @@ function updatePaginationControls() {
     const prevBtn = document.getElementById("prevOutagePageBtn");
     const nextBtn = document.getElementById("nextOutagePageBtn");
 
-    if (currentOutagePage > totalPages) {
-        currentOutagePage = totalPages;
-    }
-
     if (pageInfo) {
         pageInfo.innerText = `Page ${currentOutagePage} of ${totalPages}`;
     }
@@ -671,18 +735,22 @@ function editNotice(id) {
     }
 
     selectedNoticeId = id;
-    document.getElementById("noticeId").value = notice.id;
-    document.getElementById("thanaName").value = notice.thanaName;
-    document.getElementById("outageType").value = notice.outageType;
-    document.getElementById("cause").value = notice.cause;
-    document.getElementById("status").value = notice.status;
-    document.getElementById("startDateTime").value = notice.startDateTime ? notice.startDateTime.substring(0, 16) : "";
-    document.getElementById("expectedRestorationDateTime").value = notice.expectedRestorationDateTime ? notice.expectedRestorationDateTime.substring(0, 16) : "";
-    document.getElementById("dailyStartTime").value = notice.dailyStartTime || "";
-    document.getElementById("dailyEndTime").value = notice.dailyEndTime || "";
-    document.getElementById("emergencyMessage").value = notice.emergencyMessage;
-    document.getElementById("contactNumber").value = notice.contactNumber;
-    document.getElementById("saveOutageBtn").innerText = "Update Outage Notice";
+    setInputValue("noticeId", notice.id);
+    setInputValue("thanaName", notice.thanaName);
+    setInputValue("outageType", notice.outageType);
+    setInputValue("cause", notice.cause);
+    setInputValue("status", notice.status);
+    setInputValue("startDateTime", notice.startDateTime ? notice.startDateTime.substring(0, 16) : "");
+    setInputValue("expectedRestorationDateTime", notice.expectedRestorationDateTime ? notice.expectedRestorationDateTime.substring(0, 16) : "");
+    setInputValue("dailyStartTime", notice.dailyStartTime || "");
+    setInputValue("dailyEndTime", notice.dailyEndTime || "");
+    setInputValue("emergencyMessage", notice.emergencyMessage || "");
+    setInputValue("contactNumber", notice.contactNumber || "");
+
+    const saveBtn = document.getElementById("saveOutageBtn");
+    if (saveBtn) {
+        saveBtn.innerText = "Update Outage Notice";
+    }
 
     handleOutageTypeChange();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -715,34 +783,35 @@ async function deleteNotice(id) {
 }
 
 function resetForm() {
-    document.getElementById("noticeId").value = "";
+    setInputValue("noticeId", "");
     document.getElementById("outageForm").reset();
-    document.getElementById("provider").value = utilityProfile.provider;
-    document.getElementById("cityCorporation").value = formatEnum(utilityProfile.cityCorporation);
-    document.getElementById("contactNumber").value = utilityProfile.officialPhone || "";
-    document.getElementById("saveOutageBtn").innerText = "Save Outage Notice";
-    document.getElementById("areaWarningBox").classList.add("hidden-section");
-    document.getElementById("warningAcknowledged").checked = false;
+
+    if (utilityProfile) {
+        setInputValue("provider", utilityProfile.provider || "");
+        setInputValue("cityCorporation", formatEnum(utilityProfile.cityCorporation || ""));
+        setInputValue("contactNumber", utilityProfile.officialPhone || loggedInUser.phoneNumber || "");
+    }
+
+    const saveBtn = document.getElementById("saveOutageBtn");
+    if (saveBtn) {
+        saveBtn.innerText = "Save Outage Notice";
+    }
+
+    const warningBox = document.getElementById("areaWarningBox");
+    if (warningBox) {
+        warningBox.classList.add("hidden-section");
+    }
+
     handleOutageTypeChange();
+    generateEmergencyMessage();
 }
 
-function renderTimeInfo(notice) {
-    const displayStatus = getDisplayStatus(notice);
-
+function renderTimeInfo(notice, effectiveStatus) {
     if (notice.outageType === "DAILY_RECURRING") {
         return `Daily: ${notice.dailyStartTime || "-"} - ${notice.dailyEndTime || "-"}`;
     }
 
-    if (displayStatus === "SCHEDULED") {
-        return `
-            ${formatDateTime(notice.startDateTime)}<br>
-            to<br>
-            ${formatDateTime(notice.expectedRestorationDateTime)}<br>
-            <strong>SCHEDULED</strong>
-        `;
-    }
-
-    if (displayStatus === "ONGOING" && notice.expectedRestorationDateTime) {
+    if (effectiveStatus === "ONGOING" && notice.expectedRestorationDateTime) {
         return `
             ${formatDateTime(notice.startDateTime)}<br>
             to<br>
@@ -753,22 +822,8 @@ function renderTimeInfo(notice) {
         `;
     }
 
-    if (displayStatus === "RESTORED" && isRecentlyRestored(notice)) {
-        return `
-            ${formatDateTime(notice.startDateTime)}<br>
-            to<br>
-            ${formatDateTime(notice.expectedRestorationDateTime)}<br>
-            <strong>RECENTLY RESTORED</strong>
-        `;
-    }
-
-    if (displayStatus === "RESTORED") {
-        return `
-            ${formatDateTime(notice.startDateTime)}<br>
-            to<br>
-            ${formatDateTime(notice.expectedRestorationDateTime)}<br>
-            <strong>RESTORED</strong>
-        `;
+    if (isRecentlyRestored(notice)) {
+        return `${formatDateTime(notice.startDateTime)}<br>to<br>${formatDateTime(notice.expectedRestorationDateTime)}<br><strong>RECENTLY RESTORED</strong>`;
     }
 
     return `${formatDateTime(notice.startDateTime)}<br>to<br>${formatDateTime(notice.expectedRestorationDateTime)}`;
@@ -782,7 +837,7 @@ function updateCountdowns() {
         const now = new Date();
 
         if (!endTime || isNaN(endTime.getTime())) {
-            element.innerText = "Invalid restoration time";
+            element.innerText = "Invalid time";
             return;
         }
 
@@ -804,45 +859,14 @@ function updateCountdowns() {
 }
 
 async function autoRefreshIfExpired() {
-    if (isRefreshingAfterExpiry) {
-        return;
-    }
-
     const hasExpiredCountdown = Array.from(document.querySelectorAll(".countdown-finished"))
         .some(function (element) {
             return element.innerText === "Restoration time reached";
         });
 
     if (hasExpiredCountdown) {
-        isRefreshingAfterExpiry = true;
         await refreshWholePageData();
-
-        setTimeout(function () {
-            isRefreshingAfterExpiry = false;
-        }, 3000);
     }
-}
-
-function isNoticeExpired(notice) {
-    return getDisplayStatus(notice) === "RESTORED";
-}
-
-function parseBackendDateTime(value) {
-    if (!value) {
-        return null;
-    }
-
-    if (value instanceof Date) {
-        return value;
-    }
-
-    const cleanValue = value.toString().split(".")[0];
-
-    if (cleanValue.includes("T")) {
-        return new Date(cleanValue);
-    }
-
-    return new Date(cleanValue.replace(" ", "T"));
 }
 
 function normalizeDateTimeValue(value) {
@@ -899,8 +923,38 @@ function getStatusClass(status) {
     return "outage-cancelled";
 }
 
+function parseBackendDateTime(value) {
+    if (!value) {
+        return null;
+    }
+
+    const cleanValue = value.toString().split(".")[0];
+
+    if (cleanValue.includes("T")) {
+        return new Date(cleanValue);
+    }
+
+    return new Date(cleanValue.replace(" ", "T"));
+}
+
 function pad(value) {
     return String(value).padStart(2, "0");
+}
+
+function setText(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = value;
+    }
+}
+
+function setInputValue(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.value = value;
+    }
 }
 
 function showMessage(id, message, className) {
@@ -913,11 +967,11 @@ function showMessage(id, message, className) {
 }
 
 function getErrorMessage(result) {
-    if (result.message) {
+    if (result && result.message) {
         return result.message;
     }
 
-    if (result.messages) {
+    if (result && result.messages) {
         return JSON.stringify(result.messages);
     }
 
