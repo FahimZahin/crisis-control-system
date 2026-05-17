@@ -4,6 +4,7 @@ import com.crisiscontrol.dto.AuthResponse;
 import com.crisiscontrol.entity.Role;
 import com.crisiscontrol.entity.User;
 import com.crisiscontrol.repository.UserRepository;
+import com.crisiscontrol.service.HospitalOutageFuelConsumptionService;
 import com.crisiscontrol.service.HospitalSupportCalculationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +17,16 @@ public class HospitalAuthorityController {
 
     private final UserRepository userRepository;
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
+    private final HospitalOutageFuelConsumptionService hospitalOutageFuelConsumptionService;
 
     @GetMapping("/profile/{userId}")
     public ResponseEntity<AuthResponse> getLatestHospitalProfile(@PathVariable Long userId) {
+        /*
+         * First deduct generator diesel for any outage time that already happened.
+         * Then reload the hospital profile.
+         */
+        hospitalOutageFuelConsumptionService.deductFuelForStartedOutages();
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Hospital user not found"));
 
