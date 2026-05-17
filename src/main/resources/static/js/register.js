@@ -15,6 +15,11 @@ const roleSections = {
     ADMIN: document.getElementById("adminFields")
 };
 
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof populateDhakaThanaSelect === "function") {
+        populateDhakaThanaSelect("hospitalUnderThana", "");
+    }
+});
 roleSelect.addEventListener("change", function () {
     const selectedRole = roleSelect.value;
 
@@ -283,6 +288,14 @@ function validateFrontendData(data) {
             || !data.emergencyContactNumber
         ) {
             return "Hospital name, registration number, address, hospital under thana, generator capacity, current diesel reserve, and emergency contact number are required.";
+        }
+
+        if (typeof isValidCcsDhakaThana === "function" && !isValidCcsDhakaThana(data.hospitalUnderThana)) {
+            return "Please select a valid Dhaka thana from the list.";
+        }
+
+        if (Number(data.hospitalGeneratorCapacity) <= 0) {
+            return "Hospital generator capacity must be greater than 0.";
         }
     }
 

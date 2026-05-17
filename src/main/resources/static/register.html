@@ -125,12 +125,14 @@
                 <input type="text" id="hospitalAddress" placeholder="Enter hospital address">
 
                 <label>Hospital Under Thana</label>
-                <input type="text" id="hospitalUnderThana" placeholder="Example: Dhanmondi">
+                <select id="hospitalUnderThana">
+                    <option value="">Select hospital thana</option>
+                </select>
 
-                <label>Hospital Generator Capacity</label>
-                <input type="text" id="hospitalGeneratorCapacity" placeholder="Example: 100 kVA / 250 kVA">
+                <label>Hospital Generator Capacity (kVA)</label>
+                <input type="number" id="hospitalGeneratorCapacity" min="1" step="1" placeholder="Example: 250">
 
-                <label>Current Diesel Reserve</label>
+                <label>Current Diesel Reserve (Liter)</label>
                 <input type="number" id="hospitalCurrentDieselReserve" min="0" step="0.01" placeholder="Example: 50">
 
                 <label>Emergency Contact Number</label>
@@ -261,6 +263,7 @@
         }
     }
 </script>
+<script src="js/thana-options.js"></script>
 <script src="js/register.js"></script>
 
 </body>
