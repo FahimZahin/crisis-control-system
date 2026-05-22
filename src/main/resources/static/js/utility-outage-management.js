@@ -413,48 +413,26 @@ function isRecentlyRestored(notice) {
     return restoredAt >= oneHourAgo;
 }
 
-async function checkRecentOutageWarning() {
-    const thanaName = document.getElementById("thanaName").value;
-    const warningBox = document.getElementById("areaWarningBox");
-    const warningText = document.getElementById("areaWarningText");
-    const warningAcknowledged = document.getElementById("warningAcknowledged");
+async function checkRecentOutageWarning(thanaName) {
+    const warningBox = document.getElementById("recentOutageWarningBox");
 
-    if (warningAcknowledged) {
-        warningAcknowledged.checked = false;
-    }
-
-    if (!thanaName) {
-        warningBox.classList.add("hidden-section");
+    if (!warningBox || !thanaName) {
         return;
     }
 
     try {
-        const response = await fetch("http://localhost:8081/api/power-outages/thana/" + encodeURIComponent(thanaName) + "/recent?time=" + Date.now());
+        const response = await fetch(
+            "http://localhost:8081/api/power-outages/recent/" + encodeURIComponent(thanaName) + "?time=" + Date.now()
+        );
 
-        if (!response.ok) {
+        const notices = await response.json();
+
+        if (!response.ok || !Array.isArray(notices) || notices.length === 0) {
             warningBox.classList.add("hidden-section");
             return;
         }
-
-        const recent = await response.json();
-
-        if (!Array.isArray(recent) || recent.length === 0) {
-            warningBox.classList.add("hidden-section");
-            return;
-        }
-
-        const hasOngoing = recent.some(function (notice) {
-            return getEffectiveOutageStatus(notice) === "ONGOING";
-        });
 
         warningBox.classList.remove("hidden-section");
-
-        if (hasOngoing) {
-            warningText.innerText = "This thana already has an ongoing outage notice. Creating another current outage may confuse users.";
-        } else {
-            warningText.innerText = "Recent outage happened here. Please confirm before creating another notice.";
-        }
-
     } catch (error) {
         warningBox.classList.add("hidden-section");
     }

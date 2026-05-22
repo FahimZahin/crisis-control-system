@@ -186,7 +186,7 @@ public class UtilityPowerService {
 
         boolean recentRestored = powerOutageRepository.existsByThanaNameIgnoreCaseAndRestoredAtAfter(
                 request.getThanaName(),
-                LocalDateTime.now().minusHours(1)
+                LocalDateTime.now().minusMinutes(30)
         );
 
         boolean recentCreated = powerOutageRepository.existsByThanaNameIgnoreCaseAndCreatedAtAfter(
@@ -261,8 +261,12 @@ public class UtilityPowerService {
     public List<PowerOutageResponse> getRecentPowerOutagesByThana(String thanaName) {
         autoRestoreExpiredOutages();
 
+        LocalDateTime thirtyMinutesAgo = LocalDateTime.now().minusMinutes(30);
+
         return powerOutageRepository.findByThanaNameIgnoreCaseOrderByCreatedAtDesc(thanaName)
                 .stream()
+                .filter(notice -> notice.getRestoredAt() != null)
+                .filter(notice -> notice.getRestoredAt().isAfter(thirtyMinutesAgo))
                 .map(this::mapNoticeToResponse)
                 .toList();
     }
