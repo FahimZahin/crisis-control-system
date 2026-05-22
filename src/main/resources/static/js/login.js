@@ -21,16 +21,30 @@ document.getElementById("loginForm").addEventListener("submit", async function (
 
         if (response.ok) {
             const userId = result.userId || result.id || "";
-            const resolvedThana =
-                result.hospitalUnderThana ||
-                result.buildingUnderThana ||
-                result.thanaOrUpazila ||
-                "";
+
+            const resolvedThana = firstValidValue(
+                result.thanaOrUpazila,
+                result.buildingUnderThana,
+                result.hospitalUnderThana,
+                result.serviceArea,
+                result.assignedArea,
+                result.district
+            );
 
             result.userId = userId;
             result.thanaOrUpazila = resolvedThana;
-            result.hospitalUnderThana = result.hospitalUnderThana || resolvedThana;
-            result.buildingUnderThana = result.buildingUnderThana || resolvedThana;
+
+            if (result.role === "BUILDING_MANAGER") {
+                result.buildingUnderThana = firstValidValue(result.buildingUnderThana, resolvedThana);
+            }
+
+            if (result.role === "HOSPITAL_AUTHORITY") {
+                result.hospitalUnderThana = firstValidValue(result.hospitalUnderThana, resolvedThana);
+            }
+
+            result.totalIcuUnits = result.totalIcuUnits || 0;
+            result.acPatientCapacity = result.acPatientCapacity || 0;
+            result.nonAcPatientCapacity = result.nonAcPatientCapacity || 0;
 
             localStorage.setItem("loggedInUser", JSON.stringify(result));
 
@@ -42,9 +56,12 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             localStorage.setItem("status", result.status || "");
             localStorage.setItem("drivingLicenseNumber", result.drivingLicenseNumber || "");
 
-            localStorage.setItem("hospitalUnderThana", result.hospitalUnderThana || "");
-            localStorage.setItem("buildingUnderThana", result.buildingUnderThana || "");
             localStorage.setItem("thanaOrUpazila", result.thanaOrUpazila || "");
+            localStorage.setItem("buildingUnderThana", result.buildingUnderThana || "");
+            localStorage.setItem("hospitalUnderThana", result.hospitalUnderThana || "");
+            localStorage.setItem("serviceArea", result.serviceArea || "");
+            localStorage.setItem("assignedArea", result.assignedArea || "");
+            localStorage.setItem("district", result.district || "");
 
             localStorage.setItem("hospitalName", result.hospitalName || "");
             localStorage.setItem("hospitalGeneratorCapacity", result.hospitalGeneratorCapacity || "");
@@ -52,6 +69,9 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             localStorage.setItem("hospitalEstimatedBackupHours", result.hospitalEstimatedBackupHours || "");
             localStorage.setItem("hospitalDieselStatus", result.hospitalDieselStatus || "");
             localStorage.setItem("emergencyContactNumber", result.emergencyContactNumber || "");
+            localStorage.setItem("totalIcuUnits", result.totalIcuUnits || "");
+            localStorage.setItem("acPatientCapacity", result.acPatientCapacity || "");
+            localStorage.setItem("nonAcPatientCapacity", result.nonAcPatientCapacity || "");
 
             message.className = "success-text";
             message.innerText = result.message || "Login successful";
@@ -69,6 +89,26 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         message.innerText = "Server connection failed";
     }
 });
+
+function firstValidValue() {
+    for (let i = 0; i < arguments.length; i++) {
+        const value = arguments[i];
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            String(value).trim() !== "" &&
+            String(value).trim() !== "-" &&
+            String(value).trim() !== "Not Provided" &&
+            String(value).trim() !== "null" &&
+            String(value).trim() !== "undefined"
+        ) {
+            return String(value).trim();
+        }
+    }
+
+    return "";
+}
 
 function redirectToRoleDashboard(role) {
     if (role === "VEHICLE_OWNER") {

@@ -88,7 +88,12 @@ async function loadHospitalThanaOutageWarning() {
         return;
     }
 
-    const hospitalThana = hospitalOutageLoggedInUser.hospitalUnderThana;
+    const hospitalThana = hospitalFirstValidValue(
+        hospitalOutageLoggedInUser.hospitalUnderThana,
+        hospitalOutageLoggedInUser.thanaOrUpazila,
+        localStorage.getItem("hospitalUnderThana"),
+        localStorage.getItem("thanaOrUpazila")
+    );
 
     if (!hospitalThana) {
         warningBox.style.display = "block";
@@ -237,9 +242,9 @@ function isHospitalRecentlyRestored(notice) {
     }
 
     const now = new Date();
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
-    return restoredAt <= now && restoredAt > oneHourAgo;
+    return restoredAt <= now && restoredAt > thirtyMinutesAgo;
 }
 
 function hospitalParseBackendDateTime(value) {
@@ -308,4 +313,23 @@ function hospitalValueOrDash(value) {
     }
 
     return value;
+}
+function hospitalFirstValidValue() {
+    for (let i = 0; i < arguments.length; i++) {
+        const value = arguments[i];
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            String(value).trim() !== "" &&
+            String(value).trim() !== "-" &&
+            String(value).trim() !== "Not Provided" &&
+            String(value).trim() !== "null" &&
+            String(value).trim() !== "undefined"
+        ) {
+            return String(value).trim();
+        }
+    }
+
+    return "";
 }

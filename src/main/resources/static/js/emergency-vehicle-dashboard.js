@@ -11,6 +11,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function loadEmergencyDashboardProfile() {
     const userId = emergencyLoggedInUser.userId || localStorage.getItem("userId");
+    if (!userId) {
+        showNoEmergencyProfile();
+        return;
+    }
 
     try {
         const response = await fetch("http://localhost:8081/api/emergency-vehicles/user/" + userId);

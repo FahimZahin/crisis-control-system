@@ -28,7 +28,10 @@ public class AuthService {
         String resolvedThana = firstNonBlank(
                 request.getThanaOrUpazila(),
                 request.getBuildingUnderThana(),
-                request.getHospitalUnderThana()
+                request.getHospitalUnderThana(),
+                request.getServiceArea(),
+                request.getAssignedArea(),
+                request.getDistrict()
         );
 
         User user = User.builder()
@@ -478,6 +481,8 @@ public class AuthService {
                                 : String.format("%.2f", user.getHospitalGeneratorCapacity())
                 )
                 .hospitalCurrentDieselReserve(user.getHospitalCurrentDieselReserve())
+                .hospitalEstimatedBackupHours(user.getHospitalEstimatedBackupHours())
+                .hospitalDieselStatus(user.getHospitalDieselStatus())
                 .emergencyContactNumber(user.getEmergencyContactNumber())
                 .totalIcuUnits(user.getTotalIcuUnits())
                 .acPatientCapacity(user.getAcPatientCapacity())
