@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Building Generator Diesel Request | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="building-manager-dashboard.html">Building Dashboard</a>
+        <a href="power-outage-notices.html">Power Outage Notices</a>
+        <a href="building-generator-request-history.html">Request History</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Building Generator Diesel Support</h1>
+            <p>Request DIESEL for your apartment building generator. All requests require admin approval.</p>
+        </div>
+        <span class="role-badge">BUILDING DIESEL</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Building Name</h3>
+            <p id="buildingNameSummary">-</p>
+        </div>
+        <div class="summary-card">
+            <h3>Generator Power</h3>
+            <p id="generatorPowerSummary">-</p>
+        </div>
+        <div class="summary-card">
+            <h3>Building Thana</h3>
+            <p id="buildingThanaSummary">-</p>
+        </div>
+        <div class="summary-card">
+            <h3>Number of Flats</h3>
+            <p id="numberOfFlatsSummary">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Building Information</h2>
+        <p id="buildingGeneratorRequestMessage"></p>
+        <div class="info-grid">
+            <div>
+                <label>Building Name</label>
+                <p id="buildingNameInfo">-</p>
+            </div>
+            <div>
+                <label>Holding Number</label>
+                <p id="holdingNumberInfo">-</p>
+            </div>
+            <div>
+                <label>Generator Power</label>
+                <p id="generatorPowerInfo">-</p>
+            </div>
+            <div>
+                <label>Number of Flats</label>
+                <p id="numberOfFlatsInfo">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Create Generator Diesel Request</h2>
+        <p class="muted-text">
+            All building generator diesel requests require admin approval. Enter how much diesel you need and the reason.
+        </p>
+
+        <form id="buildingGeneratorRequestForm" class="settings-form-grid">
+
+            <div>
+                <label>Outage Situation</label>
+                <select id="outageSituation" required>
+                    <option value="">Select situation</option>
+                    <option value="ONGOING_OUTAGE">Ongoing outage in building thana</option>
+                    <option value="SCHEDULED_OUTAGE">Scheduled outage announced</option>
+                    <option value="PRECAUTIONARY_REFILL">Precautionary diesel refill for building generator</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Required Diesel Liter</label>
+                <input type="number" id="requiredDieselLiter" min="1" step="0.01" placeholder="Example: 30" required>
+            </div>
+
+            <div>
+                <label>Contact Number</label>
+                <input type="text" id="contactNumber" required>
+            </div>
+
+            <div class="settings-full-row">
+                <label>Auto Generated Request Message</label>
+                <textarea id="generatedReasonPreview" readonly></textarea>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row" id="submitBuildingGeneratorRequestBtn">
+                Submit Generator Diesel Request
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<script src="js/building-generator-request.js"></script>
+
+</body>
+</html>

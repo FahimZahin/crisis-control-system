@@ -36,6 +36,7 @@ public class RegisterRequest {
     private String holdingNumber;
     private Integer numberOfFlats;
     private String generatorPower;
+    private String buildingUnderThana;
 
     // Pump authority fields
     private String pumpName;
@@ -56,6 +57,9 @@ public class RegisterRequest {
     private String hospitalGeneratorCapacity;
     private Double hospitalCurrentDieselReserve;
     private String emergencyContactNumber;
+    private Integer totalIcuUnits;
+    private Integer acPatientCapacity;
+    private Integer nonAcPatientCapacity;
 
     // Utility authority fields
     private String utilityOrganizationType;

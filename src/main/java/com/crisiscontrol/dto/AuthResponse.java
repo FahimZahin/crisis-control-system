@@ -29,6 +29,7 @@ public class AuthResponse {
     private String holdingNumber;
     private Integer numberOfFlats;
     private String generatorPower;
+    private String buildingUnderThana;
 
     // Pump authority info
     private String pumpName;
@@ -51,6 +52,9 @@ public class AuthResponse {
     private Double hospitalEstimatedBackupHours;
     private String hospitalDieselStatus;
     private String emergencyContactNumber;
+    private Integer totalIcuUnits;
+    private Integer acPatientCapacity;
+    private Integer nonAcPatientCapacity;
 
     // Utility authority info
     private String utilityOrganizationType;

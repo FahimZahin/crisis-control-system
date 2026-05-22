@@ -25,13 +25,19 @@ function loadUserInfo() {
     const role = loggedInUser.role || localStorage.getItem("role") || "UNKNOWN";
     const status = loggedInUser.status || localStorage.getItem("status") || "ACTIVE";
     const address = loggedInUser.address || localStorage.getItem("address") || "Not Provided";
+    const userId = getLoggedInUserId();
+
+    const hospitalGeneratorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const hospitalCurrentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const hospitalBackupHours = calculateBackupHours(hospitalGeneratorCapacity, hospitalCurrentDieselReserve);
+    const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
 
     setTextIfExists("dashboardUserName", fullName);
     setTextIfExists("dashboardUserPhone", phoneNumber);
     setTextIfExists("dashboardUserRole", role);
     setTextIfExists("dashboardUserStatus", status);
     setTextIfExists("dashboardUserAddress", address);
-    setTextIfExists("dashboardUserId", loggedInUser.userId || localStorage.getItem("userId") || "-");
+    setTextIfExists("dashboardUserId", userId || "-");
 
     setTextIfExists("drivingLicenseNumber", loggedInUser.drivingLicenseNumber || "Not Provided");
 
@@ -39,6 +45,8 @@ function loadUserInfo() {
     setTextIfExists("holdingNumber", loggedInUser.holdingNumber || "Not Provided");
     setTextIfExists("numberOfFlats", loggedInUser.numberOfFlats || "Not Provided");
     setTextIfExists("generatorPower", loggedInUser.generatorPower || "Not Provided");
+    setTextIfExists("buildingUnderThana", loggedInUser.buildingUnderThana || loggedInUser.thanaOrUpazila || "Not Provided");
+    setTextIfExists("generatorPowerInfo", loggedInUser.generatorPower || "Not Provided");
 
     setTextIfExists("pumpName", loggedInUser.pumpName || "Not Provided");
     setTextIfExists("businessLicenseNumber", loggedInUser.businessLicenseNumber || "Not Provided");
@@ -53,27 +61,27 @@ function loadUserInfo() {
     setTextIfExists("hospitalName", loggedInUser.hospitalName || "Not Provided");
     setTextIfExists("hospitalRegistrationNumber", loggedInUser.hospitalRegistrationNumber || "Not Provided");
     setTextIfExists("hospitalAddress", loggedInUser.hospitalAddress || "Not Provided");
-    setTextIfExists("emergencyContactNumber", loggedInUser.emergencyContactNumber || "Not Provided");
-    setTextIfExists("hospitalUnderThana", loggedInUser.hospitalUnderThana || "Not Provided");
-    setTextIfExists("hospitalGeneratorCapacity", loggedInUser.hospitalGeneratorCapacity || "Not Provided");
+    setTextIfExists("emergencyContactNumber", loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "Not Provided");
+    setTextIfExists("hospitalUnderThana", loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "Not Provided");
+
+    setTextIfExists(
+        "hospitalGeneratorCapacity",
+        hospitalGeneratorCapacity > 0 ? hospitalGeneratorCapacity.toFixed(2) : "Not Provided"
+    );
 
     setTextIfExists(
         "hospitalCurrentDieselReserve",
-        loggedInUser.hospitalCurrentDieselReserve !== null && loggedInUser.hospitalCurrentDieselReserve !== undefined
-            ? loggedInUser.hospitalCurrentDieselReserve + " L"
-            : "Not Provided"
+        hospitalCurrentDieselReserve >= 0 ? hospitalCurrentDieselReserve.toFixed(2) + " L" : "Not Provided"
     );
 
     setTextIfExists(
         "hospitalEstimatedBackupHours",
-        loggedInUser.hospitalEstimatedBackupHours !== null && loggedInUser.hospitalEstimatedBackupHours !== undefined
-            ? loggedInUser.hospitalEstimatedBackupHours + " hours"
-            : "Not Provided"
+        hospitalBackupHours >= 0 ? hospitalBackupHours.toFixed(1) + " hours" : "Not Provided"
     );
 
     setTextIfExists(
         "hospitalDieselStatus",
-        loggedInUser.hospitalDieselStatus || "Not Provided"
+        hospitalDieselStatus || loggedInUser.hospitalDieselStatus || "Not Provided"
     );
 
     setTextIfExists("utilityOrganizationType", loggedInUser.utilityOrganizationType || "Not Provided");
@@ -92,11 +100,11 @@ function loadUserInfo() {
 
     setTextIfExists("localAuthorityId", loggedInUser.localAuthorityId || "Not Provided");
     setTextIfExists("district", loggedInUser.district || "Not Provided");
-    setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || "Not Provided");
+    setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || loggedInUser.hospitalUnderThana || loggedInUser.buildingUnderThana || "Not Provided");
 }
 
 async function refreshHospitalProfile() {
-    const userId = loggedInUser.userId || localStorage.getItem("userId");
+    const userId = getLoggedInUserId();
 
     if (!userId) {
         showHospitalDashboardMessage("User ID not found. Please login again.", "error-text");
@@ -112,21 +120,14 @@ async function refreshHospitalProfile() {
             return;
         }
 
-        loggedInUser = profile;
-        localStorage.setItem("loggedInUser", JSON.stringify(profile));
-
-        localStorage.setItem("fullName", profile.fullName || "");
-        localStorage.setItem("phoneNumber", profile.phoneNumber || "");
-        localStorage.setItem("role", profile.role || "");
-        localStorage.setItem("status", profile.status || "");
-        localStorage.setItem("userId", profile.userId || "");
+        mergeHospitalProfile(profile);
 
         loadUserInfo();
 
         showHospitalDashboardMessage(
-            "Profile refreshed. Backup: " + valueOrDash(profile.hospitalEstimatedBackupHours) +
-            " hours, Status: " + valueOrDash(profile.hospitalDieselStatus) +
-            ", Diesel Reserve: " + valueOrDash(profile.hospitalCurrentDieselReserve) + " L",
+            "Profile refreshed. Backup: " + cleanNumber(loggedInUser.hospitalEstimatedBackupHours).toFixed(1) +
+            " hours, Status: " + valueOrDash(loggedInUser.hospitalDieselStatus) +
+            ", Diesel Reserve: " + cleanNumber(loggedInUser.hospitalCurrentDieselReserve).toFixed(2) + " L",
             "success-text"
         );
 
@@ -135,8 +136,41 @@ async function refreshHospitalProfile() {
     }
 }
 
+function mergeHospitalProfile(profile) {
+    loggedInUser.userId = profile.userId || profile.id || loggedInUser.userId || localStorage.getItem("userId");
+    loggedInUser.id = profile.id || profile.userId || loggedInUser.id;
+    loggedInUser.fullName = profile.fullName || loggedInUser.fullName;
+    loggedInUser.phoneNumber = profile.phoneNumber || loggedInUser.phoneNumber;
+    loggedInUser.address = profile.address || loggedInUser.address;
+    loggedInUser.role = profile.role || loggedInUser.role;
+    loggedInUser.status = profile.status || loggedInUser.status;
+
+    loggedInUser.hospitalName = profile.hospitalName || loggedInUser.hospitalName;
+    loggedInUser.hospitalRegistrationNumber = profile.hospitalRegistrationNumber || loggedInUser.hospitalRegistrationNumber;
+    loggedInUser.hospitalAddress = profile.hospitalAddress || loggedInUser.hospitalAddress;
+    loggedInUser.hospitalUnderThana = profile.hospitalUnderThana || profile.thanaOrUpazila || loggedInUser.hospitalUnderThana;
+    loggedInUser.thanaOrUpazila = profile.thanaOrUpazila || profile.hospitalUnderThana || loggedInUser.thanaOrUpazila;
+    loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
+    loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
+    loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateBackupHours(
+        loggedInUser.hospitalGeneratorCapacity,
+        loggedInUser.hospitalCurrentDieselReserve
+    );
+    loggedInUser.hospitalDieselStatus = profile.hospitalDieselStatus || resolveDieselStatus(
+        cleanNumber(loggedInUser.hospitalEstimatedBackupHours)
+    );
+    loggedInUser.emergencyContactNumber = profile.emergencyContactNumber || loggedInUser.emergencyContactNumber;
+
+    localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+    localStorage.setItem("userId", loggedInUser.userId || "");
+    localStorage.setItem("fullName", loggedInUser.fullName || "");
+    localStorage.setItem("phoneNumber", loggedInUser.phoneNumber || "");
+    localStorage.setItem("role", loggedInUser.role || "");
+    localStorage.setItem("status", loggedInUser.status || "");
+}
+
 async function loadPumpForDashboard() {
-    const userId = loggedInUser.userId || localStorage.getItem("userId");
+    const userId = getLoggedInUserId();
 
     if (!userId) {
         showDashboardPumpMessage("User ID not found. Please login again.", "error-text");
@@ -189,7 +223,7 @@ function fillPumpDashboard(pump) {
 }
 
 async function loadVehiclesForDashboard() {
-    const userId = loggedInUser.userId || localStorage.getItem("userId");
+    const userId = getLoggedInUserId();
     const list = document.getElementById("vehicleDashboardList");
     const totalVehicles = document.getElementById("totalVehicles");
 
@@ -321,6 +355,43 @@ function setTextIfExists(id, value) {
     if (element) {
         element.innerText = value;
     }
+}
+
+function getLoggedInUserId() {
+    return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+}
+
+function cleanNumber(value) {
+    if (value === null || value === undefined || value === "-") {
+        return 0;
+    }
+
+    return Number(String(value).replace("L", "").replace("hours", "").replace("kVA", "").replace("KVA", "").trim()) || 0;
+}
+
+function calculateBackupHours(generatorCapacity, dieselReserve) {
+    const capacity = cleanNumber(generatorCapacity);
+    const reserve = cleanNumber(dieselReserve);
+
+    if (capacity <= 0 || reserve <= 0) {
+        return 0;
+    }
+
+    return reserve / (capacity * 0.25);
+}
+
+function resolveDieselStatus(backupHours) {
+    const hours = cleanNumber(backupHours);
+
+    if (hours < 6) {
+        return "CRITICAL";
+    }
+
+    if (hours < 8) {
+        return "MIDDLE";
+    }
+
+    return "RISK_FREE";
 }
 
 function valueOrDash(value) {

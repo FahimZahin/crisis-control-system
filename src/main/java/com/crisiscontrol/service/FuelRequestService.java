@@ -30,6 +30,7 @@ import com.crisiscontrol.repository.PumpFuelStockRepository;
 import com.crisiscontrol.repository.PumpProfileRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.VehicleRepository;
+import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,6 +196,7 @@ public class FuelRequestService {
         return mapToResponse(fuelRequestRepository.save(savedRequest));
     }
 
+
     public FuelRequestResponse createHospitalGeneratorFuelRequest(HospitalGeneratorFuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -210,32 +212,19 @@ public class FuelRequestService {
 
         BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
 
-        boolean isCritical = "CRITICAL".equals(user.getHospitalDieselStatus())
-                && valueOrZero(user.getHospitalEstimatedBackupHours()) < 6;
-
         PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
 
-        FuelRequestStatus status = FuelRequestStatus.PENDING;
-        PumpProfile finalAssignedPump = null;
-        String adminNote;
+        FuelRequestStatus status = FuelRequestStatus.PENDING; // Always PENDING for admin approval
+        String adminNote = "Hospital diesel request received. Waiting for admin approval.";
 
-        if (isCritical && assignedPump != null) {
+        if ("CRITICAL".equals(user.getHospitalDieselStatus()) && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            finalAssignedPump = assignedPump;
-            adminNote = "Auto-approved. Hospital backup status is CRITICAL and an open pump has enough DIESEL stock.";
-        } else if (isCritical) {
-            adminNote = "Hospital is CRITICAL, but no open pump has enough DIESEL stock right now. Waiting for admin approval.";
-        } else {
-            adminNote = "Hospital request received. Current status is "
-                    + valueOrDash(user.getHospitalDieselStatus())
-                    + " with "
-                    + valueOrZero(user.getHospitalEstimatedBackupHours())
-                    + " backup hours. Waiting for admin approval.";
+            adminNote = "Auto-approved: CRITICAL backup and pump has sufficient diesel.";
         }
 
         FuelRequest hospitalRequest = FuelRequest.builder()
                 .user(user)
-                .pumpProfile(finalAssignedPump)
+                .pumpProfile(status == FuelRequestStatus.APPROVED ? assignedPump : null)
                 .requestSource(FuelRequestSource.HOSPITAL_GENERATOR)
                 .fuelType(FuelType.DIESEL)
                 .requestedLiter(request.getRequiredDieselLiter())
@@ -244,7 +233,7 @@ public class FuelRequestService {
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
                 .hospitalAddress(user.getHospitalAddress())
                 .affectedThana(user.getHospitalUnderThana())
-                .generatorCapacity(user.getHospitalGeneratorCapacity())
+                .generatorCapacity(String.format("%.2f", user.getHospitalGeneratorCapacity()))
                 .hospitalUrgencyLevel(valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalReason(request.getReason())
                 .hospitalContactNumber(request.getContactNumber())
@@ -288,6 +277,59 @@ public class FuelRequestService {
 
         return fuelRequestRepository
                 .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.HOSPITAL_GENERATOR)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public FuelRequestResponse createBuildingGeneratorFuelRequest(BuildingGeneratorFuelRequestCreateRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != Role.BUILDING_MANAGER) {
+            throw new RuntimeException("Only Building Manager can request building generator diesel support");
+        }
+
+        FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
+                .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
+
+        BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+
+        String adminNote = "Building generator diesel request received. Building: "
+                + valueOrDash(user.getBuildingName())
+                + ", Thana: "
+                + valueOrDash(user.getBuildingUnderThana())
+                + ". Waiting for admin approval.";
+
+        FuelRequest buildingRequest = FuelRequest.builder()
+                .user(user)
+                .pumpProfile(null)
+                .requestSource(FuelRequestSource.BUILDING_GENERATOR)
+                .fuelType(FuelType.DIESEL)
+                .requestedLiter(request.getRequiredDieselLiter())
+                .fuelLevelStatus("BUILDING_GENERATOR")
+                .buildingName(valueOrDefault(request.getBuildingName(), user.getBuildingName()))
+                .buildingHoldingNumber(user.getHoldingNumber())
+                .buildingAddress(user.getAddress())
+                .buildingThana(user.getBuildingUnderThana())
+                .buildingGeneratorPower(valueOrDefault(
+                        request.getBuildingGeneratorPower(),
+                        user.getGeneratorPower() == null ? "0.0" : String.format("%.2f", user.getGeneratorPower())
+                ))              .buildingNumberOfFlats(user.getNumberOfFlats())
+                .buildingReason(request.getReason())
+                .buildingContactNumber(request.getContactNumber())
+                .pricePerUnit(dieselPrice.getPricePerUnit())
+                .estimatedCost(estimatedCost)
+                .requestStatus(FuelRequestStatus.PENDING)
+                .adminNote(adminNote)
+                .build();
+
+        return mapToResponse(fuelRequestRepository.save(buildingRequest));
+    }
+
+    public List<FuelRequestResponse> getBuildingGeneratorFuelRequestsByUser(Long userId) {
+        return fuelRequestRepository
+                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.BUILDING_GENERATOR)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -486,7 +528,12 @@ public class FuelRequestService {
             return "CCS-HOSPITAL-FUEL-" + fuelRequest.getId();
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
+            return "CCS-BUILDING-FUEL-" + fuelRequest.getId();
+        }
+
         return "CCS-FUEL-REQ-" + fuelRequest.getId();
+
     }
 
     private boolean isLowFuel(String fuelLevelStatus) {
@@ -555,6 +602,15 @@ public class FuelRequestService {
                 .hospitalEstimatedBackupHours(requestUser.getHospitalEstimatedBackupHours())
                 .hospitalDieselStatus(requestUser.getHospitalDieselStatus())
 
+                .buildingName(fuelRequest.getBuildingName())
+                .buildingHoldingNumber(fuelRequest.getBuildingHoldingNumber())
+                .buildingAddress(fuelRequest.getBuildingAddress())
+                .buildingThana(fuelRequest.getBuildingThana())
+                .buildingGeneratorPower(fuelRequest.getBuildingGeneratorPower())
+                .buildingNumberOfFlats(fuelRequest.getBuildingNumberOfFlats())
+                .buildingReason(fuelRequest.getBuildingReason())
+                .buildingContactNumber(fuelRequest.getBuildingContactNumber())
+
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())
                 .pumpAddress(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpAddress())
@@ -571,11 +627,13 @@ public class FuelRequestService {
                 .createdAt(fuelRequest.getCreatedAt())
                 .updatedAt(fuelRequest.getUpdatedAt())
                 .build();
+
     }
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
+
 
     private String valueOrDefault(String value, String defaultValue) {
         if (value == null || value.trim().isEmpty()) {
@@ -584,6 +642,7 @@ public class FuelRequestService {
 
         return value;
     }
+
 
     private String valueOrDash(String value) {
         if (value == null || value.trim().isEmpty()) {
@@ -600,4 +659,6 @@ public class FuelRequestService {
 
         return value;
     }
+
 }
+

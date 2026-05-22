@@ -60,7 +60,7 @@ function populateDhakaThanaSelect(selectId, selectedValue) {
 
     const normalizedSelected = normalizeCcsThanaName(selectedValue);
 
-    select.innerHTML = `<option value="">Select hospital thana</option>`;
+    select.innerHTML = `<option value="">Select thana</option>`;
 
     const descoGroup = document.createElement("optgroup");
     descoGroup.label = "DESCO / Dhaka North City Corporation";

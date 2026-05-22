@@ -22,14 +22,6 @@ async function loadPublicNotices() {
             return;
         }
 
-        publicNotices = publicNotices.filter(function (notice) {
-            if (notice.status === "RESTORED") {
-                return isRecentlyRestored(notice);
-            }
-
-            return true;
-        });
-
         renderPublicStatusGrid();
         renderPublicNoticeCards();
     } catch (error) {

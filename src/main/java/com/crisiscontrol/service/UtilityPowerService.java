@@ -240,25 +240,8 @@ public class UtilityPowerService {
     public List<PowerOutageResponse> getActivePowerOutages() {
         autoRestoreExpiredOutages();
 
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-
-        return powerOutageRepository.findByStatusInOrderByCreatedAtDesc(
-                        List.of(
-                                PowerOutageStatus.ONGOING,
-                                PowerOutageStatus.SCHEDULED,
-                                PowerOutageStatus.RESTORED
-                        )
-                )
+        return powerOutageRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
-                .map(this::autoRestoreIfExpired)
-                .filter(notice -> {
-                    if (notice.getStatus() == PowerOutageStatus.RESTORED) {
-                        return notice.getRestoredAt() != null
-                                && notice.getRestoredAt().isAfter(oneHourAgo);
-                    }
-
-                    return true;
-                })
                 .map(this::mapNoticeToResponse)
                 .toList();
     }
@@ -278,27 +261,8 @@ public class UtilityPowerService {
     public List<PowerOutageResponse> getRecentPowerOutagesByThana(String thanaName) {
         autoRestoreExpiredOutages();
 
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-
         return powerOutageRepository.findByThanaNameIgnoreCaseOrderByCreatedAtDesc(thanaName)
                 .stream()
-                .map(this::autoRestoreIfExpired)
-                .filter(notice -> {
-                    if (notice.getStatus() == PowerOutageStatus.ONGOING) {
-                        return true;
-                    }
-
-                    if (notice.getStatus() == PowerOutageStatus.SCHEDULED) {
-                        return true;
-                    }
-
-                    if (notice.getStatus() == PowerOutageStatus.RESTORED) {
-                        return notice.getRestoredAt() != null
-                                && notice.getRestoredAt().isAfter(oneHourAgo);
-                    }
-
-                    return false;
-                })
                 .map(this::mapNoticeToResponse)
                 .toList();
     }
@@ -504,12 +468,23 @@ public class UtilityPowerService {
                 LocalDateTime.now().minusHours(1)
         );
 
+        Long userId = notice.getUser() == null ? null : notice.getUser().getId();
+        Long utilityProfileId = notice.getUtilityProfile() == null ? null : notice.getUtilityProfile().getId();
+
+        String officerName = notice.getUtilityProfile() == null
+                ? "Not Provided"
+                : valueOrDefault(notice.getUtilityProfile().getOfficerName(), "Not Provided");
+
+        String officialPhone = notice.getUtilityProfile() == null
+                ? "Not Provided"
+                : valueOrDefault(notice.getUtilityProfile().getOfficialPhone(), "Not Provided");
+
         return PowerOutageResponse.builder()
                 .id(notice.getId())
-                .userId(notice.getUser().getId())
-                .utilityProfileId(notice.getUtilityProfile().getId())
-                .officerName(notice.getUtilityProfile().getOfficerName())
-                .officialPhone(notice.getUtilityProfile().getOfficialPhone())
+                .userId(userId)
+                .utilityProfileId(utilityProfileId)
+                .officerName(officerName)
+                .officialPhone(officialPhone)
                 .provider(notice.getProvider())
                 .cityCorporation(notice.getCityCorporation())
                 .thanaName(notice.getThanaName())

@@ -20,18 +20,41 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         const result = await response.json();
 
         if (response.ok) {
+            const userId = result.userId || result.id || "";
+            const resolvedThana =
+                result.hospitalUnderThana ||
+                result.buildingUnderThana ||
+                result.thanaOrUpazila ||
+                "";
+
+            result.userId = userId;
+            result.thanaOrUpazila = resolvedThana;
+            result.hospitalUnderThana = result.hospitalUnderThana || resolvedThana;
+            result.buildingUnderThana = result.buildingUnderThana || resolvedThana;
+
             localStorage.setItem("loggedInUser", JSON.stringify(result));
 
-            localStorage.setItem("userId", result.userId);
-            localStorage.setItem("fullName", result.fullName);
+            localStorage.setItem("userId", userId);
+            localStorage.setItem("fullName", result.fullName || "");
             localStorage.setItem("phoneNumber", result.phoneNumber || "");
             localStorage.setItem("address", result.address || "");
-            localStorage.setItem("role", result.role);
+            localStorage.setItem("role", result.role || "");
             localStorage.setItem("status", result.status || "");
             localStorage.setItem("drivingLicenseNumber", result.drivingLicenseNumber || "");
 
+            localStorage.setItem("hospitalUnderThana", result.hospitalUnderThana || "");
+            localStorage.setItem("buildingUnderThana", result.buildingUnderThana || "");
+            localStorage.setItem("thanaOrUpazila", result.thanaOrUpazila || "");
+
+            localStorage.setItem("hospitalName", result.hospitalName || "");
+            localStorage.setItem("hospitalGeneratorCapacity", result.hospitalGeneratorCapacity || "");
+            localStorage.setItem("hospitalCurrentDieselReserve", result.hospitalCurrentDieselReserve || "");
+            localStorage.setItem("hospitalEstimatedBackupHours", result.hospitalEstimatedBackupHours || "");
+            localStorage.setItem("hospitalDieselStatus", result.hospitalDieselStatus || "");
+            localStorage.setItem("emergencyContactNumber", result.emergencyContactNumber || "");
+
             message.className = "success-text";
-            message.innerText = result.message;
+            message.innerText = result.message || "Login successful";
 
             setTimeout(function () {
                 redirectToRoleDashboard(result.role);

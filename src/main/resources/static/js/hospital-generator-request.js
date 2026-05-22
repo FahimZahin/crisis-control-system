@@ -15,7 +15,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setupLogout();
     setupFormEvents();
-    refreshHospitalProfile();
+    fillHospitalData();
+    updateApprovalMode();
+    updateHourlyConsumptionBox();
+    generateCrisisReason();
 });
 
 function setupFormEvents() {
@@ -49,7 +52,7 @@ function setupFormEvents() {
 }
 
 async function refreshHospitalProfile() {
-    const userId = loggedInUser.userId || localStorage.getItem("userId");
+    const userId = getLoggedInUserId();
 
     if (!userId) {
         showMessage("User ID not found. Please login again.", "error-text");
@@ -65,8 +68,7 @@ async function refreshHospitalProfile() {
             return;
         }
 
-        loggedInUser = profile;
-        localStorage.setItem("loggedInUser", JSON.stringify(profile));
+        mergeHospitalProfile(profile);
 
         fillHospitalData();
         updateApprovalMode();
@@ -87,31 +89,77 @@ async function refreshHospitalProfile() {
     }
 }
 
+function mergeHospitalProfile(profile) {
+    loggedInUser.userId = profile.userId || profile.id || loggedInUser.userId || localStorage.getItem("userId");
+    loggedInUser.id = profile.id || profile.userId || loggedInUser.id;
+    loggedInUser.fullName = profile.fullName || loggedInUser.fullName;
+    loggedInUser.phoneNumber = profile.phoneNumber || loggedInUser.phoneNumber;
+    loggedInUser.address = profile.address || loggedInUser.address;
+    loggedInUser.role = profile.role || loggedInUser.role;
+    loggedInUser.status = profile.status || loggedInUser.status;
+
+    loggedInUser.hospitalName = profile.hospitalName || loggedInUser.hospitalName;
+    loggedInUser.hospitalRegistrationNumber = profile.hospitalRegistrationNumber || loggedInUser.hospitalRegistrationNumber;
+    loggedInUser.hospitalAddress = profile.hospitalAddress || loggedInUser.hospitalAddress;
+    loggedInUser.hospitalUnderThana = profile.hospitalUnderThana || profile.thanaOrUpazila || loggedInUser.hospitalUnderThana;
+    loggedInUser.thanaOrUpazila = profile.thanaOrUpazila || profile.hospitalUnderThana || loggedInUser.thanaOrUpazila;
+    loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
+    loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
+    loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateBackupHours(
+        loggedInUser.hospitalGeneratorCapacity,
+        loggedInUser.hospitalCurrentDieselReserve
+    );
+    loggedInUser.hospitalDieselStatus = profile.hospitalDieselStatus || resolveDieselStatus(
+        cleanNumber(loggedInUser.hospitalEstimatedBackupHours)
+    );
+    loggedInUser.emergencyContactNumber = profile.emergencyContactNumber || loggedInUser.emergencyContactNumber;
+
+    loggedInUser.totalIcuUnits = profile.totalIcuUnits ?? loggedInUser.totalIcuUnits ?? localStorage.getItem("totalIcuUnits") ?? 0;
+    loggedInUser.acPatientCapacity = profile.acPatientCapacity ?? loggedInUser.acPatientCapacity ?? localStorage.getItem("acPatientCapacity") ?? 0;
+    loggedInUser.nonAcPatientCapacity = profile.nonAcPatientCapacity ?? loggedInUser.nonAcPatientCapacity ?? localStorage.getItem("nonAcPatientCapacity") ?? 0;
+
+    localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+    localStorage.setItem("userId", loggedInUser.userId || "");
+    localStorage.setItem("totalIcuUnits", loggedInUser.totalIcuUnits || "");
+    localStorage.setItem("acPatientCapacity", loggedInUser.acPatientCapacity || "");
+    localStorage.setItem("nonAcPatientCapacity", loggedInUser.nonAcPatientCapacity || "");
+}
+
 function fillHospitalData() {
     const hospitalName = loggedInUser.hospitalName || "-";
-    const hospitalUnderThana = loggedInUser.hospitalUnderThana || "-";
-    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "-";
-    const currentDieselReserve = loggedInUser.hospitalCurrentDieselReserve ?? "-";
-    const backupHours = loggedInUser.hospitalEstimatedBackupHours ?? 0;
-    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
+    const hospitalUnderThana = loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "-";
+    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
+    const dieselStatus = resolveDieselStatus(backupHours);
     const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
+
+    loggedInUser.hospitalEstimatedBackupHours = backupHours;
+    loggedInUser.hospitalDieselStatus = dieselStatus;
+    localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
 
     document.getElementById("hospitalNameInfo").innerText = hospitalName;
     document.getElementById("hospitalUnderThanaInfo").innerText = hospitalUnderThana;
-    document.getElementById("generatorCapacityInfo").innerText = generatorCapacity;
+    document.getElementById("generatorCapacityInfo").innerText = generatorCapacity > 0 ? generatorCapacity.toFixed(2) : "-";
     document.getElementById("contactInfo").innerText = contactNumber || "-";
 
-    document.getElementById("backupHoursSummary").innerText = backupHours + " hours";
+    document.getElementById("backupHoursSummary").innerText = backupHours.toFixed(2) + " hours";
     document.getElementById("dieselStatusSummary").innerText = dieselStatus;
-    document.getElementById("currentDieselReserveSummary").innerText = currentDieselReserve;
+    document.getElementById("currentDieselReserveSummary").innerText = currentDieselReserve.toFixed(2);
 
     document.getElementById("contactNumber").value = contactNumber;
     document.getElementById("urgencyLevel").value = dieselStatus;
+
+    setTextIfExists("totalIcuUnitsInfo", getNumberOrZero(loggedInUser.totalIcuUnits));
+    setTextIfExists("acPatientCapacityInfo", getNumberOrZero(loggedInUser.acPatientCapacity));
+    setTextIfExists("nonAcPatientCapacityInfo", getNumberOrZero(loggedInUser.nonAcPatientCapacity));
 }
 
 function updateApprovalMode() {
-    const backupHours = Number(loggedInUser.hospitalEstimatedBackupHours || 0);
-    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
+    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
+    const dieselStatus = resolveDieselStatus(backupHours);
     const isCritical = backupHours < 6 && dieselStatus === "CRITICAL";
 
     if (isCritical) {
@@ -184,60 +232,22 @@ function updateHourlyConsumptionBox() {
 }
 
 function calculateHourlyDieselConsumption() {
-    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "";
-    const kva = extractKvaFromGeneratorCapacity(generatorCapacity);
+    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
 
-    if (!kva || kva <= 0) {
+    if (!generatorCapacity || generatorCapacity <= 0) {
         return 0;
     }
 
-    return kva * 0.25;
-}
-
-function extractKvaFromGeneratorCapacity(generatorCapacity) {
-    if (!generatorCapacity) {
-        return 0;
-    }
-
-    const cleanedValue = generatorCapacity
-        .toUpperCase()
-        .replace("KVA", "")
-        .replace("KW", "")
-        .replace(",", "")
-        .trim();
-
-    let numberText = "";
-
-    for (let i = 0; i < cleanedValue.length; i++) {
-        const character = cleanedValue.charAt(i);
-
-        if ((character >= "0" && character <= "9") || character === ".") {
-            numberText += character;
-        } else if (numberText.length > 0) {
-            break;
-        }
-    }
-
-    if (!numberText) {
-        return 0;
-    }
-
-    const value = Number(numberText);
-
-    if (Number.isNaN(value)) {
-        return 0;
-    }
-
-    return value;
+    return generatorCapacity * 0.25;
 }
 
 function generateCrisisReason() {
     const hospitalName = loggedInUser.hospitalName || "Hospital";
-    const hospitalUnderThana = loggedInUser.hospitalUnderThana || "-";
-    const generatorCapacity = loggedInUser.hospitalGeneratorCapacity || "-";
-    const currentReserve = loggedInUser.hospitalCurrentDieselReserve ?? "-";
-    const currentBackupHours = loggedInUser.hospitalEstimatedBackupHours ?? 0;
-    const dieselStatus = loggedInUser.hospitalDieselStatus || "CRITICAL";
+    const hospitalUnderThana = loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "-";
+    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const currentReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const currentBackupHours = calculateBackupHours(generatorCapacity, currentReserve);
+    const dieselStatus = resolveDieselStatus(currentBackupHours);
     const hourlyConsumption = calculateHourlyDieselConsumption();
 
     const situation = document.getElementById("outageSituation").value;
@@ -246,11 +256,14 @@ function generateCrisisReason() {
 
     let message = hospitalName + " requests generator DIESEL support";
     message += " for hospital under " + hospitalUnderThana + " thana.";
-    message += " Current diesel reserve: " + currentReserve + " liter(s).";
-    message += " Registered generator capacity: " + generatorCapacity + ".";
+    message += " Current diesel reserve: " + currentReserve.toFixed(2) + " liter(s).";
+    message += " Registered generator capacity: " + generatorCapacity.toFixed(2) + " kVA.";
     message += " Estimated diesel consumption: " + roundTwo(hourlyConsumption) + " liter(s)/hour.";
-    message += " Current estimated backup: " + currentBackupHours + " hour(s).";
+    message += " Current estimated backup: " + currentBackupHours.toFixed(2) + " hour(s).";
     message += " Current diesel status: " + dieselStatus + ".";
+    message += " Total ICU units: " + getNumberOrZero(loggedInUser.totalIcuUnits) + ".";
+    message += " AC patient capacity: " + getNumberOrZero(loggedInUser.acPatientCapacity) + ".";
+    message += " Non-AC patient capacity: " + getNumberOrZero(loggedInUser.nonAcPatientCapacity) + ".";
 
     if (dieselStatus === "CRITICAL" && Number(currentBackupHours) < 6) {
         message += " Approval mode: auto approval possible if an open pump has enough DIESEL stock.";
@@ -279,15 +292,23 @@ async function submitHospitalGeneratorRequest() {
     const requiredDieselLiter = document.getElementById("requiredDieselLiter").value;
     const contactNumber = document.getElementById("contactNumber").value.trim();
 
+    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const currentReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const currentBackupHours = calculateBackupHours(generatorCapacity, currentReserve);
+    const dieselStatus = resolveDieselStatus(currentBackupHours);
+
     const data = {
-        userId: Number(loggedInUser.userId || localStorage.getItem("userId")),
-        affectedThana: loggedInUser.hospitalUnderThana,
+        userId: Number(getLoggedInUserId()),
+        affectedThana: loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila,
         hospitalName: loggedInUser.hospitalName,
-        generatorCapacity: loggedInUser.hospitalGeneratorCapacity,
+        generatorCapacity: generatorCapacity,
         requiredDieselLiter: Number(requiredDieselLiter),
-        urgencyLevel: loggedInUser.hospitalDieselStatus || "UNKNOWN",
+        urgencyLevel: dieselStatus,
         reason: document.getElementById("generatedReasonPreview").value.trim(),
-        contactNumber: contactNumber
+        contactNumber: contactNumber,
+        totalIcuUnits: getNumberOrZero(loggedInUser.totalIcuUnits),
+        acPatientCapacity: getNumberOrZero(loggedInUser.acPatientCapacity),
+        nonAcPatientCapacity: getNumberOrZero(loggedInUser.nonAcPatientCapacity)
     };
 
     if (!data.userId) {
@@ -315,8 +336,6 @@ async function submitHospitalGeneratorRequest() {
         return;
     }
 
-    const currentBackupHours = loggedInUser.hospitalEstimatedBackupHours ?? 0;
-    const dieselStatus = loggedInUser.hospitalDieselStatus || "UNKNOWN";
     const approvalMode = dieselStatus === "CRITICAL" && Number(currentBackupHours) < 6
         ? "Auto approval possible if an open pump has enough DIESEL stock"
         : "Admin approval required";
@@ -324,11 +343,14 @@ async function submitHospitalGeneratorRequest() {
     const confirmationMessage =
         "Confirm Generator Diesel Request\n\n" +
         "Hospital: " + valueOrDash(loggedInUser.hospitalName) + "\n" +
-        "Hospital Under Thana: " + valueOrDash(loggedInUser.hospitalUnderThana) + "\n" +
-        "Generator Capacity: " + valueOrDash(loggedInUser.hospitalGeneratorCapacity) + "\n" +
-        "Current Diesel Reserve: " + valueOrDash(loggedInUser.hospitalCurrentDieselReserve) + " L\n" +
-        "Current Backup: " + valueOrDash(currentBackupHours) + " hours\n" +
-        "Current Status: " + dieselStatus + "\n\n" +
+        "Hospital Under Thana: " + valueOrDash(loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila) + "\n" +
+        "Generator Capacity: " + generatorCapacity.toFixed(2) + "\n" +
+        "Current Diesel Reserve: " + currentReserve.toFixed(2) + " L\n" +
+        "Current Backup: " + currentBackupHours.toFixed(2) + " hours\n" +
+        "Current Status: " + dieselStatus + "\n" +
+        "Total ICU Units: " + data.totalIcuUnits + "\n" +
+        "AC Patient Capacity: " + data.acPatientCapacity + "\n" +
+        "Non-AC Patient Capacity: " + data.nonAcPatientCapacity + "\n\n" +
         "Outage Situation: " + formatEnum(outageSituation) + "\n" +
         "Expected Backup Needed: " + valueOrDash(backupHoursNeeded) + " hours\n" +
         "Requested Diesel: " + data.requiredDieselLiter + " L\n" +
@@ -391,6 +413,70 @@ async function submitHospitalGeneratorRequest() {
     }
 }
 
+function getLoggedInUserId() {
+    return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+}
+
+function getNumberOrZero(value) {
+    const number = Number(value);
+
+    if (Number.isNaN(number) || number < 0) {
+        return 0;
+    }
+
+    return number;
+}
+
+function cleanNumber(value) {
+    if (value === null || value === undefined || value === "-") {
+        return 0;
+    }
+
+    return Number(
+        String(value)
+            .replace("L", "")
+            .replace("hours", "")
+            .replace("liter(s)", "")
+            .replace("kVA", "")
+            .replace("KVA", "")
+            .replace("KW", "")
+            .replace("kw", "")
+            .replace(",", "")
+            .trim()
+    ) || 0;
+}
+
+function calculateBackupHours(generatorCapacity, dieselReserve) {
+    const capacity = cleanNumber(generatorCapacity);
+    const reserve = cleanNumber(dieselReserve);
+
+    if (capacity <= 0 || reserve <= 0) {
+        return 0;
+    }
+
+    const hourlyConsumption = capacity * 0.25;
+
+    if (hourlyConsumption <= 0) {
+        return 0;
+    }
+
+    return reserve / hourlyConsumption;
+}
+
+function resolveDieselStatus(backupHours) {
+    const hours = cleanNumber(backupHours);
+
+    if (hours < 6) {
+        return "CRITICAL";
+    }
+
+    if (hours < 8) {
+        return "MIDDLE";
+    }
+
+    return "RISK_FREE";
+}
+
 function roundTwo(value) {
     return Math.round(Number(value) * 100) / 100;
 }
@@ -439,5 +525,13 @@ function setupLogout() {
         logoutBtn.addEventListener("click", function () {
             localStorage.clear();
         });
+    }
+}
+
+function setTextIfExists(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = value;
     }
 }

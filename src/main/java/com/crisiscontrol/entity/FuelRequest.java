@@ -111,6 +111,31 @@ public class FuelRequest {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Building generator diesel support fields
+    @Column(name = "building_name")
+    private String buildingName;
+
+    @Column(name = "building_holding_number")
+    private String buildingHoldingNumber;
+
+    @Column(name = "building_address")
+    private String buildingAddress;
+
+    @Column(name = "building_thana")
+    private String buildingThana;
+
+    @Column(name = "building_generator_power")
+    private String buildingGeneratorPower;
+
+    @Column(name = "building_number_of_flats")
+    private Integer buildingNumberOfFlats;
+
+    @Column(name = "building_reason", length = 1000)
+    private String buildingReason;
+
+    @Column(name = "building_contact_number")
+    private String buildingContactNumber;
+
     @PrePersist
     public void beforeCreate() {
         this.createdAt = LocalDateTime.now();

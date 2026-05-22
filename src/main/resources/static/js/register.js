@@ -19,6 +19,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof populateDhakaThanaSelect === "function") {
         populateDhakaThanaSelect("hospitalUnderThana", "");
     }
+
+    if (typeof populateDhakaThanaSelect === "function") {
+        populateDhakaThanaSelect("buildingUnderThana", "");
+    }
 });
 roleSelect.addEventListener("change", function () {
     const selectedRole = roleSelect.value;
@@ -158,6 +162,7 @@ function buildRegistrationData(selectedRole) {
         data.holdingNumber = getValue("holdingNumber");
         data.numberOfFlats = getNumberValue("numberOfFlats");
         data.generatorPower = getValue("generatorPower");
+        data.thanaOrUpazila = getValue("buildingUnderThana");
     }
 
     if (selectedRole === "PUMP_AUTHORITY") {
@@ -176,7 +181,10 @@ function buildRegistrationData(selectedRole) {
         data.hospitalName = getValue("hospitalName");
         data.hospitalRegistrationNumber = getValue("hospitalRegistrationNumber");
         data.hospitalAddress = getValue("hospitalAddress");
-        data.hospitalUnderThana = getValue("hospitalUnderThana");
+
+        // FIX: Map Thana dropdown to backend field
+        data.thanaOrUpazila = getValue("hospitalUnderThana");
+
         data.hospitalGeneratorCapacity = getValue("hospitalGeneratorCapacity");
         data.hospitalCurrentDieselReserve = getNumberValue("hospitalCurrentDieselReserve");
         data.emergencyContactNumber = getValue("emergencyContactNumber");

@@ -7,6 +7,7 @@ import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
 import com.crisiscontrol.dto.HospitalGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.service.FuelRequestService;
+import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +61,18 @@ public class FuelRequestController {
             @PathVariable Long userId
     ) {
         return ResponseEntity.ok(fuelRequestService.getHospitalGeneratorFuelRequestsByUser(userId));
+    }
+
+    @PostMapping("/api/building-generator-fuel-requests")
+    public ResponseEntity<FuelRequestResponse> createBuildingGeneratorFuelRequest(
+            @RequestBody @Valid BuildingGeneratorFuelRequestCreateRequest request) {
+        return ResponseEntity.ok(fuelRequestService.createBuildingGeneratorFuelRequest(request));
+    }
+
+    @GetMapping("/api/building-generator-fuel-requests/user/{userId}")
+    public ResponseEntity<List<FuelRequestResponse>> getBuildingGeneratorFuelRequestsByUser(
+            @PathVariable Long userId) {
+        return ResponseEntity.ok(fuelRequestService.getBuildingGeneratorFuelRequestsByUser(userId));
     }
 
     @GetMapping("/api/admin/fuel-requests")

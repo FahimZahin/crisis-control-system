@@ -5,11 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class HospitalGeneratorFuelRequestCreateRequest {
 
     @NotNull(message = "User ID is required")
@@ -36,4 +40,13 @@ public class HospitalGeneratorFuelRequestCreateRequest {
 
     @NotBlank(message = "Contact number is required")
     private String contactNumber;
+
+    @NotNull(message = "Total ICU units is required")
+    private Integer totalIcuUnits;
+
+    @NotNull(message = "AC patient capacity is required")
+    private Integer acPatientCapacity;
+
+    @NotNull(message = "Non-AC patient capacity is required")
+    private Integer nonAcPatientCapacity;
 }

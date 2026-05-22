@@ -51,6 +51,16 @@ public class FuelRequestResponse {
     private Double hospitalEstimatedBackupHours;
     private String hospitalDieselStatus;
 
+    // Building generator fields
+    private String buildingName;
+    private String buildingHoldingNumber;
+    private String buildingAddress;
+    private String buildingThana;
+    private String buildingGeneratorPower;
+    private Integer buildingNumberOfFlats;
+    private String buildingReason;
+    private String buildingContactNumber;
+
     private Long pumpId;
     private String pumpName;
     private String pumpAddress;

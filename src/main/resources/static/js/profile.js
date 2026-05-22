@@ -16,12 +16,62 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function loadProfileData() {
-    document.getElementById("profileUserId").value = loggedInUser.userId || "";
-    document.getElementById("profileFullName").value = loggedInUser.fullName || "";
-    document.getElementById("profilePhoneNumber").value = loggedInUser.phoneNumber || "";
-    document.getElementById("profileRole").value = loggedInUser.role || "";
-    document.getElementById("profileStatus").value = loggedInUser.status || "ACTIVE";
-    document.getElementById("profileAddress").value = loggedInUser.address || "";
+    setInputValueIfExists(
+        "profileUserId",
+        loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId") || ""
+    );
+
+    setInputValueIfExists(
+        "profileFullName",
+        loggedInUser.fullName || localStorage.getItem("fullName") || ""
+    );
+
+    setInputValueIfExists(
+        "profilePhoneNumber",
+        loggedInUser.phoneNumber || localStorage.getItem("phoneNumber") || ""
+    );
+
+    setInputValueIfExists(
+        "profileRole",
+        loggedInUser.role || localStorage.getItem("role") || ""
+    );
+
+    setInputValueIfExists(
+        "profileStatus",
+        loggedInUser.status || localStorage.getItem("status") || "ACTIVE"
+    );
+
+    setInputValueIfExists(
+        "profileAddress",
+        loggedInUser.address || localStorage.getItem("address") || ""
+    );
+
+    const resolvedThana = resolveUserThana();
+
+    setInputValueIfExists("buildingUnderThana", resolvedThana);
+    setInputValueIfExists("profileThana", resolvedThana);
+    setInputValueIfExists("thanaOrUpazila", resolvedThana);
+}
+
+function resolveUserThana() {
+    return firstValidValue(
+        loggedInUser.thanaOrUpazila,
+        loggedInUser.buildingUnderThana,
+        loggedInUser.hospitalUnderThana,
+        loggedInUser.pumpUnderThana,
+        loggedInUser.pumpThana,
+        loggedInUser.serviceArea,
+        loggedInUser.assignedArea,
+        loggedInUser.district,
+        localStorage.getItem("thanaOrUpazila"),
+        localStorage.getItem("buildingUnderThana"),
+        localStorage.getItem("hospitalUnderThana"),
+        localStorage.getItem("pumpUnderThana"),
+        localStorage.getItem("pumpThana"),
+        localStorage.getItem("serviceArea"),
+        localStorage.getItem("assignedArea"),
+        localStorage.getItem("district")
+    );
 }
 
 function setupInactiveAccountBox() {
@@ -43,10 +93,17 @@ function setupProfileSave() {
         loggedInUser.phoneNumber = document.getElementById("profilePhoneNumber").value;
         loggedInUser.address = document.getElementById("profileAddress").value;
 
+        const resolvedThana = document.getElementById("buildingUnderThana").value;
+
+        if (resolvedThana) {
+            loggedInUser.thanaOrUpazila = resolvedThana;
+        }
+
         localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
         localStorage.setItem("fullName", loggedInUser.fullName);
         localStorage.setItem("phoneNumber", loggedInUser.phoneNumber);
         localStorage.setItem("address", loggedInUser.address);
+        localStorage.setItem("thanaOrUpazila", loggedInUser.thanaOrUpazila || "");
 
         showMessage("profileMessage", "Profile preview updated successfully.", "success-text");
     });
@@ -97,7 +154,7 @@ function setupActivationRequest() {
         }
 
         try {
-            const response = await fetch("http://localhost:8081/api/users/" + loggedInUser.userId + "/activation-request", {
+            const response = await fetch("http://localhost:8081/api/users/" + getLoggedInUserId() + "/activation-request", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -121,7 +178,13 @@ function setupActivationRequest() {
 }
 
 function setupDeleteProfile() {
-    document.getElementById("deleteProfileBtn").addEventListener("click", function () {
+    const deleteBtn = document.getElementById("deleteProfileBtn");
+
+    if (!deleteBtn) {
+        return;
+    }
+
+    deleteBtn.addEventListener("click", function () {
         if (loggedInUser.status === "INACTIVE") {
             showMessage("deleteMessage", "Your account is deactivated. Apply for activation first.", "error-text");
             return;
@@ -146,20 +209,52 @@ function setupDeleteProfile() {
 function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");
 
+    if (!logoutBtn) {
+        return;
+    }
+
     logoutBtn.addEventListener("click", function () {
-        localStorage.removeItem("loggedInUser");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("fullName");
-        localStorage.removeItem("phoneNumber");
-        localStorage.removeItem("address");
-        localStorage.removeItem("role");
-        localStorage.removeItem("status");
-        localStorage.removeItem("drivingLicenseNumber");
+        localStorage.clear();
     });
+}
+
+function getLoggedInUserId() {
+    return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+}
+
+function setInputValueIfExists(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.value = value || "";
+    }
 }
 
 function showMessage(id, text, className) {
     const message = document.getElementById(id);
-    message.className = className;
-    message.innerText = text;
+
+    if (message) {
+        message.className = className;
+        message.innerText = text;
+    }
+}
+
+function firstValidValue() {
+    for (let i = 0; i < arguments.length; i++) {
+        const value = arguments[i];
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            String(value).trim() !== "" &&
+            String(value).trim() !== "-" &&
+            String(value).trim() !== "Not Provided" &&
+            String(value).trim() !== "null" &&
+            String(value).trim() !== "undefined"
+        ) {
+            return String(value).trim();
+        }
+    }
+
+    return "";
 }
