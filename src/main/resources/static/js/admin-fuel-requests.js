@@ -127,13 +127,10 @@ function renderFuelRequests() {
 function renderRequestInfo(request) {
     if (request.requestSource === "HOSPITAL_GENERATOR") {
         return `
-            <strong>Hospital Generator Diesel</strong><br>
-            Hospital: ${valueOrDash(request.hospitalName)}<br>
-            Reg: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
+            <strong>Hospital Generator</strong><br>
+            ${valueOrDash(request.hospitalName)}<br>
             Thana: ${valueOrDash(request.affectedThana)}<br>
-            Generator: ${valueOrDash(request.generatorCapacity)}<br>
-            Status: ${valueOrDash(request.hospitalDieselStatus || request.hospitalUrgencyLevel)}<br>
-            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hours<br>
+            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hrs<br>
             Reserve: ${valueOrDash(request.hospitalCurrentDieselReserve)} L
         `;
     }
@@ -141,11 +138,9 @@ function renderRequestInfo(request) {
     if (request.requestSource === "EMERGENCY") {
         return `
             <strong>Emergency Vehicle</strong><br>
-            Organization: ${valueOrDash(request.emergencyOrganizationName)}<br>
-            Vehicle No: ${valueOrDash(request.emergencyVehicleNumber)}<br>
-            Type: ${valueOrDash(request.emergencyVehicleType)}<br>
-            Area: ${valueOrDash(request.emergencyAssignedArea)}<br>
-            Reason: ${valueOrDash(request.emergencyReason)}
+            ${valueOrDash(request.emergencyOrganizationName)}<br>
+            Vehicle: ${valueOrDash(request.emergencyVehicleNumber)}<br>
+            Area: ${valueOrDash(request.emergencyAssignedArea)}
         `;
     }
 
@@ -154,10 +149,8 @@ function renderRequestInfo(request) {
         ${valueOrDash(request.vehicleBrand)} ${valueOrDash(request.vehicleModel)}<br>
         Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
         Type: ${valueOrDash(request.vehicleType)}<br>
-        Previous Odometer: ${valueOrDash(request.previousOdometerReading)} km<br>
-        Request Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
-        Distance Travelled: ${valueOrDash(request.distanceTravelled)} km<br>
-        Remaining Range: ${valueOrDash(request.estimatedRemainingRangeKm)} km
+        Odometer: ${valueOrDash(request.previousOdometerReading)} → ${valueOrDash(request.requestOdometerReading)} km<br>
+        Remaining: ${valueOrDash(request.estimatedRemainingRangeKm)} km
         ${renderExtraFuelInfo(request)}
     `;
 }
@@ -168,32 +161,35 @@ function renderExtraFuelInfo(request) {
     }
 
     return `
-        <br><strong>Extra Fuel Request</strong><br>
-        Reason: ${valueOrDash(request.extraFuelReasonType)}<br>
-        Message: ${valueOrDash(request.extraFuelDemandMessage)}
+        <br><strong>Extra Fuel</strong><br>
+        Reason: ${valueOrDash(request.extraFuelReasonType)}
     `;
 }
 
 function renderAdminNote(request) {
-    if (request.extraFuelRequested && request.extraFuelDemandMessage) {
-        return valueOrDash(request.extraFuelDemandMessage);
+    if (request.extraFuelRequested) {
+        return `
+            Extra fuel request.<br>
+            Reason: ${valueOrDash(request.extraFuelReasonType)}<br>
+            Limit exceeded. Admin approval required.
+        `;
     }
 
     if (request.requestSource === "HOSPITAL_GENERATOR") {
         if (request.requestStatus === "PENDING") {
-            return "Hospital generator diesel request is waiting for admin approval.";
+            return "Hospital diesel request pending.";
         }
 
         if (request.requestStatus === "APPROVED") {
-            return "Hospital generator diesel request approved.";
+            return "Hospital diesel request approved.";
         }
 
         if (request.requestStatus === "COLLECTED") {
-            return "Hospital diesel collected from assigned pump.";
+            return "Hospital diesel collected.";
         }
 
         if (request.requestStatus === "REJECTED") {
-            return "Hospital generator diesel request rejected.";
+            return "Hospital diesel request rejected.";
         }
     }
 

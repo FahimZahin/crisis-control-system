@@ -123,7 +123,7 @@ public class FuelRequest {
     @Column(name = "collection_code")
     private String collectionCode;
 
-    @Column(name = "admin_note")
+    @Column(name = "admin_note", length = 1000)
     private String adminNote;
 
     @Enumerated(EnumType.STRING)

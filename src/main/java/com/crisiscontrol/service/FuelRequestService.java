@@ -168,7 +168,7 @@ public class FuelRequestService {
                     .pricePerUnit(fuelPrice.getPricePerUnit())
                     .estimatedCost(estimatedCost)
                     .requestStatus(FuelRequestStatus.PENDING)
-                    .adminNote(extraFuelDemandMessage)
+                    .adminNote("Extra fuel request. Admin approval required.")
                     .build();
 
             return mapToResponse(fuelRequestRepository.save(pendingRequest));
