@@ -13,4 +13,7 @@ public interface HospitalOutageFuelUsageLogRepository extends JpaRepository<Hosp
             User hospitalUser,
             PowerOutageNotice powerOutageNotice
     );
+    void deleteByHospitalUserId(Long hospitalUserId);
+
+    void deleteByPowerOutageNoticeId(Long powerOutageNoticeId);
 }

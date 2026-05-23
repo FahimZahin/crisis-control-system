@@ -20,6 +20,7 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final ActivationRequestRepository activationRequestRepository;
+    private final UserDeleteService userDeleteService;
 
     public List<AdminUserResponse> getAllUsers() {
         return userRepository.findAllByOrderByCreatedAtDesc()
@@ -45,12 +46,8 @@ public class AdminService {
     }
 
     public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        userRepository.delete(user);
+        userDeleteService.deleteUserCompletely(userId);
     }
-
     public List<ActivationRequestResponse> getPendingActivationRequests() {
         return activationRequestRepository
                 .findByStatusOrderByRequestedAtDesc(ActivationRequestStatus.PENDING)

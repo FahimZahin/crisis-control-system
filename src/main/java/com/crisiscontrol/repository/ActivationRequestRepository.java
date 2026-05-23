@@ -14,4 +14,6 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
     List<ActivationRequest> findAllByOrderByRequestedAtDesc();
 
     List<ActivationRequest> findByStatusOrderByRequestedAtDesc(ActivationRequestStatus status);
+
+    void deleteByUserId(Long userId);
 }

@@ -1,17 +1,10 @@
 package com.crisiscontrol.controller;
 
-import com.crisiscontrol.entity.FuelRequest;
-import com.crisiscontrol.entity.User;
-import com.crisiscontrol.entity.Vehicle;
-import com.crisiscontrol.repository.FuelRequestRepository;
-import com.crisiscontrol.repository.UserRepository;
-import com.crisiscontrol.repository.VehicleRepository;
+import com.crisiscontrol.service.UserDeleteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -19,26 +12,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserRepository userRepository;
-    private final VehicleRepository vehicleRepository;
-    private final FuelRequestRepository fuelRequestRepository;
+    private final UserDeleteService userDeleteService;
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        userDeleteService.deleteUserCompletely(userId);
 
-        List<FuelRequest> fuelRequests = fuelRequestRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        fuelRequestRepository.deleteAll(fuelRequests);
-
-        List<Vehicle> vehicles = vehicleRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        vehicleRepository.deleteAll(vehicles);
-
-        userRepository.delete(user);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "User profile, fuel requests, and vehicles deleted successfully from database.");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                Map.of("message", "User profile and related records deleted successfully from database.")
+        );
     }
 }
