@@ -414,7 +414,7 @@ function isRecentlyRestored(notice) {
 }
 
 async function checkRecentOutageWarning(thanaName) {
-    const warningBox = document.getElementById("recentOutageWarningBox");
+    const warningBox = document.getElementById("areaWarningBox");
 
     if (!warningBox || !thanaName) {
         return;

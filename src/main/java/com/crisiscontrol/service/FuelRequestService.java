@@ -93,6 +93,23 @@ public class FuelRequestService {
 
         BigDecimal availableRangeFromSavedFuel = currentFuelLiter.multiply(effectiveMileage);
         BigDecimal estimatedRemainingRange = availableRangeFromSavedFuel.subtract(distanceTravelled);
+        BigDecimal tankCapacity = vehicle.getTankCapacity() == null
+                ? BigDecimal.ZERO
+                : vehicle.getTankCapacity();
+
+        BigDecimal availableTankSpace = tankCapacity.subtract(currentFuelLiter);
+
+        if (availableTankSpace.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Vehicle fuel tank is already full. Fuel request is not allowed.");
+        }
+
+        if (request.getRequestedLiter().compareTo(availableTankSpace) > 0) {
+            throw new RuntimeException(
+                    "Requested fuel cannot be greater than available tank space. Available space: "
+                            + availableTankSpace.setScale(2, java.math.RoundingMode.HALF_UP)
+                            + " L"
+            );
+        }
 
         if (estimatedRemainingRange.compareTo(BigDecimal.ZERO) < 0) {
             estimatedRemainingRange = BigDecimal.ZERO;
@@ -294,7 +311,7 @@ public class FuelRequestService {
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
                 .hospitalAddress(user.getHospitalAddress())
                 .affectedThana(user.getHospitalUnderThana())
-                .generatorCapacity(String.format("%.2f", user.getHospitalGeneratorCapacity()))
+                .generatorCapacity(String.format("%.2f", valueOrZero(user.getHospitalGeneratorCapacity())))
                 .hospitalUrgencyLevel(valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalReason(request.getReason())
                 .hospitalContactNumber(request.getContactNumber())

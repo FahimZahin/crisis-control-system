@@ -16,8 +16,12 @@ public class HospitalSupportCalculationService {
                 ? 0.0
                 : hospitalUser.getHospitalCurrentDieselReserve();
 
+        double generatorCapacity = hospitalUser.getHospitalGeneratorCapacity() == null
+                ? 0.0
+                : hospitalUser.getHospitalGeneratorCapacity();
+
         double backupHours = calculateBackupHours(
-                String.format("%.2f", hospitalUser.getHospitalGeneratorCapacity()),
+                String.format("%.2f", generatorCapacity),
                 currentReserve
         );
 

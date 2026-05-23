@@ -304,7 +304,23 @@ async function submitFuelRequest() {
     const normalLimit = getFixedFuelLimitByVehicle();
     const extraFuelReasonType = document.getElementById("extraFuelReasonType").value;
     const extraFuelDemandMessage = document.getElementById("extraFuelDemandMessage").value;
+    const savedCurrentFuelLiter = Number(selectedVehicle.currentFuelLiter || 0);
+    const tankCapacity = Number(selectedVehicle.tankCapacity || 0);
+    const availableTankSpace = tankCapacity - savedCurrentFuelLiter;
 
+    if (availableTankSpace <= 0) {
+        showMessage("fuelRequestMessage", "Vehicle fuel tank is already full. Fuel request is not allowed.", "error-text");
+        return;
+    }
+
+    if (requestedLiter > availableTankSpace) {
+        showMessage(
+            "fuelRequestMessage",
+            "Requested fuel cannot be greater than available tank space. Available space: " + availableTankSpace.toFixed(2) + " L",
+            "error-text"
+        );
+        return;
+    }
     if (!fuelType) {
         showMessage("fuelRequestMessage", "Please select fuel type.", "error-text");
         return;
@@ -314,6 +330,7 @@ async function submitFuelRequest() {
         showMessage("fuelRequestMessage", "Requested fuel liter must be greater than 0.", "error-text");
         return;
     }
+
 
     if (!requestedAmountBdt || requestedAmountBdt <= 0) {
         showMessage("fuelRequestMessage", "Requested amount in BDT must be greater than 0.", "error-text");

@@ -778,6 +778,7 @@ async function loadUserVehicles() {
                     <p><strong>Type:</strong> ${vehicle.vehicleType}</p>
                     <p><strong>Plate:</strong> ${vehicle.numberPlate}</p>
                     <p><strong>Fuel:</strong> ${vehicle.fuelType}</p>
+                    <p><strong>Current Fuel:</strong> ${vehicle.currentFuelLiter || 0} L</p>
                 </div>
                 <button class="btn primary small-btn" onclick="loadVehicleIntoForm(${vehicle.id})">
                     Edit

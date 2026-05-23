@@ -189,12 +189,7 @@ public class UtilityPowerService {
                 LocalDateTime.now().minusMinutes(30)
         );
 
-        boolean recentCreated = powerOutageRepository.existsByThanaNameIgnoreCaseAndCreatedAtAfter(
-                request.getThanaName(),
-                LocalDateTime.now().minusHours(24)
-        );
-
-        if ((ongoing || recentRestored || recentCreated) && !Boolean.TRUE.equals(request.getWarningAcknowledged())) {
+        if ((ongoing || recentRestored) && !Boolean.TRUE.equals(request.getWarningAcknowledged())) {
             if (ongoing) {
                 throw new RuntimeException("This thana already has an ongoing outage notice. Creating another current outage may confuse users.");
             }
@@ -202,8 +197,6 @@ public class UtilityPowerService {
             if (recentRestored) {
                 throw new RuntimeException("This thana was restored recently. Please confirm before creating another notice.");
             }
-
-            throw new RuntimeException("Recent outage happened here. Please confirm before creating another notice.");
         }
 
         PowerOutageNotice notice = PowerOutageNotice.builder()
@@ -240,7 +233,10 @@ public class UtilityPowerService {
     public List<PowerOutageResponse> getActivePowerOutages() {
         autoRestoreExpiredOutages();
 
-        return powerOutageRepository.findAllByOrderByCreatedAtDesc()
+        return powerOutageRepository
+                .findByStatusInOrderByCreatedAtDesc(
+                        List.of(PowerOutageStatus.ONGOING, PowerOutageStatus.SCHEDULED)
+                )
                 .stream()
                 .map(this::mapNoticeToResponse)
                 .toList();
@@ -469,7 +465,7 @@ public class UtilityPowerService {
 
         boolean recentRestored = powerOutageRepository.existsByThanaNameIgnoreCaseAndRestoredAtAfter(
                 notice.getThanaName(),
-                LocalDateTime.now().minusHours(1)
+                LocalDateTime.now().minusMinutes(30)
         );
 
         Long userId = notice.getUser() == null ? null : notice.getUser().getId();
