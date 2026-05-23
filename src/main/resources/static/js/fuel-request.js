@@ -16,34 +16,56 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function setupEvents() {
-    document.getElementById("vehicleSelect").addEventListener("change", function () {
-        handleVehicleSelection();
-    });
+    const vehicleSelect = document.getElementById("vehicleSelect");
+    const fuelType = document.getElementById("fuelType");
+    const requestedLiter = document.getElementById("requestedLiter");
+    const requestedAmountBdt = document.getElementById("requestedAmountBdt");
+    const extraFuelReasonType = document.getElementById("extraFuelReasonType");
+    const currentOdometerReading = document.getElementById("currentOdometerReading");
+    const fuelRequestForm = document.getElementById("fuelRequestForm");
 
-    document.getElementById("fuelType").addEventListener("change", function () {
-        updateFuelRequestCalculation("liter");
-    });
+    if (vehicleSelect) {
+        vehicleSelect.addEventListener("change", function () {
+            handleVehicleSelection();
+        });
+    }
 
-    document.getElementById("requestedLiter").addEventListener("input", function () {
-        updateFuelRequestCalculation("liter");
-    });
+    if (fuelType) {
+        fuelType.addEventListener("change", function () {
+            updateFuelRequestCalculation("liter");
+        });
+    }
 
-    document.getElementById("requestedAmountBdt").addEventListener("input", function () {
-        updateFuelRequestCalculation("bdt");
-    });
+    if (requestedLiter) {
+        requestedLiter.addEventListener("input", function () {
+            updateFuelRequestCalculation("liter");
+        });
+    }
 
-    document.getElementById("extraFuelReasonType").addEventListener("change", function () {
-        updateExtraFuelMessage();
-    });
+    if (requestedAmountBdt) {
+        requestedAmountBdt.addEventListener("input", function () {
+            updateFuelRequestCalculation("bdt");
+        });
+    }
 
-    document.getElementById("currentOdometerReading").addEventListener("input", function () {
-        updateOdometerPreview();
-    });
+    if (extraFuelReasonType) {
+        extraFuelReasonType.addEventListener("change", function () {
+            updateExtraFuelMessage();
+        });
+    }
 
-    document.getElementById("fuelRequestForm").addEventListener("submit", function (event) {
-        event.preventDefault();
-        submitFuelRequest();
-    });
+    if (currentOdometerReading) {
+        currentOdometerReading.addEventListener("input", function () {
+            updateOdometerPreview();
+        });
+    }
+
+    if (fuelRequestForm) {
+        fuelRequestForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            submitFuelRequest();
+        });
+    }
 }
 
 async function loadInitialData() {
@@ -66,21 +88,39 @@ async function loadFuelSettings() {
 }
 
 async function loadVehicles() {
-    const userId = loggedInUser.userId || localStorage.getItem("userId");
+    const vehicleSelect = document.getElementById("vehicleSelect");
+
+    const userId =
+        loggedInUser.userId ||
+        loggedInUser.id ||
+        localStorage.getItem("userId") ||
+        "";
+
+    if (!vehicleSelect) {
+        return;
+    }
+
+    if (!userId) {
+        vehicleSelect.innerHTML = `<option value="">User ID not found. Please login again.</option>`;
+        showMessage("fuelRequestMessage", "User ID not found. Please login again.", "error-text");
+        return;
+    }
 
     try {
-        const response = await fetch("http://localhost:8081/api/vehicles/user/" + userId);
-        vehicles = await response.json();
-
-        const vehicleSelect = document.getElementById("vehicleSelect");
-        vehicleSelect.innerHTML = `<option value="">Select saved vehicle</option>`;
+        const response = await fetch("http://localhost:8081/api/vehicles/user/" + userId + "?time=" + Date.now());
+        const result = await response.json();
 
         if (!response.ok) {
-            showMessage("fuelRequestMessage", "Failed to load vehicles.", "error-text");
+            vehicleSelect.innerHTML = `<option value="">Failed to load vehicles</option>`;
+            showMessage("fuelRequestMessage", getErrorMessage(result), "error-text");
             return;
         }
 
-        if (vehicles.length === 0) {
+        vehicles = result;
+
+        vehicleSelect.innerHTML = `<option value="">Select saved vehicle</option>`;
+
+        if (!Array.isArray(vehicles) || vehicles.length === 0) {
             vehicleSelect.innerHTML = `<option value="">No vehicle found. Add vehicle first.</option>`;
             showMessage("fuelRequestMessage", "Please add a vehicle before requesting fuel.", "error-text");
             return;
@@ -93,7 +133,10 @@ async function loadVehicles() {
             vehicleSelect.appendChild(option);
         });
 
+        showMessage("fuelRequestMessage", "Vehicles loaded successfully.", "success-text");
+
     } catch (error) {
+        vehicleSelect.innerHTML = `<option value="">Server connection failed</option>`;
         showMessage("fuelRequestMessage", "Server connection failed while loading vehicles.", "error-text");
     }
 }
@@ -304,23 +347,10 @@ async function submitFuelRequest() {
     const normalLimit = getFixedFuelLimitByVehicle();
     const extraFuelReasonType = document.getElementById("extraFuelReasonType").value;
     const extraFuelDemandMessage = document.getElementById("extraFuelDemandMessage").value;
+
     const savedCurrentFuelLiter = Number(selectedVehicle.currentFuelLiter || 0);
     const tankCapacity = Number(selectedVehicle.tankCapacity || 0);
-    const availableTankSpace = tankCapacity - savedCurrentFuelLiter;
 
-    if (availableTankSpace <= 0) {
-        showMessage("fuelRequestMessage", "Vehicle fuel tank is already full. Fuel request is not allowed.", "error-text");
-        return;
-    }
-
-    if (requestedLiter > availableTankSpace) {
-        showMessage(
-            "fuelRequestMessage",
-            "Requested fuel cannot be greater than available tank space. Available space: " + availableTankSpace.toFixed(2) + " L",
-            "error-text"
-        );
-        return;
-    }
     if (!fuelType) {
         showMessage("fuelRequestMessage", "Please select fuel type.", "error-text");
         return;
@@ -330,7 +360,6 @@ async function submitFuelRequest() {
         showMessage("fuelRequestMessage", "Requested fuel liter must be greater than 0.", "error-text");
         return;
     }
-
 
     if (!requestedAmountBdt || requestedAmountBdt <= 0) {
         showMessage("fuelRequestMessage", "Requested amount in BDT must be greater than 0.", "error-text");
@@ -359,18 +388,36 @@ async function submitFuelRequest() {
         return;
     }
 
+    const availableTankSpace = tankCapacity - savedCurrentFuelLiter;
+
+    if (availableTankSpace <= 0) {
+        showMessage("fuelRequestMessage", "Vehicle fuel tank is already full. Fuel request is not allowed.", "error-text");
+        return;
+    }
+
+    if (requestedLiter > availableTankSpace) {
+        showMessage(
+            "fuelRequestMessage",
+            "Requested fuel cannot be greater than available tank space. Available space: " + availableTankSpace.toFixed(2) + " L",
+            "error-text"
+        );
+        return;
+    }
+
     const companyMileage = Number(selectedVehicle.companyMileage || 0);
     const effectiveMileage = calculateEffectiveMileage(companyMileage);
-    const tank = Number(selectedVehicle.tankCapacity || 0);
-    const savedCurrentFuelLiter = Number(selectedVehicle.currentFuelLiter || 0);
 
-    const fullTankRange = effectiveMileage * tank;
+    const fullTankRange = effectiveMileage * tankCapacity;
     const availableRangeFromSavedFuel = effectiveMileage * savedCurrentFuelLiter;
     const distanceTravelled = currentOdometerReading - previousOdometer;
     const remainingRange = Math.max(0, availableRangeFromSavedFuel - distanceTravelled);
 
     if (remainingRange > 5) {
-        showMessage("fuelRequestMessage", "Cannot submit. Estimated remaining range is " + remainingRange.toFixed(2) + " km. It must be 5 km or less.", "error-text");
+        showMessage(
+            "fuelRequestMessage",
+            "Cannot submit. Estimated remaining range is " + remainingRange.toFixed(2) + " km. It must be 5 km or less.",
+            "error-text"
+        );
         return;
     }
 
