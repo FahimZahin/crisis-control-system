@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 public class FuelCollectionRequest {
@@ -14,4 +16,8 @@ public class FuelCollectionRequest {
 
     @NotBlank(message = "Collection code is required")
     private String collectionCode;
+
+    private String verifiedNumberPlate;
+
+    private BigDecimal currentOdometerReading;
 }

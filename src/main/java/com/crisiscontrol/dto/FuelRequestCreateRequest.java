@@ -26,6 +26,16 @@ public class FuelRequestCreateRequest {
     @DecimalMin(value = "0.1", message = "Requested liter must be greater than 0")
     private BigDecimal requestedLiter;
 
+    private BigDecimal requestedAmountBdt;
+
+    private String extraFuelReasonType;
+
+    private String extraFuelDemandMessage;
+
     @NotBlank(message = "Fuel level status is required")
     private String fuelLevelStatus;
+
+    @NotNull(message = "Current odometer reading is required")
+    @DecimalMin(value = "0.0", message = "Current odometer reading cannot be negative")
+    private BigDecimal currentOdometerReading;
 }

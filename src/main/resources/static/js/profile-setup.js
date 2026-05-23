@@ -498,6 +498,14 @@ function setupEvents() {
     document.getElementById("vehicleType").addEventListener("change", function () {
         resetVehicleDetails();
         handleVehicleTypeChange();
+        document.getElementById("vehicleMetroArea").addEventListener("change", function () {
+            updateSmartNumberPlate();
+        });
+
+        document.getElementById("vehicleNumberDigits").addEventListener("input", function () {
+            this.value = this.value.replace(/\D/g, "").slice(0, 6);
+            updateSmartNumberPlate();
+        });
     });
 
     document.getElementById("brand").addEventListener("change", function () {
@@ -539,7 +547,7 @@ function handleVehicleTypeChange() {
         carCategorySection.classList.remove("hidden-section");
     } else {
         carCategorySection.classList.add("hidden-section");
-        document.getElementById("carCategory").value = "NON_HYBRID";
+        document.getElementById("carCategory").value = "NOT_APPLICABLE";
     }
 
     loadBrands();
@@ -550,8 +558,8 @@ function loadBrands() {
     const brandSelect = document.getElementById("brand");
     const modelSelect = document.getElementById("model");
 
-    brandSelect.innerHTML = `<option value="">Enter your vehicle brand and model</option>`;
-    modelSelect.innerHTML = `<option value="">Enter your vehicle brand and model</option>`;
+    brandSelect.innerHTML = `<option value="">Select vehicle brand</option>`;
+    modelSelect.innerHTML = `<option value="">Select vehicle model</option>`;
 
     if (!vehicleType) {
         return;
@@ -570,7 +578,7 @@ function loadModels() {
     const brand = document.getElementById("brand").value;
     const modelSelect = document.getElementById("model");
 
-    modelSelect.innerHTML = `<option value="">Enter your vehicle brand and model</option>`;
+    modelSelect.innerHTML = `<option value="">Select vehicle model</option>`;
 
     if (!vehicleType || !brand) {
         return;
@@ -603,9 +611,12 @@ function fillVehicleDetails() {
 
     if (vehicleType === "CAR" && model.toLowerCase().includes("hybrid")) {
         document.getElementById("carCategory").value = "HYBRID";
+    } else if (vehicleType === "CAR") {
+        document.getElementById("carCategory").value = "NON_HYBRID";
     }
-}
 
+    updateSmartNumberPlate();
+}
 function loadFuelTypes(fuels) {
     const fuelTypeSelect = document.getElementById("fuelType");
     fuelTypeSelect.innerHTML = `<option value="">Select Fuel Type</option>`;
@@ -637,6 +648,44 @@ async function saveVehicle() {
 
     const vehicleType = document.getElementById("vehicleType").value;
 
+    const metroArea = document.getElementById("vehicleMetroArea").value;
+    const plateSeries = document.getElementById("plateSeries").value;
+    const vehicleNumberDigits = document.getElementById("vehicleNumberDigits").value.trim();
+
+    if (!metroArea) {
+        showVehicleMessage("Please select vehicle metro area.", "error-text");
+        return;
+    }
+
+    if (!plateSeries) {
+        showVehicleMessage("Vehicle plate series could not be generated. Please select vehicle type, brand, and model properly.", "error-text");
+        return;
+    }
+
+    if (!/^\d{6}$/.test(vehicleNumberDigits)) {
+        showVehicleMessage("Vehicle number must be exactly 6 digits.", "error-text");
+        return;
+    }
+
+    updateSmartNumberPlate();
+
+    if (!document.getElementById("numberPlate").value.trim()) {
+        showVehicleMessage("Final vehicle number plate could not be generated.", "error-text");
+        return;
+    }
+
+    const currentFuelLiter = Number(document.getElementById("currentFuelLiter").value);
+    const tankCapacity = Number(document.getElementById("tankCapacity").value);
+
+    if (currentFuelLiter < 0) {
+        showVehicleMessage("Current fuel cannot be negative.", "error-text");
+        return;
+    }
+
+    if (currentFuelLiter > tankCapacity) {
+        showVehicleMessage("Current fuel cannot be greater than tank capacity.", "error-text");
+        return;
+    }
     const data = {
         userId: Number(userId),
         vehicleType: vehicleType,
@@ -647,6 +696,7 @@ async function saveVehicle() {
         engineCc: Number(document.getElementById("engineCc").value),
         companyMileage: Number(document.getElementById("companyMileage").value),
         tankCapacity: Number(document.getElementById("tankCapacity").value),
+        currentFuelLiter: currentFuelLiter,
         numberPlate: document.getElementById("numberPlate").value.trim(),
         odometerReading: Number(document.getElementById("odometerReading").value),
         vehiclePhotoPath: getVehiclePhotoPath()
@@ -773,7 +823,9 @@ async function loadVehicleIntoForm(vehicleId) {
         document.getElementById("engineCc").value = vehicle.engineCc;
         document.getElementById("companyMileage").value = vehicle.companyMileage;
         document.getElementById("tankCapacity").value = vehicle.tankCapacity;
-        document.getElementById("numberPlate").value = vehicle.numberPlate;
+        document.getElementById("currentFuelLiter").value = vehicle.currentFuelLiter || 0;
+
+        loadSmartPlateIntoForm(vehicle.numberPlate);
         document.getElementById("odometerReading").value = vehicle.odometerReading;
 
         document.getElementById("vehiclePhotoPreview").src = vehicle.vehiclePhotoPath || "images/default-vehicle.jpg";
@@ -870,4 +922,175 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
+}
+
+function updateSmartNumberPlate() {
+    const vehicleType = document.getElementById("vehicleType").value;
+    const metroArea = document.getElementById("vehicleMetroArea").value;
+    const engineCc = Number(document.getElementById("engineCc").value);
+    const vehicleNumberDigits = document.getElementById("vehicleNumberDigits").value.trim();
+
+    const plateSeries = resolvePlateSeries(vehicleType, engineCc);
+
+    document.getElementById("plateSeries").value = plateSeries;
+
+    if (!metroArea || !plateSeries || vehicleNumberDigits.length !== 6) {
+        document.getElementById("numberPlate").value = "";
+        return;
+    }
+
+    document.getElementById("numberPlate").value = metroArea + " " + plateSeries + " " + vehicleNumberDigits;
+}
+
+function resolvePlateSeries(vehicleType, engineCc) {
+    if (!vehicleType || !engineCc || engineCc <= 0) {
+        return "";
+    }
+
+    if (vehicleType === "BIKE") {
+        return resolveBikePlateSeries(engineCc);
+    }
+
+    if (vehicleType === "CAR") {
+        return resolveCarPlateSeries(engineCc);
+    }
+
+    return "";
+}
+
+function resolveBikePlateSeries(engineCc) {
+    if (engineCc <= 80) {
+        return "HA";
+    }
+
+    if (engineCc <= 100) {
+        return "JA";
+    }
+
+    if (engineCc <= 125) {
+        return "JHA";
+    }
+
+    if (engineCc <= 150) {
+        return "LA";
+    }
+
+    if (engineCc <= 165) {
+        return "MA";
+    }
+
+    if (engineCc <= 200) {
+        return "FA";
+    }
+
+    if (engineCc <= 250) {
+        return "BA";
+    }
+
+    if (engineCc <= 350) {
+        return "KA";
+    }
+
+    if (engineCc <= 500) {
+        return "KHA";
+    }
+
+    return "GA";
+}
+
+function resolveCarPlateSeries(engineCc) {
+    if (engineCc <= 800) {
+        return "KA";
+    }
+
+    if (engineCc <= 1000) {
+        return "KHA";
+    }
+
+    if (engineCc <= 1200) {
+        return "GA";
+    }
+
+    if (engineCc <= 1300) {
+        return "GHA";
+    }
+
+    if (engineCc <= 1500) {
+        return "CHA";
+    }
+
+    if (engineCc <= 1600) {
+        return "CHHA";
+    }
+
+    if (engineCc <= 1800) {
+        return "JA";
+    }
+
+    if (engineCc <= 2000) {
+        return "JHA";
+    }
+
+    if (engineCc <= 2200) {
+        return "TA";
+    }
+
+    if (engineCc <= 2500) {
+        return "THA";
+    }
+
+    if (engineCc <= 2700) {
+        return "DA";
+    }
+
+    if (engineCc <= 3000) {
+        return "DHA";
+    }
+
+    if (engineCc <= 3500) {
+        return "NA";
+    }
+
+    if (engineCc <= 4000) {
+        return "PA";
+    }
+
+    if (engineCc <= 4500) {
+        return "PHA";
+    }
+
+    if (engineCc <= 5000) {
+        return "BA";
+    }
+
+    if (engineCc <= 5700) {
+        return "BHA";
+    }
+
+    return "MA";
+}
+
+function loadSmartPlateIntoForm(numberPlate) {
+    document.getElementById("vehicleMetroArea").value = "";
+    document.getElementById("plateSeries").value = "";
+    document.getElementById("vehicleNumberDigits").value = "";
+    document.getElementById("numberPlate").value = numberPlate || "";
+
+    if (!numberPlate) {
+        return;
+    }
+
+    const parts = numberPlate.trim().split(" ");
+
+    if (parts.length < 3) {
+        return;
+    }
+
+    const digits = parts[parts.length - 1];
+    const series = parts[parts.length - 2];
+    const metroArea = parts.slice(0, parts.length - 2).join(" ");
+
+    document.getElementById("vehicleMetroArea").value = metroArea;
+    document.getElementById("plateSeries").value = series;
+    document.getElementById("vehicleNumberDigits").value = digits;
 }

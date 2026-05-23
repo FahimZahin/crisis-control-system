@@ -51,6 +51,9 @@ public class Vehicle {
     @Column(name = "tank_capacity", nullable = false, precision = 10, scale = 2)
     private BigDecimal tankCapacity;
 
+    @Column(name = "current_fuel_liter", nullable = false, precision = 10, scale = 2)
+    private BigDecimal currentFuelLiter;
+
     @Column(name = "number_plate", nullable = false)
     private String numberPlate;
 

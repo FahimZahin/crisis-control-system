@@ -22,7 +22,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Fuel Collection Verification</h1>
-            <p>View approved fuel requests assigned to your pump and verify collection using collection code.</p>
+            <p>Verify collection code, number plate, and odometer before marking vehicle fuel as collected.</p>
         </div>
         <span class="role-badge">PUMP COLLECTION</span>
     </div>
@@ -52,13 +52,24 @@
     <div class="role-dashboard-section">
         <h2>Manual QR / Collection Code Verification</h2>
         <p class="muted-text">
-            Vehicle owner will show collection code like <strong>CCS-FUEL-REQ-1</strong>. Enter it here to verify and mark fuel as collected.
+            For normal vehicle fuel, enter collection code, vehicle number plate, and current odometer reading.
+            For hospital/building/emergency requests, collection code is enough.
         </p>
 
         <form id="collectionCodeForm" class="settings-form-grid">
             <div class="settings-full-row">
                 <label>Collection Code</label>
                 <input type="text" id="collectionCode" placeholder="Example: CCS-FUEL-REQ-1" required>
+            </div>
+
+            <div>
+                <label>Verified Number Plate</label>
+                <input type="text" id="verifiedNumberPlate" placeholder="Required for normal vehicle fuel">
+            </div>
+
+            <div>
+                <label>Current Odometer Reading</label>
+                <input type="number" id="collectionOdometerReading" min="0" step="0.01" placeholder="Required for normal vehicle fuel">
             </div>
 
             <button type="submit" class="btn primary full-width settings-full-row">
@@ -91,7 +102,7 @@
                     <th>Collection Code</th>
                     <th>User</th>
                     <th>Phone</th>
-                    <th>Vehicle</th>
+                    <th>Vehicle / Request Info</th>
                     <th>Fuel Type</th>
                     <th>Amount</th>
                     <th>Cost</th>

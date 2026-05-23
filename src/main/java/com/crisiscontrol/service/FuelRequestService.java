@@ -72,19 +72,65 @@ public class FuelRequestService {
             throw new RuntimeException("Selected fuel type does not match vehicle fuel type");
         }
 
+        if (request.getCurrentOdometerReading() == null) {
+            throw new RuntimeException("Current odometer reading is required");
+        }
+
+        if (request.getCurrentOdometerReading().compareTo(vehicle.getOdometerReading()) < 0) {
+            throw new RuntimeException("Current odometer cannot be less than last verified odometer");
+        }
+
+        BigDecimal previousOdometer = vehicle.getOdometerReading();
+        BigDecimal requestOdometer = request.getCurrentOdometerReading();
+        BigDecimal distanceTravelled = requestOdometer.subtract(previousOdometer);
+
+        BigDecimal effectiveMileage = calculateEffectiveMileage(vehicle.getCompanyMileage());
+        BigDecimal fullTankRange = vehicle.getTankCapacity().multiply(effectiveMileage);
+
+        BigDecimal currentFuelLiter = vehicle.getCurrentFuelLiter() == null
+                ? BigDecimal.ZERO
+                : vehicle.getCurrentFuelLiter();
+
+        BigDecimal availableRangeFromSavedFuel = currentFuelLiter.multiply(effectiveMileage);
+        BigDecimal estimatedRemainingRange = availableRangeFromSavedFuel.subtract(distanceTravelled);
+
+        if (estimatedRemainingRange.compareTo(BigDecimal.ZERO) < 0) {
+            estimatedRemainingRange = BigDecimal.ZERO;
+        }
+
+        boolean odometerEligible = estimatedRemainingRange.compareTo(BigDecimal.valueOf(5)) <= 0;
+
+        if (!odometerEligible) {
+            throw new RuntimeException(
+                    "Fuel request is not eligible yet. Estimated remaining range is "
+                            + estimatedRemainingRange.setScale(2, java.math.RoundingMode.HALF_UP)
+                            + " km. You can request fuel only when remaining range is 5 km or less."
+            );
+        }
+
         FuelPrice fuelPrice = fuelPriceRepository.findByFuelType(request.getFuelType())
                 .orElseThrow(() -> new RuntimeException("Fuel price not set by admin"));
 
         BigDecimal estimatedCost = request.getRequestedLiter().multiply(fuelPrice.getPricePerUnit());
 
-        FuelLimitType limitType = getLimitTypeByVehicle(vehicle);
-
-        FuelLimit fuelLimit = fuelLimitRepository.findByLimitType(limitType)
-                .orElseThrow(() -> new RuntimeException("Fuel limit not set by admin"));
+        BigDecimal allowedLimitAmount = getFixedVehicleFuelLimit(vehicle);
+        boolean extraFuelRequested = estimatedCost.compareTo(allowedLimitAmount) > 0;
 
         String fuelLevelStatus = normalizeFuelLevel(request.getFuelLevelStatus());
 
-        if (estimatedCost.compareTo(fuelLimit.getLimitAmount()) > 0) {
+        if (extraFuelRequested && isBlank(request.getExtraFuelReasonType())) {
+            throw new RuntimeException("Extra fuel reason is required because request exceeds normal limit");
+        }
+
+        String extraFuelDemandMessage = buildExtraFuelDemandMessage(
+                user,
+                vehicle,
+                request,
+                estimatedCost,
+                allowedLimitAmount
+        );
+
+        if (extraFuelRequested) {
             FuelRequest pendingRequest = FuelRequest.builder()
                     .user(user)
                     .vehicle(vehicle)
@@ -92,55 +138,70 @@ public class FuelRequestService {
                     .fuelType(request.getFuelType())
                     .requestedLiter(request.getRequestedLiter())
                     .fuelLevelStatus(fuelLevelStatus)
+                    .previousOdometerReading(previousOdometer)
+                    .requestOdometerReading(requestOdometer)
+                    .distanceTravelled(distanceTravelled)
+                    .fullTankRangeKm(fullTankRange)
+                    .estimatedRemainingRangeKm(estimatedRemainingRange)
+                    .odometerEligible(true)
+                    .requestedAmountBdt(estimatedCost)
+                    .extraFuelRequested(true)
+                    .extraFuelReasonType(request.getExtraFuelReasonType())
+                    .extraFuelDemandMessage(extraFuelDemandMessage)
                     .pricePerUnit(fuelPrice.getPricePerUnit())
                     .estimatedCost(estimatedCost)
                     .requestStatus(FuelRequestStatus.PENDING)
-                    .adminNote("Request exceeds admin fuel limit. Waiting for admin review.")
+                    .adminNote(extraFuelDemandMessage)
                     .build();
 
             return mapToResponse(fuelRequestRepository.save(pendingRequest));
         }
 
-        if (isLowFuel(fuelLevelStatus)) {
-            PumpProfile assignedPump = findAvailablePumpForFuel(
-                    request.getFuelType(),
-                    request.getRequestedLiter()
-            );
+        PumpProfile assignedPump = findAvailablePumpForFuelOrNull(
+                request.getFuelType(),
+                request.getRequestedLiter()
+        );
 
-            FuelRequest autoApprovedRequest = FuelRequest.builder()
-                    .user(user)
-                    .vehicle(vehicle)
-                    .pumpProfile(assignedPump)
-                    .requestSource(FuelRequestSource.VEHICLE_OWNER)
-                    .fuelType(request.getFuelType())
-                    .requestedLiter(request.getRequestedLiter())
-                    .fuelLevelStatus(fuelLevelStatus)
-                    .pricePerUnit(fuelPrice.getPricePerUnit())
-                    .estimatedCost(estimatedCost)
-                    .requestStatus(FuelRequestStatus.APPROVED)
-                    .adminNote("Auto-approved by system because vehicle fuel level is low. Collect from assigned pump.")
-                    .build();
+        FuelRequestStatus status = assignedPump == null
+                ? FuelRequestStatus.PENDING
+                : FuelRequestStatus.APPROVED;
 
-            FuelRequest savedRequest = fuelRequestRepository.save(autoApprovedRequest);
-            savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
+        String adminNote = assignedPump == null
+                ? "Odometer eligible, but no open pump has enough stock. Waiting for admin review."
+                : "Auto-approved by odometer rule. Estimated remaining range is 5 km or less.";
 
-            return mapToResponse(fuelRequestRepository.save(savedRequest));
-        }
-
-        FuelRequest pendingRequest = FuelRequest.builder()
+        FuelRequest fuelRequest = FuelRequest.builder()
                 .user(user)
                 .vehicle(vehicle)
+                .pumpProfile(assignedPump)
                 .requestSource(FuelRequestSource.VEHICLE_OWNER)
                 .fuelType(request.getFuelType())
                 .requestedLiter(request.getRequestedLiter())
                 .fuelLevelStatus(fuelLevelStatus)
+                .previousOdometerReading(previousOdometer)
+                .requestOdometerReading(requestOdometer)
+                .distanceTravelled(distanceTravelled)
+                .fullTankRangeKm(fullTankRange)
+                .estimatedRemainingRangeKm(estimatedRemainingRange)
+                .odometerEligible(true)
+                .requestedAmountBdt(estimatedCost)
+                .extraFuelRequested(false)
+                .extraFuelReasonType(null)
+                .extraFuelDemandMessage(null)
                 .pricePerUnit(fuelPrice.getPricePerUnit())
                 .estimatedCost(estimatedCost)
-                .requestStatus(FuelRequestStatus.PENDING)
-                .adminNote("Fuel level is not low. Waiting for admin review.")
+                .requestStatus(status)
+                .adminNote(adminNote)
                 .build();
 
-        return mapToResponse(fuelRequestRepository.save(pendingRequest));
+        FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
+            savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
+            savedRequest = fuelRequestRepository.save(savedRequest);
+        }
+
+        return mapToResponse(savedRequest);
     }
 
     public FuelRequestResponse createEmergencyFuelRequest(EmergencyFuelRequestCreateRequest request) {
@@ -437,6 +498,10 @@ public class FuelRequestService {
             throw new RuntimeException("Not enough " + fuelRequest.getFuelType() + " stock to complete collection");
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.VEHICLE_OWNER) {
+            validateAndUpdateVehicleOdometerAfterCollection(fuelRequest, request);
+        }
+
         BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
         pumpFuelStock.setCurrentStock(updatedStock);
         pumpFuelStockRepository.save(pumpFuelStock);
@@ -452,6 +517,55 @@ public class FuelRequestService {
         fuelRequest.setAdminNote("Fuel collected successfully from assigned pump.");
 
         return mapToResponse(fuelRequestRepository.save(fuelRequest));
+    }
+
+    private void validateAndUpdateVehicleOdometerAfterCollection(
+            FuelRequest fuelRequest,
+            FuelCollectionRequest request
+    ) {
+        Vehicle vehicle = fuelRequest.getVehicle();
+
+        if (vehicle == null) {
+            throw new RuntimeException("Vehicle information not found for this request");
+        }
+
+        if (request.getVerifiedNumberPlate() == null || request.getVerifiedNumberPlate().trim().isEmpty()) {
+            throw new RuntimeException("Verified number plate is required for vehicle fuel collection");
+        }
+
+        if (!normalizeText(vehicle.getNumberPlate()).equals(normalizeText(request.getVerifiedNumberPlate()))) {
+            throw new RuntimeException("Verified number plate does not match the approved vehicle");
+        }
+
+        if (request.getCurrentOdometerReading() == null) {
+            throw new RuntimeException("Pump must enter current odometer reading before collection");
+        }
+
+        if (request.getCurrentOdometerReading().compareTo(vehicle.getOdometerReading()) < 0) {
+            throw new RuntimeException("Collection odometer cannot be less than last verified odometer");
+        }
+
+        if (
+                fuelRequest.getRequestOdometerReading() != null
+                        && request.getCurrentOdometerReading().compareTo(fuelRequest.getRequestOdometerReading()) < 0
+        ) {
+            throw new RuntimeException("Collection odometer cannot be less than request odometer");
+        }
+
+        fuelRequest.setCollectionOdometerReading(request.getCurrentOdometerReading());
+
+        vehicle.setOdometerReading(request.getCurrentOdometerReading());
+        BigDecimal updatedVehicleFuel = vehicle.getCurrentFuelLiter() == null
+                ? fuelRequest.getRequestedLiter()
+                : vehicle.getCurrentFuelLiter().add(fuelRequest.getRequestedLiter());
+
+        if (updatedVehicleFuel.compareTo(vehicle.getTankCapacity()) > 0) {
+            updatedVehicleFuel = vehicle.getTankCapacity();
+        }
+
+        vehicle.setCurrentFuelLiter(updatedVehicleFuel);
+
+        vehicleRepository.save(vehicle);
     }
 
     private void updateHospitalDieselReserveAfterCollection(FuelRequest fuelRequest) {
@@ -578,6 +692,13 @@ public class FuelRequestService {
                 .vehicleModel(vehicle == null ? "-" : vehicle.getModel())
                 .vehicleNumberPlate(vehicle == null ? "-" : vehicle.getNumberPlate())
                 .vehicleType(vehicle == null ? "-" : vehicle.getVehicleType().name())
+                .previousOdometerReading(fuelRequest.getPreviousOdometerReading())
+                .requestOdometerReading(fuelRequest.getRequestOdometerReading())
+                .collectionOdometerReading(fuelRequest.getCollectionOdometerReading())
+                .distanceTravelled(fuelRequest.getDistanceTravelled())
+                .fullTankRangeKm(fuelRequest.getFullTankRangeKm())
+                .estimatedRemainingRangeKm(fuelRequest.getEstimatedRemainingRangeKm())
+                .odometerEligible(fuelRequest.getOdometerEligible())
 
                 .emergencyProfileId(emergencyProfile == null ? null : emergencyProfile.getId())
                 .emergencyAuthorityName(emergencyProfile == null ? "-" : emergencyProfile.getAuthorityName())
@@ -617,6 +738,10 @@ public class FuelRequestService {
 
                 .fuelType(fuelRequest.getFuelType())
                 .requestedLiter(fuelRequest.getRequestedLiter())
+                .requestedAmountBdt(fuelRequest.getRequestedAmountBdt())
+                .extraFuelRequested(fuelRequest.getExtraFuelRequested())
+                .extraFuelReasonType(fuelRequest.getExtraFuelReasonType())
+                .extraFuelDemandMessage(fuelRequest.getExtraFuelDemandMessage())
                 .fuelLevelStatus(fuelRequest.getFuelLevelStatus())
                 .pricePerUnit(fuelRequest.getPricePerUnit())
                 .estimatedCost(fuelRequest.getEstimatedCost())
@@ -652,12 +777,90 @@ public class FuelRequestService {
         return value;
     }
 
+    private String normalizeText(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value.toLowerCase()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("_", "")
+                .trim();
+    }
+
+    private BigDecimal calculateEffectiveMileage(BigDecimal companyMileage) {
+        if (companyMileage == null || companyMileage.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.valueOf(6);
+        }
+
+        BigDecimal mileageReduction;
+
+        if (companyMileage.compareTo(BigDecimal.valueOf(10)) <= 0) {
+            mileageReduction = BigDecimal.valueOf(3);
+        } else {
+            mileageReduction = BigDecimal.valueOf(8);
+        }
+
+        BigDecimal effectiveMileage = companyMileage.subtract(mileageReduction);
+
+        if (effectiveMileage.compareTo(BigDecimal.valueOf(6)) < 0) {
+            return BigDecimal.valueOf(6);
+        }
+
+        return effectiveMileage;
+    }
+
     private double valueOrZero(Double value) {
         if (value == null) {
             return 0.0;
         }
 
         return value;
+    }
+
+    private BigDecimal getFixedVehicleFuelLimit(Vehicle vehicle) {
+        if (vehicle.getVehicleType() == VehicleType.BIKE) {
+            return BigDecimal.valueOf(500);
+        }
+
+        return BigDecimal.valueOf(2000);
+    }
+
+    private String buildExtraFuelDemandMessage(
+            User user,
+            Vehicle vehicle,
+            FuelRequestCreateRequest request,
+            BigDecimal estimatedCost,
+            BigDecimal allowedLimitAmount
+    ) {
+        if (estimatedCost.compareTo(allowedLimitAmount) <= 0) {
+            return null;
+        }
+
+        String reason = isBlank(request.getExtraFuelReasonType())
+                ? "Extra fuel requested"
+                : request.getExtraFuelReasonType();
+
+        return "Extra fuel request submitted by "
+                + valueOrDash(user.getFullName())
+                + ". Vehicle: "
+                + valueOrDash(vehicle.getBrand())
+                + " "
+                + valueOrDash(vehicle.getModel())
+                + ", Plate: "
+                + valueOrDash(vehicle.getNumberPlate())
+                + ", Type: "
+                + valueOrDash(vehicle.getVehicleType().name())
+                + ". Requested: "
+                + request.getRequestedLiter()
+                + " L. Estimated cost: "
+                + estimatedCost
+                + " BDT. Normal limit: "
+                + allowedLimitAmount
+                + " BDT. Reason: "
+                + reason
+                + ". Admin approval is required.";
     }
 
 }

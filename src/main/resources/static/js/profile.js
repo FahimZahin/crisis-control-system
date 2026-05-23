@@ -48,9 +48,34 @@ function loadProfileData() {
 
     const resolvedThana = resolveUserThana();
 
-    setInputValueIfExists("buildingUnderThana", resolvedThana);
-    setInputValueIfExists("profileThana", resolvedThana);
-    setInputValueIfExists("thanaOrUpazila", resolvedThana);
+    setupProfileThanaVisibility();
+}
+
+function setupProfileThanaVisibility() {
+    const role = loggedInUser.role || localStorage.getItem("role") || "";
+    const thanaSection = document.getElementById("profileThanaSection");
+
+    if (!thanaSection) {
+        return;
+    }
+
+    if (
+        role === "PUMP_AUTHORITY" ||
+        role === "BUILDING_MANAGER" ||
+        role === "HOSPITAL_AUTHORITY"
+    ) {
+        const resolvedThana = resolveUserThana();
+
+        thanaSection.classList.remove("hidden-section");
+        setInputValueIfExists("buildingUnderThana", resolvedThana);
+        setInputValueIfExists("profileThana", resolvedThana);
+        setInputValueIfExists("thanaOrUpazila", resolvedThana);
+    } else {
+        thanaSection.classList.add("hidden-section");
+        setInputValueIfExists("buildingUnderThana", "");
+        setInputValueIfExists("profileThana", "");
+        setInputValueIfExists("thanaOrUpazila", "");
+    }
 }
 
 function resolveUserThana() {
@@ -93,10 +118,18 @@ function setupProfileSave() {
         loggedInUser.phoneNumber = document.getElementById("profilePhoneNumber").value;
         loggedInUser.address = document.getElementById("profileAddress").value;
 
-        const resolvedThana = document.getElementById("buildingUnderThana").value;
+        const role = loggedInUser.role || localStorage.getItem("role") || "";
 
-        if (resolvedThana) {
-            loggedInUser.thanaOrUpazila = resolvedThana;
+        if (
+            role === "PUMP_AUTHORITY" ||
+            role === "BUILDING_MANAGER" ||
+            role === "HOSPITAL_AUTHORITY"
+        ) {
+            const resolvedThana = document.getElementById("buildingUnderThana").value;
+
+            if (resolvedThana) {
+                loggedInUser.thanaOrUpazila = resolvedThana;
+            }
         }
 
         localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
@@ -184,25 +217,64 @@ function setupDeleteProfile() {
         return;
     }
 
-    deleteBtn.addEventListener("click", function () {
+    deleteBtn.addEventListener("click", async function () {
         if (loggedInUser.status === "INACTIVE") {
             showMessage("deleteMessage", "Your account is deactivated. Apply for activation first.", "error-text");
             return;
         }
 
-        const confirmed = confirm("Are you sure you want to delete/clear this profile preview?");
+        const userId = getLoggedInUserId();
+
+        if (!userId) {
+            showMessage("deleteMessage", "User ID not found. Please login again.", "error-text");
+            return;
+        }
+
+        const confirmed = confirm("Are you sure you want to delete this profile permanently from database?");
 
         if (!confirmed) {
             return;
         }
 
-        localStorage.clear();
+        try {
+            const response = await fetch("http://localhost:8081/api/users/" + userId, {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
 
-        showMessage("deleteMessage", "Profile preview cleared. Redirecting to login...", "success-text");
+            let result = {};
 
-        setTimeout(function () {
-            window.location.href = "login.html";
-        }, 1200);
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = {};
+            }
+
+            if (response.ok) {
+                localStorage.clear();
+
+                showMessage(
+                    "deleteMessage",
+                    result.message || "Profile deleted successfully from database. Redirecting...",
+                    "success-text"
+                );
+
+                setTimeout(function () {
+                    window.location.href = "login.html";
+                }, 1200);
+            } else {
+                showMessage(
+                    "deleteMessage",
+                    result.message || "Failed to delete profile from database.",
+                    "error-text"
+                );
+            }
+
+        } catch (error) {
+            showMessage("deleteMessage", "Server connection failed while deleting profile.", "error-text");
+        }
     });
 }
 

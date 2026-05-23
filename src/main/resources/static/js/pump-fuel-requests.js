@@ -157,6 +157,10 @@ function renderRequestFullInfo(request) {
         Model: ${valueOrDash(request.vehicleModel)}<br>
         Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
         Vehicle Type: ${valueOrDash(request.vehicleType)}<br>
+        Previous Odometer: ${valueOrDash(request.previousOdometerReading)} km<br>
+        Request Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
+        Distance Travelled: ${valueOrDash(request.distanceTravelled)} km<br>
+        Remaining Range: ${valueOrDash(request.estimatedRemainingRangeKm)} km<br>
         Owner: ${valueOrDash(request.userName)}<br>
         Phone: ${valueOrDash(request.phoneNumber)}<br>
         Requested: ${renderRequestTime(request)}
@@ -179,6 +183,8 @@ async function collectByManualCode() {
     }
 
     const collectionCode = document.getElementById("collectionCode").value.trim();
+    const verifiedNumberPlate = document.getElementById("verifiedNumberPlate").value.trim();
+    const currentOdometerReading = document.getElementById("collectionOdometerReading").value;
 
     if (!collectionCode) {
         showMessage("collectionMessage", "Please enter collection code.", "error-text");
@@ -193,7 +199,9 @@ async function collectByManualCode() {
 
     const data = {
         pumpId: currentPump.id,
-        collectionCode: collectionCode
+        collectionCode: collectionCode,
+        verifiedNumberPlate: verifiedNumberPlate,
+        currentOdometerReading: currentOdometerReading ? Number(currentOdometerReading) : null
     };
 
     try {
@@ -208,8 +216,10 @@ async function collectByManualCode() {
         const result = await response.json();
 
         if (response.ok) {
-            showMessage("collectionMessage", "Fuel collection verified successfully. Stock deducted.", "success-text");
+            showMessage("collectionMessage", "Fuel collection verified successfully. Stock deducted and odometer updated if vehicle request.", "success-text");
             document.getElementById("collectionCode").value = "";
+            document.getElementById("verifiedNumberPlate").value = "";
+            document.getElementById("collectionOdometerReading").value = "";
             loadPumpAndRequests();
         } else {
             showMessage("collectionMessage", getErrorMessage(result), "error-text");

@@ -30,6 +30,9 @@ public class VehicleService {
         }
 
         validateVehicleCategory(request);
+        validateOneBikeOneCarRule(user.getId(), request.getVehicleType(), null);
+        validateSmartNumberPlate(request.getNumberPlate());
+        validateCurrentFuelLiter(request);
 
         Vehicle vehicle = Vehicle.builder()
                 .user(user)
@@ -41,6 +44,7 @@ public class VehicleService {
                 .engineCc(request.getEngineCc())
                 .companyMileage(request.getCompanyMileage())
                 .tankCapacity(request.getTankCapacity())
+                .currentFuelLiter(request.getCurrentFuelLiter())
                 .numberPlate(request.getNumberPlate())
                 .odometerReading(request.getOdometerReading())
                 .vehiclePhotoPath(getPhotoPath(request.getVehiclePhotoPath()))
@@ -73,10 +77,15 @@ public class VehicleService {
             throw new RuntimeException("Vehicle number plate already exists");
         }
 
+        validateCurrentFuelLiter(request);
         validateVehicleCategory(request);
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        validateOneBikeOneCarRule(user.getId(), request.getVehicleType(), vehicleId);
+
+        validateSmartNumberPlate(request.getNumberPlate());
 
         vehicle.setUser(user);
         vehicle.setVehicleType(request.getVehicleType());
@@ -87,6 +96,7 @@ public class VehicleService {
         vehicle.setEngineCc(request.getEngineCc());
         vehicle.setCompanyMileage(request.getCompanyMileage());
         vehicle.setTankCapacity(request.getTankCapacity());
+        vehicle.setCurrentFuelLiter(request.getCurrentFuelLiter());
         vehicle.setNumberPlate(request.getNumberPlate());
         vehicle.setOdometerReading(request.getOdometerReading());
         vehicle.setVehiclePhotoPath(getPhotoPath(request.getVehiclePhotoPath()));
@@ -114,6 +124,28 @@ public class VehicleService {
         }
     }
 
+    private void validateOneBikeOneCarRule(Long userId, VehicleType vehicleType, Long currentVehicleId) {
+        if (vehicleType == null) {
+            throw new RuntimeException("Vehicle type is required");
+        }
+
+        boolean alreadyExists;
+
+        if (currentVehicleId == null) {
+            alreadyExists = vehicleRepository.existsByUserIdAndVehicleType(userId, vehicleType);
+        } else {
+            alreadyExists = vehicleRepository.existsByUserIdAndVehicleTypeAndIdNot(userId, vehicleType, currentVehicleId);
+        }
+
+        if (alreadyExists && vehicleType == VehicleType.BIKE) {
+            throw new RuntimeException("Only one bike can be registered under one account/license");
+        }
+
+        if (alreadyExists && vehicleType == VehicleType.CAR) {
+            throw new RuntimeException("Only one car can be registered under one account/license");
+        }
+    }
+
     private String getPhotoPath(String vehiclePhotoPath) {
         if (vehiclePhotoPath == null || vehiclePhotoPath.isBlank()) {
             return "images/default-vehicle.jpg";
@@ -135,6 +167,7 @@ public class VehicleService {
                 .engineCc(vehicle.getEngineCc())
                 .companyMileage(vehicle.getCompanyMileage())
                 .tankCapacity(vehicle.getTankCapacity())
+                .currentFuelLiter(vehicle.getCurrentFuelLiter())
                 .numberPlate(vehicle.getNumberPlate())
                 .odometerReading(vehicle.getOdometerReading())
                 .vehiclePhotoPath(vehicle.getVehiclePhotoPath())
@@ -142,4 +175,34 @@ public class VehicleService {
                 .updatedAt(vehicle.getUpdatedAt())
                 .build();
     }
+
+    private void validateSmartNumberPlate(String numberPlate) {
+        if (numberPlate == null || numberPlate.trim().isEmpty()) {
+            throw new RuntimeException("Vehicle number plate is required");
+        }
+
+        String trimmedPlate = numberPlate.trim();
+
+        if (!trimmedPlate.matches("^[A-Z ]+ [A-Z]+ \\d{6}$")) {
+            throw new RuntimeException("Vehicle number plate must include metro/district, auto series, and exactly 6 digit number");
+        }
+    }
+
+    private void validateCurrentFuelLiter(VehicleRequest request) {
+        if (request.getCurrentFuelLiter() == null) {
+            throw new RuntimeException("Current fuel liter is required");
+        }
+
+        if (request.getCurrentFuelLiter().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Current fuel liter cannot be negative");
+        }
+
+        if (
+                request.getTankCapacity() != null
+                        && request.getCurrentFuelLiter().compareTo(request.getTankCapacity()) > 0
+        ) {
+            throw new RuntimeException("Current fuel liter cannot be greater than tank capacity");
+        }
+    }
 }
+

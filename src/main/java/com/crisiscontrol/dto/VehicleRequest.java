@@ -43,6 +43,10 @@ public class VehicleRequest {
     @DecimalMin(value = "1.0", message = "Tank capacity must be greater than 0")
     private BigDecimal tankCapacity;
 
+    @NotNull(message = "Current fuel liter is required")
+    @DecimalMin(value = "0.0", message = "Current fuel liter cannot be negative")
+    private BigDecimal currentFuelLiter;
+
     @NotBlank(message = "Number plate is required")
     private String numberPlate;
 

@@ -28,14 +28,10 @@ public class FuelRequest {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Normal vehicle owner request uses this.
-    // Emergency and hospital generator requests can keep this null.
     @ManyToOne
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
-    // Emergency request uses this.
-    // Normal and hospital generator requests can keep this null.
     @ManyToOne
     @JoinColumn(name = "emergency_profile_id")
     private EmergencyVehicleProfile emergencyVehicleProfile;
@@ -55,13 +51,45 @@ public class FuelRequest {
     @Column(name = "requested_liter", nullable = false, precision = 10, scale = 2)
     private BigDecimal requestedLiter;
 
+    @Column(name = "requested_amount_bdt", precision = 12, scale = 2)
+    private BigDecimal requestedAmountBdt;
+
+    @Column(name = "extra_fuel_requested")
+    private Boolean extraFuelRequested;
+
+    @Column(name = "extra_fuel_reason_type")
+    private String extraFuelReasonType;
+
+    @Column(name = "extra_fuel_demand_message", length = 1500)
+    private String extraFuelDemandMessage;
+
     @Column(name = "fuel_level_status", nullable = false)
     private String fuelLevelStatus;
+
+    @Column(name = "previous_odometer_reading", precision = 12, scale = 2)
+    private BigDecimal previousOdometerReading;
+
+    @Column(name = "request_odometer_reading", precision = 12, scale = 2)
+    private BigDecimal requestOdometerReading;
+
+    @Column(name = "collection_odometer_reading", precision = 12, scale = 2)
+    private BigDecimal collectionOdometerReading;
+
+    @Column(name = "distance_travelled", precision = 12, scale = 2)
+    private BigDecimal distanceTravelled;
+
+    @Column(name = "full_tank_range_km", precision = 12, scale = 2)
+    private BigDecimal fullTankRangeKm;
+
+    @Column(name = "estimated_remaining_range_km", precision = 12, scale = 2)
+    private BigDecimal estimatedRemainingRangeKm;
+
+    @Column(name = "odometer_eligible")
+    private Boolean odometerEligible;
 
     @Column(name = "emergency_reason", length = 1000)
     private String emergencyReason;
 
-    // Hospital generator diesel support fields
     @Column(name = "hospital_name")
     private String hospitalName;
 
@@ -111,7 +139,6 @@ public class FuelRequest {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Building generator diesel support fields
     @Column(name = "building_name")
     private String buildingName;
 

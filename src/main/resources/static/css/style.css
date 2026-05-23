@@ -1358,3 +1358,13 @@ footer {
 .admin-users-table td strong {
     color: #0b1f3a;
 }
+.profile-action-buttons {
+    display: flex;
+    gap: 12px;
+    margin: 18px 0;
+}
+
+.profile-action-buttons .btn {
+    flex: 1;
+    text-align: center;
+}

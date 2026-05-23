@@ -28,6 +28,14 @@ public class FuelRequestResponse {
     private String vehicleNumberPlate;
     private String vehicleType;
 
+    private BigDecimal previousOdometerReading;
+    private BigDecimal requestOdometerReading;
+    private BigDecimal collectionOdometerReading;
+    private BigDecimal distanceTravelled;
+    private BigDecimal fullTankRangeKm;
+    private BigDecimal estimatedRemainingRangeKm;
+    private Boolean odometerEligible;
+
     private Long emergencyProfileId;
     private String emergencyAuthorityName;
     private String emergencyOrganizationName;
@@ -51,7 +59,6 @@ public class FuelRequestResponse {
     private Double hospitalEstimatedBackupHours;
     private String hospitalDieselStatus;
 
-    // Building generator fields
     private String buildingName;
     private String buildingHoldingNumber;
     private String buildingAddress;
@@ -67,6 +74,10 @@ public class FuelRequestResponse {
 
     private FuelType fuelType;
     private BigDecimal requestedLiter;
+    private BigDecimal requestedAmountBdt;
+    private Boolean extraFuelRequested;
+    private String extraFuelReasonType;
+    private String extraFuelDemandMessage;
     private String fuelLevelStatus;
     private BigDecimal pricePerUnit;
     private BigDecimal estimatedCost;

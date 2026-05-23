@@ -22,7 +22,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Fuel Request</h1>
-            <p>Low-fuel vehicles can get system auto-approval without waiting for admin.</p>
+            <p>Fuel approval is based on odometer eligibility. Remaining range must be 5 km or less.</p>
         </div>
         <span class="role-badge">VEHICLE OWNER</span>
     </div>
@@ -44,15 +44,15 @@
         </div>
 
         <div class="summary-card">
-            <h3>Admin Limit</h3>
-            <p><span id="adminLimitPreview">0</span> BDT</p>
+            <h3>Estimated Remaining Range</h3>
+            <p><span id="remainingRangePreview">0</span> km</p>
         </div>
     </div>
 
     <div class="role-dashboard-section">
         <h2>Create Fuel Request</h2>
         <p class="muted-text">
-            Your request will be pending until admin approves and assigns an available pump.
+            You can submit a fuel request only when estimated remaining range is 5 km or less.
         </p>
 
         <form id="fuelRequestForm" class="settings-form-grid">
@@ -72,18 +72,48 @@
             </div>
 
             <div>
-                <label>Requested Amount</label>
-                <input type="number" id="requestedLiter" min="0.1" step="0.01" placeholder="Enter liter/unit" required>
+                <label>Requested Fuel in Liter</label>
+                <input type="number" id="requestedLiter" min="0.1" step="0.01" placeholder="Enter liter">
             </div>
+
             <div>
-                <label>Current Fuel Level</label>
-                <select id="fuelLevelStatus" required>
-                    <option value="">Select fuel level</option>
-                    <option value="EMPTY">Empty / Almost Empty</option>
-                    <option value="LOW">Low Fuel</option>
-                    <option value="MEDIUM">Medium Fuel</option>
-                    <option value="HIGH">High Fuel</option>
+                <label>Requested Amount in BDT</label>
+                <input type="number" id="requestedAmountBdt" min="1" step="0.01" placeholder="Enter amount in BDT">
+            </div>
+
+            <div>
+                <label>Saved Current Fuel</label>
+                <input type="text" id="savedCurrentFuelLiter" readonly>
+            </div>
+
+            <div>
+                <label>Normal Limit</label>
+                <input type="text" id="normalFuelLimit" readonly>
+            </div>
+
+            <div>
+                <label>Auto Fuel Level</label>
+                <input type="text" id="fuelLevelStatus" readonly required>
+            </div>
+
+            <div id="extraFuelReasonSection" class="settings-full-row hidden-section">
+                <label>Extra Fuel Reason</label>
+                <select id="extraFuelReasonType">
+                    <option value="">Select emergency reason</option>
+                    <option value="Medical emergency">Medical emergency</option>
+                    <option value="Going to another city">Going to another city</option>
+                    <option value="Family emergency">Family emergency</option>
+                    <option value="Work / official emergency">Work / official emergency</option>
+                    <option value="Long-distance essential trip">Long-distance essential trip</option>
+                    <option value="Disaster or evacuation">Disaster or evacuation</option>
+                    <option value="No nearby fuel station available later">No nearby fuel station available later</option>
+                    <option value="Other emergency reason">Other emergency reason</option>
                 </select>
+            </div>
+
+            <div id="extraFuelMessageSection" class="settings-full-row hidden-section">
+                <label>Auto Generated Message for Admin</label>
+                <textarea id="extraFuelDemandMessage" readonly></textarea>
             </div>
 
             <div>
@@ -102,8 +132,33 @@
             </div>
 
             <div>
+                <label>Effective Mileage</label>
+                <input type="text" id="effectiveMileage" readonly>
+            </div>
+
+            <div>
                 <label>Tank Capacity</label>
                 <input type="text" id="tankCapacity" readonly>
+            </div>
+
+            <div>
+                <label>Last Verified Odometer</label>
+                <input type="text" id="lastVerifiedOdometer" readonly>
+            </div>
+
+            <div>
+                <label>Current Odometer Reading</label>
+                <input type="number" id="currentOdometerReading" min="0" step="0.01" placeholder="Enter current odometer" required>
+            </div>
+
+            <div>
+                <label>Distance Travelled Since Last Fuel</label>
+                <input type="text" id="distanceTravelledPreview" readonly>
+            </div>
+
+            <div>
+                <label>Full Tank Range</label>
+                <input type="text" id="fullTankRangePreview" readonly>
             </div>
 
             <button type="submit" class="btn primary full-width settings-full-row">
@@ -119,18 +174,18 @@
 
         <div class="feature-preview-grid">
             <div class="feature-preview-card">
-                <h3>Admin Limit Check</h3>
-                <p>The estimated cost must be within the admin fuel limit.</p>
+                <h3>Odometer Rule</h3>
+                <p>Remaining range must be 5 km or less to request fuel.</p>
             </div>
 
             <div class="feature-preview-card">
-                <h3>Pending First</h3>
-                <p>All requests stay pending until admin approves.</p>
+                <h3>Bike / Car Limit</h3>
+                <p>Admin limit still controls maximum request value.</p>
             </div>
 
             <div class="feature-preview-card">
-                <h3>Pump Assignment</h3>
-                <p>Admin assigns an open pump with available stock.</p>
+                <h3>Pump Verification</h3>
+                <p>Pump must verify number plate and odometer during collection.</p>
             </div>
         </div>
     </div>

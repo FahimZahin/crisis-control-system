@@ -43,7 +43,7 @@
 
             <label>Vehicle Type</label>
             <select id="vehicleType" required>
-                <option value="">Enter your vehicle brand and model</option>
+                <option value="">Enter your vehicle type</option>
                 <option value="BIKE">Bike</option>
                 <option value="CAR">Car</option>
             </select>
@@ -58,12 +58,12 @@
 
             <label>Vehicle Brand</label>
             <select id="brand" required>
-                <option value="">Enter your vehicle brand and model</option>
+                <option value="">Enter your vehicle brand </option>
             </select>
 
             <label>Vehicle Model</label>
             <select id="model" required>
-                <option value="">Enter your vehicle brand and model</option>
+                <option value="">Enter your vehicle model</option>
             </select>
 
             <label>Fuel Type</label>
@@ -80,8 +80,29 @@
             <label>Tank Capacity</label>
             <input type="number" id="tankCapacity" readonly>
 
-            <label>Vehicle Number Plate</label>
-            <input type="text" id="numberPlate" placeholder="Example: DHAKA METRO GA 12-3456" required>
+            <label>Approx Fuel Already in Vehicle</label>
+            <input type="number" id="currentFuelLiter" placeholder="Enter current fuel in liter" min="0" step="0.01" required>
+
+            <label>Vehicle Metro Area</label>
+            <select id="vehicleMetroArea" required>
+                <option value="">Select vehicle metro area</option>
+                <option value="DHAKA METRO">DHAKA METRO</option>
+                <option value="CHATTOGRAM METRO">CHATTOGRAM METRO</option>
+                <option value="RAJSHAHI METRO">RAJSHAHI METRO</option>
+                <option value="KHULNA METRO">KHULNA METRO</option>
+                <option value="SYLHET METRO">SYLHET METRO</option>
+                <option value="BARISHAL METRO">BARISHAL METRO</option>
+                <option value="RANGPUR METRO">RANGPUR METRO</option>
+                <option value="MYMENSINGH METRO">MYMENSINGH METRO</option>
+            </select>
+            <label>Auto Plate Series</label>
+            <input type="text" id="plateSeries" readonly>
+
+            <label>Vehicle Number</label>
+            <input type="text" id="vehicleNumberDigits" placeholder="Enter exactly 6 digits" maxlength="6" required>
+
+            <label>Final Vehicle Number Plate</label>
+            <input type="text" id="numberPlate" readonly required>
 
             <label>Current Odometer Reading</label>
             <input type="number" id="odometerReading" placeholder="Enter current odometer reading" min="0" step="0.01" required>
@@ -101,6 +122,14 @@
 
         <p id="vehicleMessage"></p>
 
+        <div class="profile-action-buttons">
+            <a href="vehicle-owner-dashboard.html" class="btn primary">Dashboard</a>
+            <a href="fuel-request.html" class="btn primary">Request Fuel</a>
+            <button type="button" class="btn primary" onclick="scrollToSavedVehicles()">
+                See Saved Vehicles
+            </button>
+        </div>
+
         <div class="role-dashboard-section saved-vehicles-section">
             <h2>My Saved Vehicles</h2>
 
@@ -112,7 +141,13 @@
     </div>
 
 </div>
-
+<script>
+    function scrollToSavedVehicles() {
+        document.querySelector(".saved-vehicles-section").scrollIntoView({
+            behavior: "smooth"
+        });
+    }
+</script>
 <script src="js/profile-setup.js"></script>
 
 </body>
