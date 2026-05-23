@@ -44,6 +44,91 @@
   </div>
 
   <div class="role-dashboard-section">
+    <div class="card-title-row">
+      <h2>Local Area Overview</h2>
+      <button class="btn primary small-btn" id="refreshLocalAuthorityDashboardBtn">Refresh</button>
+    </div>
+
+    <p id="localAuthorityDashboardMessage"></p>
+
+    <div class="role-summary-grid">
+      <div class="summary-card"><h3>Local Users</h3><p id="localTotalUsers">0</p></div>
+      <div class="summary-card"><h3>Local Pumps</h3><p id="localTotalPumps">0</p></div>
+      <div class="summary-card"><h3>Local Fuel Stock</h3><p><span id="localTotalFuelStock">0</span> L</p></div>
+      <div class="summary-card"><h3>Local Outages</h3><p id="localActiveOutages">0</p></div>
+    </div>
+
+    <div class="role-summary-grid">
+      <div class="summary-card"><h3>Pending</h3><p id="localPendingRequests">0</p></div>
+      <div class="summary-card"><h3>Approved</h3><p id="localApprovedRequests">0</p></div>
+      <div class="summary-card"><h3>Collected</h3><p id="localCollectedRequests">0</p></div>
+      <div class="summary-card"><h3>Rejected</h3><p id="localRejectedRequests">0</p></div>
+    </div>
+  </div>
+
+  <div class="role-dashboard-section">
+    <h2>Local Pumps</h2>
+    <div class="table-wrapper">
+      <table class="admin-users-table">
+        <thead>
+        <tr>
+          <th>Pump</th>
+          <th>Address</th>
+          <th>Fuel Types</th>
+          <th>Current Stock</th>
+          <th>Status</th>
+        </tr>
+        </thead>
+        <tbody id="localPumpsBody">
+        <tr><td colspan="5">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="role-dashboard-section">
+    <h2>Local Critical / Pending Requests</h2>
+    <div class="table-wrapper">
+      <table class="admin-users-table">
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Source</th>
+          <th>Details</th>
+          <th>Fuel</th>
+          <th>Status</th>
+        </tr>
+        </thead>
+        <tbody id="localCriticalRequestsBody">
+        <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="role-dashboard-section">
+    <h2>Local Power Outages</h2>
+    <div class="table-wrapper">
+      <table class="admin-users-table">
+        <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Thana</th>
+          <th>Type</th>
+          <th>Cause</th>
+          <th>Status</th>
+          <th>Expected Restore</th>
+        </tr>
+        </thead>
+        <tbody id="localOutagesBody">
+        <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="role-dashboard-section">
     <h2>Available Features Preview</h2>
     <div class="feature-preview-grid">
       <div class="feature-preview-card"><h3>Area Monitoring</h3><p>Monitor fuel requests from assigned district/thana.</p></div>

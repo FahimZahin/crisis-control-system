@@ -44,6 +44,92 @@
     </div>
 
     <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>National Crisis Overview</h2>
+            <button class="btn primary small-btn" id="refreshGovernmentDashboardBtn">Refresh</button>
+        </div>
+
+        <p id="governmentDashboardMessage"></p>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Users</h3><p id="govTotalUsers">0</p></div>
+            <div class="summary-card"><h3>Total Pumps</h3><p id="govTotalPumps">0</p></div>
+            <div class="summary-card"><h3>Total Fuel Stock</h3><p><span id="govTotalFuelStock">0</span> L</p></div>
+            <div class="summary-card"><h3>Active Outages</h3><p id="govActiveOutages">0</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Pending Requests</h3><p id="govPendingRequests">0</p></div>
+            <div class="summary-card"><h3>Approved Requests</h3><p id="govApprovedRequests">0</p></div>
+            <div class="summary-card"><h3>Collected Requests</h3><p id="govCollectedRequests">0</p></div>
+            <div class="summary-card"><h3>Rejected Requests</h3><p id="govRejectedRequests">0</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Critical / Pending Requests</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Source</th>
+                    <th>Details</th>
+                    <th>Fuel</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="governmentCriticalRequestsBody">
+                <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Low Stock Pumps</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Pump</th>
+                    <th>Address</th>
+                    <th>Fuel Type</th>
+                    <th>Stock</th>
+                    <th>Capacity</th>
+                    <th>%</th>
+                </tr>
+                </thead>
+                <tbody id="governmentLowStockPumpsBody">
+                <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Recent Power Outages</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Thana</th>
+                    <th>Type</th>
+                    <th>Cause</th>
+                    <th>Status</th>
+                    <th>Expected Restore</th>
+                </tr>
+                </thead>
+                <tbody id="governmentOutagesBody">
+                <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
         <h2>Available Features Preview</h2>
         <div class="feature-preview-grid">
             <div class="feature-preview-card"><h3>National Monitoring</h3><p>Monitor fuel requests, pump stock, and emergency priority.</p></div>

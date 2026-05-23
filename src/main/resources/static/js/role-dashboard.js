@@ -16,6 +16,16 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("refreshHospitalProfileBtn").addEventListener("click", refreshHospitalProfile);
     }
 
+    if (document.getElementById("refreshGovernmentDashboardBtn")) {
+        document.getElementById("refreshGovernmentDashboardBtn").addEventListener("click", loadGovernmentAuthorityDashboard);
+        loadGovernmentAuthorityDashboard();
+    }
+
+    if (document.getElementById("refreshLocalAuthorityDashboardBtn")) {
+        document.getElementById("refreshLocalAuthorityDashboardBtn").addEventListener("click", loadLocalAuthorityDashboard);
+        loadLocalAuthorityDashboard();
+    }
+
     setupFeatureButtons();
 });
 
@@ -467,4 +477,235 @@ function formatLiter(value) {
     }
 
     return numberValue.toFixed(2) + " L";
+}
+
+async function loadGovernmentAuthorityDashboard() {
+    try {
+        const response = await fetch("http://localhost:8081/api/authority/government/dashboard?time=" + Date.now());
+        const data = await response.json();
+
+        if (!response.ok) {
+            showAuthorityMessage("governmentDashboardMessage", getErrorMessage(data), "error-text");
+            return;
+        }
+
+        fillAuthoritySummary("gov", data.summary);
+        renderAuthorityRequests("governmentCriticalRequestsBody", data.criticalRequests);
+        renderLowStockPumps("governmentLowStockPumpsBody", data.lowStockPumps);
+        renderAuthorityOutages("governmentOutagesBody", data.recentOutages);
+
+        showAuthorityMessage("governmentDashboardMessage", "Government dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showAuthorityMessage("governmentDashboardMessage", "Server connection failed while loading government dashboard.", "error-text");
+    }
+}
+
+async function loadLocalAuthorityDashboard() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        showAuthorityMessage("localAuthorityDashboardMessage", "User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/authority/local/dashboard/" + userId + "?time=" + Date.now());
+        const data = await response.json();
+
+        if (!response.ok) {
+            showAuthorityMessage("localAuthorityDashboardMessage", getErrorMessage(data), "error-text");
+            return;
+        }
+
+        fillAuthoritySummary("local", data.summary);
+        renderLocalPumps(data.localPumps);
+        renderAuthorityRequests("localCriticalRequestsBody", data.criticalRequests);
+        renderAuthorityOutages("localOutagesBody", data.recentOutages);
+
+        showAuthorityMessage("localAuthorityDashboardMessage", "Local authority dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showAuthorityMessage("localAuthorityDashboardMessage", "Server connection failed while loading local authority dashboard.", "error-text");
+    }
+}
+
+function fillAuthoritySummary(prefix, summary) {
+    if (!summary) {
+        return;
+    }
+
+    setTextIfExists(prefix + "TotalUsers", summary.totalUsers || 0);
+    setTextIfExists(prefix + "TotalPumps", summary.totalPumps || 0);
+    setTextIfExists(prefix + "TotalFuelStock", formatNumber(summary.totalFuelStock));
+    setTextIfExists(prefix + "ActiveOutages", summary.activeOutages || 0);
+    setTextIfExists(prefix + "PendingRequests", summary.pendingRequests || 0);
+    setTextIfExists(prefix + "ApprovedRequests", summary.approvedRequests || 0);
+    setTextIfExists(prefix + "CollectedRequests", summary.collectedRequests || 0);
+    setTextIfExists(prefix + "RejectedRequests", summary.rejectedRequests || 0);
+}
+
+function renderAuthorityRequests(tableId, requests) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!requests || requests.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No critical or pending request found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    requests.forEach(function (request) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(request.id)}</td>
+            <td>
+                <strong>${authorityValue(request.userName)}</strong><br>
+                <small>${authorityValue(request.phoneNumber)}</small>
+            </td>
+            <td>${authorityValue(request.requestSource)}</td>
+            <td>
+                ${authorityValue(request.details)}<br>
+                <small>Area: ${authorityValue(request.area)}</small>
+                ${request.extraFuelRequested ? `<br><small>Extra Fuel: ${authorityValue(request.extraFuelReasonType)}</small>` : ""}
+            </td>
+            <td>
+                ${authorityValue(request.fuelType)}<br>
+                ${authorityValue(request.requestedLiter)} L<br>
+                ${authorityValue(request.estimatedCost)} BDT
+            </td>
+            <td>${authorityValue(request.requestStatus)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLowStockPumps(tableId, pumps) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!pumps || pumps.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No low-stock pump found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    pumps.forEach(function (pump) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(pump.pumpName)}</td>
+            <td>${authorityValue(pump.pumpAddress)}</td>
+            <td>${authorityValue(pump.fuelType)}</td>
+            <td>${authorityValue(pump.currentStock)} L</td>
+            <td>${authorityValue(pump.capacity)} L</td>
+            <td>${authorityValue(pump.stockPercentage)}%</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLocalPumps(pumps) {
+    const tableBody = document.getElementById("localPumpsBody");
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!pumps || pumps.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5">No local pump found for this area.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    pumps.forEach(function (pump) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(pump.pumpName)}</td>
+            <td>${authorityValue(pump.pumpAddress)}</td>
+            <td>${authorityValue(pump.fuelTypes)}</td>
+            <td>${authorityValue(pump.currentStock)} L</td>
+            <td>${authorityValue(pump.pumpStatus)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderAuthorityOutages(tableId, outages) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!outages || outages.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No power outage notice found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    outages.forEach(function (outage) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(outage.provider)}</td>
+            <td>${authorityValue(outage.thanaName)}</td>
+            <td>${authorityValue(outage.outageType)}</td>
+            <td>${authorityValue(outage.cause)}</td>
+            <td>${authorityValue(outage.status)}</td>
+            <td>${authorityFormatDate(outage.expectedRestorationDateTime)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function showAuthorityMessage(id, message, className) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
+}
+
+function authorityValue(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
+}
+
+function formatNumber(value) {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return "0.00";
+    }
+
+    return numberValue.toFixed(2);
+}
+
+function authorityFormatDate(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value).replace("T", " ").substring(0, 16);
 }
