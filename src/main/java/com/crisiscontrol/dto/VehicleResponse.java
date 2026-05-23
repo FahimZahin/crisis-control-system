@@ -32,6 +32,8 @@ public class VehicleResponse {
     private BigDecimal companyMileage;
     private BigDecimal tankCapacity;
     private BigDecimal currentFuelLiter;
+    private String lastFuelPumpName;
+    private BigDecimal fuelAfterLastInsertionLiter;
 
     private String numberPlate;
     private BigDecimal odometerReading;

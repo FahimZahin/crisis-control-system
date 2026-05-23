@@ -10,6 +10,12 @@ import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.crisiscontrol.entity.FuelRequest;
+import com.crisiscontrol.entity.FuelRequestStatus;
+import com.crisiscontrol.repository.FuelRequestRepository;
+
+import java.math.BigDecimal;
+import java.util.Optional;
 
 import java.util.List;
 
@@ -19,6 +25,7 @@ public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
+    private final FuelRequestRepository fuelRequestRepository;
 
     public VehicleResponse createVehicle(VehicleRequest request) {
 
@@ -155,6 +162,21 @@ public class VehicleService {
     }
 
     private VehicleResponse mapToResponse(Vehicle vehicle) {
+        Optional<FuelRequest> latestCollectedFuelRequest =
+                fuelRequestRepository.findFirstByVehicleIdAndRequestStatusOrderByCollectedAtDesc(
+                        vehicle.getId(),
+                        FuelRequestStatus.COLLECTED
+                );
+
+        String lastFuelPumpName = latestCollectedFuelRequest
+                .map(FuelRequest::getPumpProfile)
+                .map(pumpProfile -> pumpProfile.getPumpName())
+                .orElse("Not collected yet");
+
+        BigDecimal fuelAfterLastInsertionLiter = vehicle.getCurrentFuelLiter() == null
+                ? BigDecimal.ZERO
+                : vehicle.getCurrentFuelLiter();
+
         return VehicleResponse.builder()
                 .id(vehicle.getId())
                 .userId(vehicle.getUser().getId())
@@ -168,6 +190,8 @@ public class VehicleService {
                 .companyMileage(vehicle.getCompanyMileage())
                 .tankCapacity(vehicle.getTankCapacity())
                 .currentFuelLiter(vehicle.getCurrentFuelLiter())
+                .lastFuelPumpName(lastFuelPumpName)
+                .fuelAfterLastInsertionLiter(fuelAfterLastInsertionLiter)
                 .numberPlate(vehicle.getNumberPlate())
                 .odometerReading(vehicle.getOdometerReading())
                 .vehiclePhotoPath(vehicle.getVehiclePhotoPath())

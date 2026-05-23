@@ -29,4 +29,9 @@ public interface FuelRequestRepository extends JpaRepository<FuelRequest, Long> 
     List<FuelRequest> findByPumpProfileId(Long pumpId);
 
     Optional<FuelRequest> findByCollectionCode(String collectionCode);
+
+    Optional<FuelRequest> findFirstByVehicleIdAndRequestStatusOrderByCollectedAtDesc(
+            Long vehicleId,
+            FuelRequestStatus requestStatus
+    );
 }

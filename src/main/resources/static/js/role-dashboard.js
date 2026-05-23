@@ -277,6 +277,8 @@ async function loadVehiclesForDashboard() {
                         <div><label>Engine CC</label><p>${vehicle.engineCc}</p></div>
                         <div><label>Company Mileage</label><p>${vehicle.companyMileage} km/l</p></div>
                         <div><label>Tank Capacity</label><p>${vehicle.tankCapacity} liter</p></div>
+                        <div><label>Last Taken Fuel From</label><p>${valueOrDash(vehicle.lastFuelPumpName)}</p></div>
+                        <div><label>Fuel After Last Insertion</label><p>${formatLiter(vehicle.fuelAfterLastInsertionLiter || vehicle.currentFuelLiter)}</p></div>
                         <div><label>Number Plate</label><p>${vehicle.numberPlate}</p></div>
                         <div><label>Odometer Reading</label><p>${vehicle.odometerReading} km</p></div>
                         <div><label>Estimated Full Tank Range</label><p>${estimatedRange}</p></div>
@@ -452,4 +454,17 @@ function renderPumpFuelStockTable(fuelStocks) {
 
         tableBody.appendChild(row);
     });
+}
+function formatLiter(value) {
+    if (value === null || value === undefined || value === "") {
+        return "0.00 L";
+    }
+
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return value;
+    }
+
+    return numberValue.toFixed(2) + " L";
 }
