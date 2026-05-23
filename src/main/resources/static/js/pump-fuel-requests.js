@@ -1,6 +1,7 @@
 const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 
 let currentPump = null;
+let verificationStates = {};
 
 document.addEventListener("DOMContentLoaded", function () {
     if (!loggedInUser) {
@@ -73,6 +74,7 @@ async function loadAssignedRequests() {
     try {
         const response = await fetch("http://localhost:8081/api/pumps/" + currentPump.id + "/assigned-fuel-requests");
         const requests = await response.json();
+        window.assignedFuelRequests = requests;
 
         if (!response.ok) {
             tableBody.innerHTML = `<tr><td colspan="10">Failed to load assigned requests.</td></tr>`;
@@ -101,11 +103,7 @@ async function loadAssignedRequests() {
                 <td>${request.requestedLiter || "-"} L</td>
                 <td>${request.estimatedCost || "-"} BDT</td>
                 <td>${request.requestStatus || "-"}</td>
-                <td>
-                    <button class="btn primary tiny-btn" onclick="fillCodeAndCollect('${request.collectionCode}')">
-                        Collect
-                    </button>
-                </td>
+                <td>${renderVerificationActionPanel(request)}</td>  
             `;
 
             tableBody.appendChild(row);
@@ -119,15 +117,11 @@ async function loadAssignedRequests() {
 function renderRequestFullInfo(request) {
     if (request.requestSource === "HOSPITAL_GENERATOR") {
         return `
-            <strong>HOSPITAL GENERATOR DIESEL</strong><br>
+            <strong>HOSPITAL GENERATOR</strong><br>
             Hospital: ${valueOrDash(request.hospitalName)}<br>
-            Registration: ${valueOrDash(request.hospitalRegistrationNumber)}<br>
             Thana: ${valueOrDash(request.affectedThana)}<br>
-            Generator: ${valueOrDash(request.generatorCapacity)}<br>
-            Status: ${valueOrDash(request.hospitalDieselStatus || request.hospitalUrgencyLevel)}<br>
-            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hours<br>
-            Reserve: ${valueOrDash(request.hospitalCurrentDieselReserve)} L<br>
-            Requested: ${renderRequestTime(request)}
+            Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hrs<br>
+            Reserve: ${valueOrDash(request.hospitalCurrentDieselReserve)} L
         `;
     }
 
@@ -138,32 +132,18 @@ function renderRequestFullInfo(request) {
     if (isEmergencyRequest) {
         return `
             <strong>EMERGENCY VEHICLE</strong><br>
-            Type: ${valueOrDash(request.emergencyVehicleType)}<br>
-            Vehicle No: ${valueOrDash(request.emergencyVehicleNumber)}<br>
+            Vehicle: ${valueOrDash(request.emergencyVehicleNumber)}<br>
             Organization: ${valueOrDash(request.emergencyOrganizationName)}<br>
-            Authority: ${valueOrDash(request.emergencyAuthorityName || request.userName)}<br>
-            Driver: ${valueOrDash(request.emergencyDriverName)}<br>
-            Driver License: ${valueOrDash(request.emergencyDriverLicenseNumber)}<br>
-            Assigned Area: ${valueOrDash(request.emergencyAssignedArea)}<br>
-            Verification ID: ${valueOrDash(request.emergencyVerificationId)}<br>
-            Reason: ${valueOrDash(request.emergencyReason)}<br>
-            Requested: ${renderRequestTime(request)}
+            Area: ${valueOrDash(request.emergencyAssignedArea)}
         `;
     }
 
     return `
         <strong>NORMAL VEHICLE</strong><br>
-        Brand: ${valueOrDash(request.vehicleBrand)}<br>
-        Model: ${valueOrDash(request.vehicleModel)}<br>
+        ${valueOrDash(request.vehicleBrand)} ${valueOrDash(request.vehicleModel)}<br>
         Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
-        Vehicle Type: ${valueOrDash(request.vehicleType)}<br>
-        Previous Odometer: ${valueOrDash(request.previousOdometerReading)} km<br>
-        Request Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
-        Distance Travelled: ${valueOrDash(request.distanceTravelled)} km<br>
-        Remaining Range: ${valueOrDash(request.estimatedRemainingRangeKm)} km<br>
-        Owner: ${valueOrDash(request.userName)}<br>
-        Phone: ${valueOrDash(request.phoneNumber)}<br>
-        Requested: ${renderRequestTime(request)}
+        Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
+        Remaining: ${valueOrDash(request.estimatedRemainingRangeKm)} km
     `;
 }
 
@@ -228,6 +208,204 @@ async function collectByManualCode() {
     } catch (error) {
         showMessage("collectionMessage", "Server connection failed while verifying collection.", "error-text");
     }
+}
+
+function renderVerificationActionPanel(request) {
+    const requestId = request.id;
+    ensureVerificationState(requestId);
+
+    const isNormalVehicle = isNormalVehicleRequest(request);
+
+    return `
+        <div class="pump-verification-panel">
+            <div>
+                <strong>Token</strong><br>
+                ${renderMatchButtons(requestId, "token")}
+                <small id="tokenStatus-${requestId}">${getVerificationLabel(requestId, "token")}</small>
+            </div>
+
+            ${isNormalVehicle ? `
+                <div style="margin-top: 8px;">
+                    <strong>Number Plate</strong><br>
+                    ${renderMatchButtons(requestId, "plate")}
+                    <small id="plateStatus-${requestId}">${getVerificationLabel(requestId, "plate")}</small>
+                </div>
+
+                <div style="margin-top: 8px;">
+                    <strong>Odometer</strong><br>
+                    ${renderMatchButtons(requestId, "odometer")}
+                    <small id="odometerStatus-${requestId}">${getVerificationLabel(requestId, "odometer")}</small>
+                </div>
+            ` : `
+                <small>Only collection token is required for this request type.</small>
+            `}
+
+            <div style="margin-top: 10px;">
+                <button class="btn primary tiny-btn" onclick="markEverythingOkay(${requestId})">
+                    Everything Okay
+                </button>
+
+                <button class="btn danger tiny-btn" onclick="markEverythingMismatched(${requestId})">
+                    Everything Mismatched
+                </button>
+            </div>
+
+            <div style="margin-top: 8px;">
+                <button class="btn primary tiny-btn" onclick="collectVerifiedRequest(${requestId})">
+                    Collect Now
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderMatchButtons(requestId, fieldName) {
+    return `
+        <button class="btn primary tiny-btn" onclick="setVerificationStatus(${requestId}, '${fieldName}', 'MATCHED')">
+            Match
+        </button>
+        <button class="btn danger tiny-btn" onclick="setVerificationStatus(${requestId}, '${fieldName}', 'MISMATCHED')">
+            Mismatch
+        </button>
+    `;
+}
+
+function ensureVerificationState(requestId) {
+    if (!verificationStates[requestId]) {
+        verificationStates[requestId] = {
+            token: null,
+            plate: null,
+            odometer: null
+        };
+    }
+}
+
+function setVerificationStatus(requestId, fieldName, status) {
+    ensureVerificationState(requestId);
+
+    verificationStates[requestId][fieldName] = status;
+
+    const statusElement = document.getElementById(fieldName + "Status-" + requestId);
+
+    if (statusElement) {
+        statusElement.innerText = getVerificationLabel(requestId, fieldName);
+        statusElement.className = status === "MATCHED" ? "success-text" : "error-text";
+    }
+}
+
+function getVerificationLabel(requestId, fieldName) {
+    ensureVerificationState(requestId);
+
+    const status = verificationStates[requestId][fieldName];
+
+    if (status === "MATCHED") {
+        return "Matched";
+    }
+
+    if (status === "MISMATCHED") {
+        return "Mismatched";
+    }
+
+    return "Not checked";
+}
+
+function markEverythingOkay(requestId) {
+    const request = findRequestById(requestId);
+
+    if (!request) {
+        showMessage("collectionMessage", "Request not found.", "error-text");
+        return;
+    }
+
+    setVerificationStatus(requestId, "token", "MATCHED");
+
+    if (isNormalVehicleRequest(request)) {
+        setVerificationStatus(requestId, "plate", "MATCHED");
+        setVerificationStatus(requestId, "odometer", "MATCHED");
+    }
+
+    fillCollectionFormFromRequest(request);
+    showMessage("collectionMessage", "All verification items marked as matched.", "success-text");
+}
+
+function markEverythingMismatched(requestId) {
+    const request = findRequestById(requestId);
+
+    if (!request) {
+        showMessage("collectionMessage", "Request not found.", "error-text");
+        return;
+    }
+
+    setVerificationStatus(requestId, "token", "MISMATCHED");
+
+    if (isNormalVehicleRequest(request)) {
+        setVerificationStatus(requestId, "plate", "MISMATCHED");
+        setVerificationStatus(requestId, "odometer", "MISMATCHED");
+    }
+
+    document.getElementById("collectionCode").value = "";
+    document.getElementById("verifiedNumberPlate").value = "";
+    document.getElementById("collectionOdometerReading").value = "";
+
+    showMessage("collectionMessage", "All verification items marked as mismatched. Collection is blocked.", "error-text");
+}
+
+function collectVerifiedRequest(requestId) {
+    const request = findRequestById(requestId);
+
+    if (!request) {
+        showMessage("collectionMessage", "Request not found.", "error-text");
+        return;
+    }
+
+    ensureVerificationState(requestId);
+
+    const state = verificationStates[requestId];
+
+    if (state.token !== "MATCHED") {
+        showMessage("collectionMessage", "Collection token must be matched first.", "error-text");
+        return;
+    }
+
+    if (isNormalVehicleRequest(request)) {
+        if (state.plate !== "MATCHED") {
+            showMessage("collectionMessage", "Vehicle number plate must be matched first.", "error-text");
+            return;
+        }
+
+        if (state.odometer !== "MATCHED") {
+            showMessage("collectionMessage", "Odometer reading must be matched first.", "error-text");
+            return;
+        }
+    }
+
+    fillCollectionFormFromRequest(request);
+    collectByManualCode();
+}
+
+function fillCollectionFormFromRequest(request) {
+    document.getElementById("collectionCode").value = request.collectionCode || "";
+
+    if (isNormalVehicleRequest(request)) {
+        document.getElementById("verifiedNumberPlate").value = request.vehicleNumberPlate || "";
+        document.getElementById("collectionOdometerReading").value = request.requestOdometerReading || "";
+    } else {
+        document.getElementById("verifiedNumberPlate").value = "";
+        document.getElementById("collectionOdometerReading").value = "";
+    }
+}
+
+function findRequestById(requestId) {
+    return window.assignedFuelRequests.find(function (request) {
+        return Number(request.id) === Number(requestId);
+    });
+}
+
+function isNormalVehicleRequest(request) {
+    return request.requestSource === "VEHICLE_OWNER"
+        || request.vehicleNumberPlate !== null
+        && request.vehicleNumberPlate !== undefined
+        && request.vehicleNumberPlate !== "";
 }
 
 function valueOrDash(value) {
