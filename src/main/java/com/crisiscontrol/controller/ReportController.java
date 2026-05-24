@@ -116,6 +116,15 @@ public class ReportController {
 
         return ResponseEntity.ok(summary);
     }
+    @GetMapping("/audit-logs/fuel")
+    public ResponseEntity<List<AuditLog>> getFuelAuditLogs() {
+        return ResponseEntity.ok(auditLogService.getFuelLogs());
+    }
+
+    @GetMapping("/audit-logs/utility")
+    public ResponseEntity<List<AuditLog>> getUtilityAuditLogs() {
+        return ResponseEntity.ok(auditLogService.getUtilityLogs());
+    }
 
     private long countStatus(List<FuelRequest> requests, FuelRequestStatus status) {
         return requests.stream()

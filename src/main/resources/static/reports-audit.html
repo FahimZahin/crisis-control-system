@@ -23,14 +23,15 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Reports & Audit Logs</h1>
-            <p>Monitor critical actions, fuel reports, pump stock, user activity, and power outage summaries.</p>
+            <p>Separate fuel and utility reports with dedicated audit history.</p>
         </div>
         <span class="role-badge">REPORTS</span>
     </div>
 
+    <!-- FUEL REPORT SECTION -->
     <div class="role-dashboard-section">
         <div class="card-title-row">
-            <h2>Report Summary</h2>
+            <h2>Fuel Reports</h2>
             <button class="btn primary small-btn" id="refreshReportsBtn">Refresh</button>
         </div>
 
@@ -52,31 +53,7 @@
     </div>
 
     <div class="role-dashboard-section">
-        <h2>User and Outage Summary</h2>
-
-        <div class="role-summary-grid">
-            <div class="summary-card"><h3>Total Users</h3><p id="reportTotalUsers">0</p></div>
-            <div class="summary-card"><h3>Active Users</h3><p id="reportActiveUsers">0</p></div>
-            <div class="summary-card"><h3>Inactive Users</h3><p id="reportInactiveUsers">0</p></div>
-            <div class="summary-card"><h3>Power Outage Notices</h3><p id="reportTotalOutages">0</p></div>
-        </div>
-
-        <div class="role-summary-grid">
-            <div class="summary-card"><h3>Ongoing Outages</h3><p id="reportOngoingOutages">0</p></div>
-            <div class="summary-card"><h3>Scheduled Outages</h3><p id="reportScheduledOutages">0</p></div>
-            <div class="summary-card"><h3>Restored Outages</h3><p id="reportRestoredOutages">0</p></div>
-            <div class="summary-card"><h3>Low Stock Pumps</h3><p id="reportLowStockCount">0</p></div>
-        </div>
-    </div>
-
-    <div class="role-dashboard-section">
-        <div class="card-title-row">
-            <h2>Audit Logs</h2>
-            <div style="display:flex; gap:10px;">
-                <input type="text" id="auditSearchInput" placeholder="Search logs by action, type, or description">
-                <button class="btn primary small-btn" id="searchAuditLogsBtn">Search</button>
-            </div>
-        </div>
+        <h2>Fuel Audit Logs</h2>
 
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -90,10 +67,56 @@
                     <th>Description</th>
                 </tr>
                 </thead>
-                <tbody id="auditLogsBody">
-                <tr><td colspan="6">Loading audit logs...</td></tr>
+                <tbody id="fuelAuditLogsBody">
+                <tr><td colspan="6">Loading fuel audit logs...</td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- UTILITY REPORT SECTION -->
+    <div class="role-dashboard-section">
+        <h2>Utility Reports</h2>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Power Outage Notices</h3><p id="reportTotalOutages">0</p></div>
+            <div class="summary-card"><h3>Ongoing Outages</h3><p id="reportOngoingOutages">0</p></div>
+            <div class="summary-card"><h3>Scheduled Outages</h3><p id="reportScheduledOutages">0</p></div>
+            <div class="summary-card"><h3>Restored Outages</h3><p id="reportRestoredOutages">0</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Utility Audit Logs</h2>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody id="utilityAuditLogsBody">
+                <tr><td colspan="6">Loading utility audit logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- USER SUMMARY SECTION -->
+    <div class="role-dashboard-section">
+        <h2>User Summary</h2>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Users</h3><p id="reportTotalUsers">0</p></div>
+            <div class="summary-card"><h3>Active Users</h3><p id="reportActiveUsers">0</p></div>
+            <div class="summary-card"><h3>Inactive Users</h3><p id="reportInactiveUsers">0</p></div>
+            <div class="summary-card"><h3>Low Stock Pumps</h3><p id="reportLowStockCount">0</p></div>
         </div>
     </div>
 

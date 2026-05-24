@@ -48,4 +48,38 @@ public class AuditLogService {
                         keyword
                 );
     }
+    public List<AuditLog> getFuelLogs() {
+        return getAllLogs()
+                .stream()
+                .filter(log ->
+                        containsIgnoreCase(log.getAction(), "FUEL")
+                                || containsIgnoreCase(log.getEntityType(), "FUEL")
+                                || containsIgnoreCase(log.getDescription(), "fuel")
+                                || containsIgnoreCase(log.getAction(), "PUMP")
+                                || containsIgnoreCase(log.getDescription(), "pump")
+                                || containsIgnoreCase(log.getDescription(), "odometer")
+                )
+                .toList();
+    }
+
+    public List<AuditLog> getUtilityLogs() {
+        return getAllLogs()
+                .stream()
+                .filter(log ->
+                        containsIgnoreCase(log.getAction(), "POWER_OUTAGE")
+                                || containsIgnoreCase(log.getEntityType(), "POWER_OUTAGE")
+                                || containsIgnoreCase(log.getDescription(), "outage")
+                                || containsIgnoreCase(log.getDescription(), "utility")
+                                || containsIgnoreCase(log.getDescription(), "thana")
+                )
+                .toList();
+    }
+
+    private boolean containsIgnoreCase(String value, String keyword) {
+        if (value == null || keyword == null) {
+            return false;
+        }
+
+        return value.toLowerCase().contains(keyword.toLowerCase());
+    }
 }

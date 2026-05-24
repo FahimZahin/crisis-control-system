@@ -12,18 +12,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function setupReportsEvents() {
     const refreshBtn = document.getElementById("refreshReportsBtn");
-    const searchBtn = document.getElementById("searchAuditLogsBtn");
     const logoutBtn = document.getElementById("logoutBtn");
 
     if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
             loadReportsDashboard();
-        });
-    }
-
-    if (searchBtn) {
-        searchBtn.addEventListener("click", function () {
-            loadAuditLogs();
         });
     }
 
@@ -39,7 +32,8 @@ async function loadReportsDashboard() {
     await loadPumpStockSummary();
     await loadPowerOutageSummary();
     await loadUserSummary();
-    await loadAuditLogs();
+    await loadFuelAuditLogs();
+    await loadUtilityAuditLogs();
 
     showReportsMessage("Reports loaded successfully.", "success-text");
 }
@@ -101,7 +95,7 @@ async function loadPowerOutageSummary() {
         setText("reportRestoredOutages", data.restoredOutages);
 
     } catch (error) {
-        showReportsMessage("Server connection failed while loading outage summary.", "error-text");
+        showReportsMessage("Server connection failed while loading utility outage summary.", "error-text");
     }
 }
 
@@ -124,35 +118,54 @@ async function loadUserSummary() {
     }
 }
 
-async function loadAuditLogs() {
-    const tableBody = document.getElementById("auditLogsBody");
-    const keyword = document.getElementById("auditSearchInput").value.trim();
-
-    let url = "http://localhost:8081/api/reports/audit-logs?time=" + Date.now();
-
-    if (keyword) {
-        url += "&keyword=" + encodeURIComponent(keyword);
-    }
-
+async function loadFuelAuditLogs() {
     try {
-        const response = await fetch(url);
+        const response = await fetch("http://localhost:8081/api/reports/audit-logs/fuel?time=" + Date.now());
         const logs = await response.json();
 
         if (!response.ok) {
-            tableBody.innerHTML = `<tr><td colspan="6">Failed to load audit logs.</td></tr>`;
+            renderAuditLogs("fuelAuditLogsBody", []);
             showReportsMessage(getErrorMessage(logs), "error-text");
             return;
         }
 
-        renderAuditLogs(logs);
+        renderAuditLogs("fuelAuditLogsBody", logs);
 
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="6">Server connection failed.</td></tr>`;
+        const tableBody = document.getElementById("fuelAuditLogsBody");
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="6">Server connection failed.</td></tr>`;
+        }
     }
 }
 
-function renderAuditLogs(logs) {
-    const tableBody = document.getElementById("auditLogsBody");
+async function loadUtilityAuditLogs() {
+    try {
+        const response = await fetch("http://localhost:8081/api/reports/audit-logs/utility?time=" + Date.now());
+        const logs = await response.json();
+
+        if (!response.ok) {
+            renderAuditLogs("utilityAuditLogsBody", []);
+            showReportsMessage(getErrorMessage(logs), "error-text");
+            return;
+        }
+
+        renderAuditLogs("utilityAuditLogsBody", logs);
+
+    } catch (error) {
+        const tableBody = document.getElementById("utilityAuditLogsBody");
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="6">Server connection failed.</td></tr>`;
+        }
+    }
+}
+
+function renderAuditLogs(tableId, logs) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
 
     if (!logs || logs.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="6">No audit log found.</td></tr>`;
@@ -161,7 +174,7 @@ function renderAuditLogs(logs) {
 
     tableBody.innerHTML = "";
 
-    logs.forEach(function (log) {
+    logs.slice(0, 20).forEach(function (log) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
