@@ -559,7 +559,7 @@ function renderAuthorityRequests(tableId, requests) {
 
     tableBody.innerHTML = "";
 
-    requests.forEach(function (request) {
+    requests.slice(0, 10).forEach(function (request) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
@@ -659,7 +659,7 @@ function renderAuthorityOutages(tableId, outages) {
 
     tableBody.innerHTML = "";
 
-    outages.forEach(function (outage) {
+    outages.slice(0, 10).forEach(function (outage) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
