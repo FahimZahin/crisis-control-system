@@ -23,6 +23,7 @@ public class UtilityPowerService {
     private final UtilityProfileRepository utilityProfileRepository;
     private final PowerOutageRepository powerOutageRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     private static final String NOT_AVAILABLE_MESSAGE =
             "System is currently available only for Dhaka city corporation areas under DPDC and DESCO.";
@@ -218,8 +219,20 @@ public class UtilityPowerService {
                 .restoredAt(status == PowerOutageStatus.RESTORED ? LocalDateTime.now() : null)
                 .build();
 
-        return mapNoticeToResponse(powerOutageRepository.save(notice));
-    }
+        PowerOutageNotice savedNotice = powerOutageRepository.save(notice);
+
+        auditLogService.log(
+                savedNotice.getUser(),
+                "POWER_OUTAGE_CREATED",
+                "POWER_OUTAGE",
+                savedNotice.getId(),
+                "Power outage notice created for thana: "
+                        + savedNotice.getThanaName()
+                        + ", Status: "
+                        + savedNotice.getStatus()
+        );
+
+        return mapNoticeToResponse(savedNotice);    }
 
     public List<PowerOutageResponse> getAllPowerOutages() {
         autoRestoreExpiredOutages();
@@ -300,12 +313,32 @@ public class UtilityPowerService {
             notice.setRestoredAt(null);
         }
 
-        return mapNoticeToResponse(powerOutageRepository.save(notice));
-    }
+        PowerOutageNotice savedNotice = powerOutageRepository.save(notice);
+
+        auditLogService.log(
+                savedNotice.getUser(),
+                "POWER_OUTAGE_UPDATED",
+                "POWER_OUTAGE",
+                savedNotice.getId(),
+                "Power outage notice updated for thana: "
+                        + savedNotice.getThanaName()
+                        + ", Status: "
+                        + savedNotice.getStatus()
+        );
+
+        return mapNoticeToResponse(savedNotice);    }
 
     public void deletePowerOutage(Long id) {
         PowerOutageNotice notice = powerOutageRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Power outage notice not found"));
+
+        auditLogService.log(
+                notice.getUser(),
+                "POWER_OUTAGE_DELETED",
+                "POWER_OUTAGE",
+                notice.getId(),
+                "Power outage notice deleted for thana: " + notice.getThanaName()
+        );
 
         powerOutageRepository.delete(notice);
     }

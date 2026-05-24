@@ -21,6 +21,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final ActivationRequestRepository activationRequestRepository;
     private final UserDeleteService userDeleteService;
+    private final AuditLogService auditLogService;
 
     public List<AdminUserResponse> getAllUsers() {
         return userRepository.findAllByOrderByCreatedAtDesc()
@@ -35,6 +36,12 @@ public class AdminService {
 
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
+        auditLogService.logSystem(
+                "USER_DEACTIVATED",
+                "USER",
+                user.getId(),
+                "Admin deactivated user: " + user.getFullName()
+        );
     }
 
     public void activateUser(Long userId) {
@@ -43,9 +50,25 @@ public class AdminService {
 
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
+        auditLogService.logSystem(
+                "USER_ACTIVATED",
+                "USER",
+                user.getId(),
+                "Admin activated user: " + user.getFullName()
+        );
     }
 
     public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        auditLogService.logSystem(
+                "USER_DELETED",
+                "USER",
+                user.getId(),
+                "Admin deleted user: " + user.getFullName() + ", Role: " + user.getRole()
+        );
+
         userDeleteService.deleteUserCompletely(userId);
     }
     public List<ActivationRequestResponse> getPendingActivationRequests() {
@@ -72,6 +95,12 @@ public class AdminService {
 
         userRepository.save(user);
         activationRequestRepository.save(activationRequest);
+        auditLogService.logSystem(
+                "ACTIVATION_REQUEST_APPROVED",
+                "ACTIVATION_REQUEST",
+                activationRequest.getId(),
+                "Admin approved activation request for user: " + user.getFullName()
+        );
     }
 
     private AdminUserResponse mapToAdminUserResponse(User user) {

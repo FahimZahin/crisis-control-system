@@ -52,6 +52,7 @@ public class FuelRequestService {
     private final PumpFuelStockRepository pumpFuelStockRepository;
     private final EmergencyVehicleRepository emergencyVehicleRepository;
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
+    private final AuditLogService auditLogService;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -171,7 +172,22 @@ public class FuelRequestService {
                     .adminNote("Extra fuel request. Admin approval required.")
                     .build();
 
-            return mapToResponse(fuelRequestRepository.save(pendingRequest));
+            FuelRequest savedPendingRequest = fuelRequestRepository.save(pendingRequest);
+
+            auditLogService.log(
+                    user,
+                    "EXTRA_FUEL_REQUEST_CREATED",
+                    "FUEL_REQUEST",
+                    savedPendingRequest.getId(),
+                    "Extra fuel request submitted. Requested: "
+                            + savedPendingRequest.getRequestedLiter()
+                            + " L, Cost: "
+                            + savedPendingRequest.getEstimatedCost()
+                            + " BDT, Reason: "
+                            + savedPendingRequest.getExtraFuelReasonType()
+            );
+
+            return mapToResponse(savedPendingRequest);
         }
 
         PumpProfile assignedPump = findAvailablePumpForFuelOrNull(
@@ -212,6 +228,18 @@ public class FuelRequestService {
                 .build();
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        auditLogService.log(
+                user,
+                "FUEL_REQUEST_CREATED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Vehicle fuel request created. Status: "
+                        + savedRequest.getRequestStatus()
+                        + ", Requested: "
+                        + savedRequest.getRequestedLiter()
+                        + " L"
+        );
 
         if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
             savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
@@ -460,7 +488,16 @@ public class FuelRequestService {
                         : decisionRequest.getAdminNote()
         );
 
-        return mapToResponse(fuelRequestRepository.save(fuelRequest));
+        FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        auditLogService.logSystem(
+                "FUEL_REQUEST_APPROVED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Fuel request approved and assigned to pump: " + pumpProfile.getPumpName()
+        );
+
+        return mapToResponse(savedRequest);
     }
 
     public FuelRequestResponse rejectFuelRequest(Long requestId, FuelRequestDecisionRequest decisionRequest) {
@@ -479,8 +516,16 @@ public class FuelRequestService {
                         : decisionRequest.getAdminNote()
         );
 
-        return mapToResponse(fuelRequestRepository.save(fuelRequest));
-    }
+        FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        auditLogService.logSystem(
+                "FUEL_REQUEST_REJECTED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Fuel request rejected. Note: " + savedRequest.getAdminNote()
+        );
+
+        return mapToResponse(savedRequest);    }
 
     @Transactional
     public FuelRequestResponse collectFuelByCode(FuelCollectionRequest request) {
@@ -533,8 +578,20 @@ public class FuelRequestService {
         fuelRequest.setCollectedAt(LocalDateTime.now());
         fuelRequest.setAdminNote("Fuel collected successfully from assigned pump.");
 
-        return mapToResponse(fuelRequestRepository.save(fuelRequest));
-    }
+        FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        auditLogService.log(
+                savedRequest.getPumpProfile() == null ? null : savedRequest.getPumpProfile().getUser(),
+                "FUEL_COLLECTED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Fuel collected from pump. Requested: "
+                        + savedRequest.getRequestedLiter()
+                        + " L, Collection code: "
+                        + savedRequest.getCollectionCode()
+        );
+
+        return mapToResponse(savedRequest);    }
 
     private void validateAndUpdateVehicleOdometerAfterCollection(
             FuelRequest fuelRequest,

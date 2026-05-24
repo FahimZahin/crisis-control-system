@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reports & Audit Logs | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Home</a>
+        <a href="admin-dashboard.html">Admin</a>
+        <a href="government-dashboard.html">Government</a>
+        <a href="local-authority-dashboard.html">Local Authority</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Reports & Audit Logs</h1>
+            <p>Monitor critical actions, fuel reports, pump stock, user activity, and power outage summaries.</p>
+        </div>
+        <span class="role-badge">REPORTS</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Report Summary</h2>
+            <button class="btn primary small-btn" id="refreshReportsBtn">Refresh</button>
+        </div>
+
+        <p id="reportsMessage"></p>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Fuel Requests</h3><p id="reportTotalFuelRequests">0</p></div>
+            <div class="summary-card"><h3>Total Requested Liter</h3><p><span id="reportTotalRequestedLiter">0</span> L</p></div>
+            <div class="summary-card"><h3>Total Estimated Cost</h3><p><span id="reportTotalEstimatedCost">0</span> BDT</p></div>
+            <div class="summary-card"><h3>Total Fuel Stock</h3><p><span id="reportTotalCurrentStock">0</span> L</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Pending</h3><p id="reportPendingRequests">0</p></div>
+            <div class="summary-card"><h3>Approved</h3><p id="reportApprovedRequests">0</p></div>
+            <div class="summary-card"><h3>Collected</h3><p id="reportCollectedRequests">0</p></div>
+            <div class="summary-card"><h3>Rejected</h3><p id="reportRejectedRequests">0</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>User and Outage Summary</h2>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Users</h3><p id="reportTotalUsers">0</p></div>
+            <div class="summary-card"><h3>Active Users</h3><p id="reportActiveUsers">0</p></div>
+            <div class="summary-card"><h3>Inactive Users</h3><p id="reportInactiveUsers">0</p></div>
+            <div class="summary-card"><h3>Power Outage Notices</h3><p id="reportTotalOutages">0</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Ongoing Outages</h3><p id="reportOngoingOutages">0</p></div>
+            <div class="summary-card"><h3>Scheduled Outages</h3><p id="reportScheduledOutages">0</p></div>
+            <div class="summary-card"><h3>Restored Outages</h3><p id="reportRestoredOutages">0</p></div>
+            <div class="summary-card"><h3>Low Stock Pumps</h3><p id="reportLowStockCount">0</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Audit Logs</h2>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="auditSearchInput" placeholder="Search logs by action, type, or description">
+                <button class="btn primary small-btn" id="searchAuditLogsBtn">Search</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody id="auditLogsBody">
+                <tr><td colspan="6">Loading audit logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/reports-audit.js"></script>
+
+</body>
+</html>
