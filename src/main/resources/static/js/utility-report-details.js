@@ -149,11 +149,12 @@ function renderOutageTable(outages) {
 
     outages.forEach(function (outage) {
         const row = document.createElement("tr");
+        row.className = getOutageRowClass(outage.provider, outage.cityCorporation);
 
         row.innerHTML = `
             <td>${valueOrDash(outage.id)}</td>
-            <td>${valueOrDash(outage.provider)}</td>
-            <td>${valueOrDash(outage.cityCorporation)}</td>
+            <td>${formatEnumText(outage.provider)}</td>
+            <td>${formatEnumText(outage.cityCorporation)}</td>
             <td>${valueOrDash(outage.thanaName)}</td>
             <td>${valueOrDash(outage.outageType)}</td>
             <td>${valueOrDash(outage.cause)}</td>
@@ -188,15 +189,16 @@ function renderUserTable(users) {
 
     users.forEach(function (user) {
         const row = document.createElement("tr");
+        row.className = getUserRoleRowClass(user.role);
 
         row.innerHTML = `
-            <td>${valueOrDash(user.id)}</td>
-            <td>${valueOrDash(user.fullName)}</td>
-            <td>${valueOrDash(user.phoneNumber)}</td>
-            <td>${valueOrDash(user.role)}</td>
-            <td>${valueOrDash(user.status)}</td>
-            <td>${valueOrDash(user.address)}</td>
-        `;
+        <td>${valueOrDash(user.id)}</td>
+        <td>${valueOrDash(user.fullName)}</td>
+        <td>${valueOrDash(user.phoneNumber)}</td>
+        <td>${formatEnumText(user.role)}</td>
+        <td>${formatEnumText(user.status)}</td>
+        <td>${valueOrDash(user.address)}</td>
+    `;
 
         body.appendChild(row);
     });
@@ -297,4 +299,154 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
+}
+
+function renderProviderBadge(provider) {
+    const value = valueOrDash(provider);
+    const className = getProviderClass(value);
+
+    return `<span class="soft-badge ${className}">${formatEnumText(value)}</span>`;
+}
+
+function renderCityCorporationBadge(cityCorporation) {
+    const value = valueOrDash(cityCorporation);
+    const className = getCityCorporationClass(value);
+
+    return `<span class="soft-badge ${className}">${formatEnumText(value)}</span>`;
+}
+
+function renderRoleBadge(role) {
+    const value = valueOrDash(role);
+    const className = getRoleClass(value);
+
+    return `<span class="soft-badge ${className}">${formatEnumText(value)}</span>`;
+}
+
+function getProviderClass(provider) {
+    if (provider === "DESCO") {
+        return "badge-desco";
+    }
+
+    if (provider === "DPDC") {
+        return "badge-dpdc";
+    }
+
+    return "badge-neutral";
+}
+
+function getCityCorporationClass(cityCorporation) {
+    if (cityCorporation === "DHAKA_NORTH_CITY_CORPORATION") {
+        return "badge-dncc";
+    }
+
+    if (cityCorporation === "DHAKA_SOUTH_CITY_CORPORATION") {
+        return "badge-dscc";
+    }
+
+    return "badge-neutral";
+}
+
+function getRoleClass(role) {
+    if (role === "VEHICLE_OWNER") {
+        return "badge-vehicle-owner";
+    }
+
+    if (role === "PUMP_AUTHORITY") {
+        return "badge-pump-authority";
+    }
+
+    if (role === "BUILDING_MANAGER") {
+        return "badge-building-manager";
+    }
+
+    if (role === "HOSPITAL_AUTHORITY") {
+        return "badge-hospital-authority";
+    }
+
+    if (role === "UTILITY_AUTHORITY") {
+        return "badge-utility-authority";
+    }
+
+    if (role === "EMERGENCY_VEHICLE_AUTHORITY") {
+        return "badge-emergency-authority";
+    }
+
+    if (role === "GOVERNMENT_AUTHORITY") {
+        return "badge-government-authority";
+    }
+
+    if (role === "LOCAL_AUTHORITY") {
+        return "badge-local-authority";
+    }
+
+    if (role === "ADMIN") {
+        return "badge-admin";
+    }
+
+    return "badge-neutral";
+}
+
+function formatEnumText(value) {
+    if (!value || value === "-") {
+        return "-";
+    }
+
+    return String(value)
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, function (letter) {
+            return letter.toUpperCase();
+        });
+}
+
+function getOutageRowClass(provider, cityCorporation) {
+    if (provider === "DESCO" || cityCorporation === "DHAKA_NORTH_CITY_CORPORATION") {
+        return "outage-row-dncc-desco";
+    }
+
+    if (provider === "DPDC" || cityCorporation === "DHAKA_SOUTH_CITY_CORPORATION") {
+        return "outage-row-dscc-dpdc";
+    }
+
+    return "outage-row-neutral";
+}
+
+function getUserRoleRowClass(role) {
+    if (role === "VEHICLE_OWNER") {
+        return "user-row-vehicle-owner";
+    }
+
+    if (role === "PUMP_AUTHORITY") {
+        return "user-row-pump-authority";
+    }
+
+    if (role === "BUILDING_MANAGER") {
+        return "user-row-building-manager";
+    }
+
+    if (role === "HOSPITAL_AUTHORITY") {
+        return "user-row-hospital-authority";
+    }
+
+    if (role === "UTILITY_AUTHORITY") {
+        return "user-row-utility-authority";
+    }
+
+    if (role === "EMERGENCY_VEHICLE_AUTHORITY") {
+        return "user-row-emergency-authority";
+    }
+
+    if (role === "GOVERNMENT_AUTHORITY") {
+        return "user-row-government-authority";
+    }
+
+    if (role === "LOCAL_AUTHORITY") {
+        return "user-row-local-authority";
+    }
+
+    if (role === "ADMIN") {
+        return "user-row-admin";
+    }
+
+    return "user-row-neutral";
 }

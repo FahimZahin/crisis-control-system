@@ -85,6 +85,7 @@ function renderFuelReportDetails(requests) {
 
     requests.forEach(function (request) {
         const row = document.createElement("tr");
+        row.className = getFuelRequestSourceRowClass(request.requestSource);
 
         row.innerHTML = `
             <td>${valueOrDash(request.id)}</td>
@@ -92,11 +93,11 @@ function renderFuelReportDetails(requests) {
                 <strong>${valueOrDash(request.userName)}</strong><br>
                 <small>${valueOrDash(request.phoneNumber)}</small>
             </td>
-            <td>${valueOrDash(request.requestSource)}</td>
-            <td>${valueOrDash(request.fuelType)}</td>
+            <td>${formatEnumText(request.requestSource)}</td>
+            <td>${formatEnumText(request.fuelType)}</td>
             <td>${valueOrDash(request.requestedLiter)} L</td>
             <td>${valueOrDash(request.estimatedCost)} BDT</td>
-            <td>${valueOrDash(request.requestStatus)}</td>
+            <td>${formatEnumText(request.requestStatus)}</td>
             <td>
                 ${valueOrDash(request.pumpName || request.assignedPumpName)}<br>
                 <small>${valueOrDash(request.adminNote)}</small>
@@ -116,6 +117,39 @@ function showMessage(message, className) {
     }
 }
 
+
+function getFuelRequestSourceRowClass(source) {
+    if (source === "VEHICLE_OWNER") {
+        return "fuel-row-vehicle-owner";
+    }
+
+    if (source === "HOSPITAL_GENERATOR") {
+        return "fuel-row-hospital-generator";
+    }
+
+    if (source === "BUILDING_GENERATOR") {
+        return "fuel-row-building-generator";
+    }
+
+    if (source === "EMERGENCY") {
+        return "fuel-row-emergency";
+    }
+
+    return "fuel-row-neutral";
+}
+
+function formatEnumText(value) {
+    if (!value || value === "-") {
+        return "-";
+    }
+
+    return String(value)
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, function (letter) {
+            return letter.toUpperCase();
+        });
+}
 function valueOrDash(value) {
     if (value === null || value === undefined || value === "") {
         return "-";

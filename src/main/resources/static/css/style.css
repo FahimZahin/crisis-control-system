@@ -1387,3 +1387,238 @@ footer {
     color: #666;
     font-size: 12px;
 }
+
+/* Role badges */
+.badge-vehicle-owner {
+    background: #eef6ff;
+    color: #245a86;
+    border: 1px solid #c7def2;
+}
+
+.badge-pump-authority {
+    background: #fff5e8;
+    color: #805315;
+    border: 1px solid #efd4af;
+}
+
+.badge-building-manager {
+    background: #f0f7ea;
+    color: #4d6f1f;
+    border: 1px solid #d1e7bd;
+}
+
+.badge-hospital-authority {
+    background: #ffeef0;
+    color: #8a3440;
+    border: 1px solid #f2c8cf;
+}
+
+.badge-utility-authority {
+    background: #eaf7f8;
+    color: #1f6870;
+    border: 1px solid #bee4e8;
+}
+
+.badge-emergency-authority {
+    background: #fff0f5;
+    color: #8a3d5c;
+    border: 1px solid #efc5d4;
+}
+
+.badge-government-authority {
+    background: #eef0ff;
+    color: #0622a1;
+    border: 1px solid #ccd2f5;
+}
+
+.badge-local-authority {
+    background: #edf8f2;
+    color: #2f7050;
+    border: 1px solid #c5e7d4;
+}
+
+.badge-admin {
+    background: #f2f2f2;
+    color: #444;
+    border: 1px solid #d6d6d6;
+}
+
+.badge-neutral {
+    background: #f5f5f5;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+/* Full-row mild colors for utility outage report */
+.admin-users-table tr.outage-row-dncc-desco td {
+    background: #f1f9ff;
+}
+
+.admin-users-table tr.outage-row-dscc-dpdc td {
+    background: #fff7ed;
+}
+
+.admin-users-table tr.outage-row-neutral td {
+    background: #f8f9fa;
+}
+
+.admin-users-table tr.outage-row-dncc-desco:hover td {
+    background: #e6f4ff;
+}
+
+.admin-users-table tr.outage-row-dscc-dpdc:hover td {
+    background: #ffefd9;
+}
+
+.admin-users-table tr.outage-row-neutral:hover td {
+    background: #f1f3f5;
+}
+
+/* Full-row mild colors for utility outage report */
+.admin-users-table tr.outage-row-dncc-desco td {
+    background: #f1f9ff;
+}
+
+.admin-users-table tr.outage-row-dscc-dpdc td {
+    background: #fff7ed;
+}
+
+.admin-users-table tr.outage-row-neutral td {
+    background: #f8f9fa;
+}
+
+.admin-users-table tr.outage-row-dncc-desco:hover td {
+    background: #e6f4ff;
+}
+
+.admin-users-table tr.outage-row-dscc-dpdc:hover td {
+    background: #ffefd9;
+}
+
+.admin-users-table tr.outage-row-neutral:hover td {
+    background: #f1f3f5;
+}
+
+/* Full-row mild colors for user role report */
+.admin-users-table tr.user-row-vehicle-owner td {
+    background: #f1f9ff;
+}
+
+.admin-users-table tr.user-row-pump-authority td {
+    background: #fff7ed;
+}
+
+.admin-users-table tr.user-row-building-manager td {
+    background: #f4faef;
+}
+
+.admin-users-table tr.user-row-hospital-authority td {
+    background: #fff3f5;
+}
+
+.admin-users-table tr.user-row-utility-authority td {
+    background: #eefafa;
+}
+
+.admin-users-table tr.user-row-emergency-authority td {
+    background: #fff4fa;
+}
+
+.admin-users-table tr.user-row-government-authority td {
+    background: #f2f4ff;
+}
+
+.admin-users-table tr.user-row-local-authority td {
+    background: #f1fbf5;
+}
+
+.admin-users-table tr.user-row-admin td {
+    background: #f6f6f6;
+}
+
+.admin-users-table tr.user-row-neutral td {
+    background: #f8f9fa;
+}
+
+/* Hover colors */
+.admin-users-table tr.user-row-vehicle-owner:hover td {
+    background: #e6f4ff;
+}
+
+.admin-users-table tr.user-row-pump-authority:hover td {
+    background: #ffefd9;
+}
+
+.admin-users-table tr.user-row-building-manager:hover td {
+    background: #eaf5df;
+}
+
+.admin-users-table tr.user-row-hospital-authority:hover td {
+    background: #ffe4e8;
+}
+
+.admin-users-table tr.user-row-utility-authority:hover td {
+    background: #ddf3f4;
+}
+
+.admin-users-table tr.user-row-emergency-authority:hover td {
+    background: #ffe5f1;
+}
+
+.admin-users-table tr.user-row-government-authority:hover td {
+    background: #e7eaff;
+}
+
+.admin-users-table tr.user-row-local-authority:hover td {
+    background: #e2f6ea;
+}
+
+.admin-users-table tr.user-row-admin:hover td {
+    background: #ededed;
+}
+
+.admin-users-table tr.user-row-neutral:hover td {
+    background: #f1f3f5;
+}
+
+/* Full-row mild colors for fuel report details */
+.admin-users-table tr.fuel-row-vehicle-owner td {
+    background: #f1f9ff;
+}
+
+.admin-users-table tr.fuel-row-hospital-generator td {
+    background: #fff3f5;
+}
+
+.admin-users-table tr.fuel-row-building-generator td {
+    background: #f4faef;
+}
+
+.admin-users-table tr.fuel-row-emergency td {
+    background: #fff4fa;
+}
+
+.admin-users-table tr.fuel-row-neutral td {
+    background: #f8f9fa;
+}
+
+/* Hover colors */
+.admin-users-table tr.fuel-row-vehicle-owner:hover td {
+    background: #e6f4ff;
+}
+
+.admin-users-table tr.fuel-row-hospital-generator:hover td {
+    background: #ffe4e8;
+}
+
+.admin-users-table tr.fuel-row-building-generator:hover td {
+    background: #eaf5df;
+}
+
+.admin-users-table tr.fuel-row-emergency:hover td {
+    background: #ffe5f1;
+}
+
+.admin-users-table tr.fuel-row-neutral:hover td {
+    background: #f1f3f5;
+}
