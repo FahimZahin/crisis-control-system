@@ -1624,11 +1624,14 @@ footer {
 }
 
 .field-error {
-    display: block;
+    display: none;
     color: #d93025;
     font-size: 13px;
     margin-top: 5px;
-    min-height: 16px;
+}
+
+.field-error:not(:empty) {
+    display: block;
 }
 
 .invalid-input {
