@@ -1,11 +1,44 @@
+const phoneNumberInput = document.getElementById("phoneNumber");
+const passwordInput = document.getElementById("password");
+const message = document.getElementById("message");
+
+document.addEventListener("DOMContentLoaded", function () {
+    setupLoginValidation();
+});
+
+function setupLoginValidation() {
+    if (phoneNumberInput) {
+        phoneNumberInput.addEventListener("input", function () {
+            phoneNumberInput.value = phoneNumberInput.value.replace(/\D/g, "").slice(0, 11);
+            validatePhoneNumberLive();
+        });
+
+        phoneNumberInput.addEventListener("blur", function () {
+            validatePhoneNumberLive();
+        });
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener("input", function () {
+            validatePasswordLive();
+        });
+
+        passwordInput.addEventListener("blur", function () {
+            validatePasswordLive();
+        });
+    }
+}
+
 document.getElementById("loginForm").addEventListener("submit", async function (event) {
     event.preventDefault();
 
-    const message = document.getElementById("message");
+    if (!validateLoginForm()) {
+        return;
+    }
 
     const data = {
-        phoneNumber: document.getElementById("phoneNumber").value,
-        password: document.getElementById("password").value
+        phoneNumber: phoneNumberInput.value.trim(),
+        password: passwordInput.value
     };
 
     try {
@@ -33,6 +66,7 @@ document.getElementById("loginForm").addEventListener("submit", async function (
 
             result.userId = userId;
             result.thanaOrUpazila = resolvedThana;
+            result.loginTime = new Date().toISOString();
 
             if (result.role === "BUILDING_MANAGER") {
                 result.buildingUnderThana = firstValidValue(result.buildingUnderThana, resolvedThana);
@@ -73,22 +107,101 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             localStorage.setItem("acPatientCapacity", result.acPatientCapacity || "");
             localStorage.setItem("nonAcPatientCapacity", result.nonAcPatientCapacity || "");
 
-            message.className = "success-text";
-            message.innerText = result.message || "Login successful";
+            showMainMessage(result.message || "Login successful", "success-text");
 
             setTimeout(function () {
                 redirectToRoleDashboard(result.role);
-            }, 1000);
+            }, 800);
         } else {
-            message.className = "error-text";
-            message.innerText = result.message || "Login failed";
+            showMainMessage(result.message || "Login failed", "error-text");
         }
 
     } catch (error) {
-        message.className = "error-text";
-        message.innerText = "Server connection failed";
+        showMainMessage("Server connection failed", "error-text");
     }
 });
+
+function validateLoginForm() {
+    const phoneValid = validatePhoneNumberLive();
+    const passwordValid = validatePasswordLive();
+
+    return phoneValid && passwordValid;
+}
+
+function validatePhoneNumberLive() {
+    const value = phoneNumberInput.value.trim();
+
+    if (!value) {
+        showFieldError("phoneNumberError", "Phone number is required.");
+        markInvalid(phoneNumberInput);
+        return false;
+    }
+
+    if (!/^[0-9]+$/.test(value)) {
+        showFieldError("phoneNumberError", "Phone number can contain digits only.");
+        markInvalid(phoneNumberInput);
+        return false;
+    }
+
+    if (value.length !== 11) {
+        showFieldError("phoneNumberError", "Phone number must be exactly 11 digits.");
+        markInvalid(phoneNumberInput);
+        return false;
+    }
+
+    clearFieldError("phoneNumberError");
+    markValid(phoneNumberInput);
+    return true;
+}
+
+function validatePasswordLive() {
+    const value = passwordInput.value;
+
+    if (!value || value.trim() === "") {
+        showFieldError("passwordError", "Password is required.");
+        markInvalid(passwordInput);
+        return false;
+    }
+
+    clearFieldError("passwordError");
+    markValid(passwordInput);
+    return true;
+}
+
+function showFieldError(id, message) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = message;
+    }
+}
+
+function clearFieldError(id) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = "";
+    }
+}
+
+function markInvalid(input) {
+    if (input) {
+        input.classList.remove("valid-input");
+        input.classList.add("invalid-input");
+    }
+}
+
+function markValid(input) {
+    if (input) {
+        input.classList.remove("invalid-input");
+        input.classList.add("valid-input");
+    }
+}
+
+function showMainMessage(text, className) {
+    message.className = className;
+    message.innerText = text;
+}
 
 function firstValidValue() {
     for (let i = 0; i < arguments.length; i++) {

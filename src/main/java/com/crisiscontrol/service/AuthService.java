@@ -120,27 +120,38 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
+            validateLoginFields(request);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid phone number or password");
+            User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                    .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
+
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                throw new RuntimeException("Invalid phone number or password");
+            }
+
+            if (user.getStatus() == UserStatus.BLOCKED) {
+                throw new RuntimeException("User account is blocked");
+            }
+
+            if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
+                user = hospitalSupportCalculationService.recalculateAndSave(user);
+            }
+
+            return buildAuthResponse("Login successful", user);
         }
 
-        if (user.getStatus() == UserStatus.BLOCKED) {
-            throw new RuntimeException("User account is blocked");
-        }
-
-        if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
-            user = hospitalSupportCalculationService.recalculateAndSave(user);
-        }
-
-        return buildAuthResponse("Login successful", user);
-    }
 
     private void validateCommonFields(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("Password and confirm password do not match");
+        }
+
+        if (isBlank(request.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        if (!request.getPhoneNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Phone number must be exactly 11 digits");
         }
 
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
@@ -565,5 +576,23 @@ public class AuthService {
                 .replace(" ", "");
 
         return Double.parseDouble(cleanedValue);
+    }
+
+    private void validateLoginFields(LoginRequest request) {
+        if (request == null) {
+            throw new RuntimeException("Login request is required");
+        }
+
+        if (isBlank(request.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        if (!request.getPhoneNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Phone number must be exactly 11 digits");
+        }
+
+        if (isBlank(request.getPassword())) {
+            throw new RuntimeException("Password is required");
+        }
     }
 }

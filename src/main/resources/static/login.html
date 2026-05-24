@@ -21,12 +21,22 @@
     <form id="loginForm">
 
         <label>Phone Number</label>
-        <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
+        <input
+                type="text"
+                id="phoneNumber"
+                placeholder="Enter 11 digit phone number"
+                maxlength="11"
+                inputmode="numeric"
+                autocomplete="tel"
+                required
+        >
+        <small id="phoneNumberError" class="field-error"></small>
 
         <label>Password</label>
         <div class="password-wrapper">
             <input type="password" id="password" placeholder="Enter password" required>
             <button type="button" class="eye-btn" onclick="togglePassword('password', this)">👁</button>
+            <small id="passwordError" class="field-error"></small>
         </div>
 
         <button type="submit" class="btn primary full-width">Login</button>

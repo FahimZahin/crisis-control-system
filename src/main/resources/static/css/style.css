@@ -1622,3 +1622,20 @@ footer {
 .admin-users-table tr.fuel-row-neutral:hover td {
     background: #f1f3f5;
 }
+
+.field-error {
+    display: block;
+    color: #d93025;
+    font-size: 13px;
+    margin-top: 5px;
+    min-height: 16px;
+}
+
+.invalid-input {
+    border-color: #d93025 !important;
+    background: #fff7f7;
+}
+
+.valid-input {
+    border-color: #188038 !important;
+}

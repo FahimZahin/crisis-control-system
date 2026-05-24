@@ -3,6 +3,7 @@ package com.crisiscontrol.dto;
 import com.crisiscontrol.entity.Role;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,11 +11,11 @@ import lombok.Setter;
 @Setter
 public class RegisterRequest {
 
-    // Common fields
     @NotBlank(message = "Full name is required")
     private String fullName;
 
     @NotBlank(message = "Phone number is required")
+    @Pattern(regexp = "^[0-9]{11}$", message = "Phone number must be exactly 11 digits")
     private String phoneNumber;
 
     private String address;
@@ -28,17 +29,14 @@ public class RegisterRequest {
     @NotNull(message = "Role is required")
     private Role role;
 
-    // Vehicle owner field
     private String drivingLicenseNumber;
 
-    // Building manager fields
     private String buildingName;
     private String holdingNumber;
     private Integer numberOfFlats;
     private String generatorPower;
     private String buildingUnderThana;
 
-    // Pump authority fields
     private String pumpName;
     private String businessLicenseNumber;
     private String pumpAddress;
@@ -49,7 +47,6 @@ public class RegisterRequest {
     private String openingTime;
     private String closingTime;
 
-    // Hospital authority fields
     private String hospitalName;
     private String hospitalRegistrationNumber;
     private String hospitalAddress;
@@ -61,28 +58,23 @@ public class RegisterRequest {
     private Integer acPatientCapacity;
     private Integer nonAcPatientCapacity;
 
-    // Utility authority fields
     private String utilityOrganizationType;
     private String utilityEmployeeId;
     private String serviceArea;
     private String officeAddress;
 
-    // Emergency vehicle authority fields
     private String organizationName;
     private String organizationType;
     private String officialVerificationId;
     private String assignedArea;
 
-    // Government authority fields
     private String governmentEmployeeId;
     private String departmentName;
     private String designation;
 
-    // Local authority fields
     private String localAuthorityId;
     private String district;
     private String thanaOrUpazila;
 
-    // Admin field
     private String adminCode;
 }
