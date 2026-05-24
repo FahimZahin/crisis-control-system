@@ -1368,3 +1368,22 @@ footer {
     flex: 1;
     text-align: center;
 }
+
+.report-link-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: 0.2s;
+}
+
+.report-link-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+}
+
+.report-link-card small {
+    display: block;
+    margin-top: 6px;
+    color: #666;
+    font-size: 12px;
+}

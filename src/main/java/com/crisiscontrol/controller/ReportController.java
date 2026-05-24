@@ -126,6 +126,37 @@ public class ReportController {
         return ResponseEntity.ok(auditLogService.getUtilityLogs());
     }
 
+    @GetMapping("/pump-stock-details")
+    public ResponseEntity<List<Map<String, Object>>> getPumpStockDetails() {
+        List<PumpFuelStock> stocks = pumpFuelStockRepository.findAll();
+
+        List<Map<String, Object>> result = stocks.stream()
+                .map(stock -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+
+                    PumpProfile pump = stock.getPumpProfile();
+
+                    map.put("pumpName", pump == null ? "-" : pump.getPumpName());
+                    map.put("pumpAddress", pump == null ? "-" : pump.getPumpAddress());
+                    map.put("fuelType", stock.getFuelType());
+                    map.put("fuelCapacity", stock.getFuelCapacity());
+                    map.put("currentStock", stock.getCurrentStock());
+
+                    boolean lowStock = stock.getFuelCapacity() != null
+                            && stock.getCurrentStock() != null
+                            && stock.getFuelCapacity().compareTo(BigDecimal.ZERO) > 0
+                            && stock.getCurrentStock()
+                            .compareTo(stock.getFuelCapacity().multiply(BigDecimal.valueOf(0.20))) <= 0;
+
+                    map.put("lowStock", lowStock);
+
+                    return map;
+                })
+                .toList();
+
+        return ResponseEntity.ok(result);
+    }
+
     private long countStatus(List<FuelRequest> requests, FuelRequestStatus status) {
         return requests.stream()
                 .filter(request -> request.getRequestStatus() == status)

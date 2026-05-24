@@ -11,9 +11,7 @@
     <div class="logo">Crisis Control System</div>
     <div>
         <a href="dashboard.html">Home</a>
-        <a href="admin-dashboard.html">Admin</a>
-        <a href="government-dashboard.html">Government</a>
-        <a href="local-authority-dashboard.html">Local Authority</a>
+        <a href="profile.html">Profile</a>
         <a href="login.html" id="logoutBtn">Logout</a>
     </div>
 </nav>
@@ -38,17 +36,42 @@
         <p id="reportsMessage"></p>
 
         <div class="role-summary-grid">
-            <div class="summary-card"><h3>Total Fuel Requests</h3><p id="reportTotalFuelRequests">0</p></div>
-            <div class="summary-card"><h3>Total Requested Liter</h3><p><span id="reportTotalRequestedLiter">0</span> L</p></div>
-            <div class="summary-card"><h3>Total Estimated Cost</h3><p><span id="reportTotalEstimatedCost">0</span> BDT</p></div>
-            <div class="summary-card"><h3>Total Fuel Stock</h3><p><span id="reportTotalCurrentStock">0</span> L</p></div>
+            <a href="fuel-report-details.html?type=all" class="summary-card report-link-card">
+                <h3>Total Fuel Requests</h3>
+                <p id="reportTotalFuelRequests">0</p>
+            </a>
+
+            <a href="fuel-report-details.html?type=liter" class="summary-card report-link-card">
+                <h3>Total Requested Fuel</h3>
+                <p><span id="reportTotalRequestedLiter">0</span> L</p>
+            </a>
+
+            <a href="fuel-report-details.html?type=estimated-cost" class="summary-card report-link-card">
+                <h3>Total Requested Fuel Cost</h3>
+                <p><span id="reportTotalEstimatedCost">0</span> BDT</p>
+            </a>            <div class="summary-card"><h3>Total Fuel Stock</h3><p><span id="reportTotalCurrentStock">0</span> L</p></div>
         </div>
 
         <div class="role-summary-grid">
-            <div class="summary-card"><h3>Pending</h3><p id="reportPendingRequests">0</p></div>
-            <div class="summary-card"><h3>Approved</h3><p id="reportApprovedRequests">0</p></div>
-            <div class="summary-card"><h3>Collected</h3><p id="reportCollectedRequests">0</p></div>
-            <div class="summary-card"><h3>Rejected</h3><p id="reportRejectedRequests">0</p></div>
+            <a href="fuel-report-details.html?status=PENDING" class="summary-card report-link-card">
+                <h3>Pending Admin Review</h3>
+                <p id="reportPendingRequests">0</p>
+            </a>
+
+            <a href="fuel-report-details.html?status=APPROVED" class="summary-card report-link-card">
+                <h3>Approved / Assigned by Admin</h3>
+                <p id="reportApprovedRequests">0</p>
+            </a>
+
+            <a href="fuel-report-details.html?status=COLLECTED" class="summary-card report-link-card">
+                <h3>Collected by Pump</h3>
+                <p id="reportCollectedRequests">0</p>
+            </a>
+
+            <a href="fuel-report-details.html?status=REJECTED" class="summary-card report-link-card">
+                <h3>Rejected by Admin</h3>
+                <p id="reportRejectedRequests">0</p>
+            </a>
         </div>
     </div>
 
@@ -79,10 +102,25 @@
         <h2>Utility Reports</h2>
 
         <div class="role-summary-grid">
-            <div class="summary-card"><h3>Total Power Outage Notices</h3><p id="reportTotalOutages">0</p></div>
-            <div class="summary-card"><h3>Ongoing Outages</h3><p id="reportOngoingOutages">0</p></div>
-            <div class="summary-card"><h3>Scheduled Outages</h3><p id="reportScheduledOutages">0</p></div>
-            <div class="summary-card"><h3>Restored Outages</h3><p id="reportRestoredOutages">0</p></div>
+            <a href="utility-report-details.html?type=outages-all" class="summary-card report-link-card">
+                <h3>Total Power Outage Notices</h3>
+                <p id="reportTotalOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-ongoing" class="summary-card report-link-card">
+                <h3>Ongoing Outages</h3>
+                <p id="reportOngoingOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-scheduled" class="summary-card report-link-card">
+                <h3>Scheduled Outages</h3>
+                <p id="reportScheduledOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-restored" class="summary-card report-link-card">
+                <h3>Restored Outages</h3>
+                <p id="reportRestoredOutages">0</p>
+            </a>
         </div>
     </div>
 
@@ -113,10 +151,25 @@
         <h2>User Summary</h2>
 
         <div class="role-summary-grid">
-            <div class="summary-card"><h3>Total Users</h3><p id="reportTotalUsers">0</p></div>
-            <div class="summary-card"><h3>Active Users</h3><p id="reportActiveUsers">0</p></div>
-            <div class="summary-card"><h3>Inactive Users</h3><p id="reportInactiveUsers">0</p></div>
-            <div class="summary-card"><h3>Low Stock Pumps</h3><p id="reportLowStockCount">0</p></div>
+            <a href="utility-report-details.html?type=users-all" class="summary-card report-link-card">
+                <h3>Total Users</h3>
+                <p id="reportTotalUsers">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=users-active" class="summary-card report-link-card">
+                <h3>Active Users</h3>
+                <p id="reportActiveUsers">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=users-inactive" class="summary-card report-link-card">
+                <h3>Inactive Users</h3>
+                <p id="reportInactiveUsers">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=low-stock-pumps" class="summary-card report-link-card">
+                <h3>Low Stock Pumps</h3>
+                <p id="reportLowStockCount">0</p>
+            </a>
         </div>
     </div>
 

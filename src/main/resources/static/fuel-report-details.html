@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fuel Report Details | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="reports-audit.html">Reports</a>
+        <a href="dashboard.html">Home</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1 id="fuelReportTitle">Fuel Report Details</h1>
+            <p>Detailed fuel request records for monitoring and reporting.</p>
+        </div>
+        <span class="role-badge">FUEL REPORT</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <p id="fuelReportMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Source</th>
+                    <th>Fuel</th>
+                    <th>Liter</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Pump / Note</th>
+                </tr>
+                </thead>
+                <tbody id="fuelReportDetailsBody">
+                <tr><td colspan="8">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/fuel-report-details.js"></script>
+</body>
+</html>
