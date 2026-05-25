@@ -104,6 +104,7 @@ function mergeHospitalProfile(profile) {
     loggedInUser.hospitalUnderThana = profile.hospitalUnderThana || profile.thanaOrUpazila || loggedInUser.hospitalUnderThana;
     loggedInUser.thanaOrUpazila = profile.thanaOrUpazila || profile.hospitalUnderThana || loggedInUser.thanaOrUpazila;
     loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
+    loggedInUser.hospitalDieselTankCapacity = profile.hospitalDieselTankCapacity ?? loggedInUser.hospitalDieselTankCapacity;
     loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
     loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateBackupHours(
         loggedInUser.hospitalGeneratorCapacity,
@@ -129,7 +130,9 @@ function fillHospitalData() {
     const hospitalName = loggedInUser.hospitalName || "-";
     const hospitalUnderThana = loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "-";
     const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const dieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
     const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const availableDieselSpace = Math.max(0, dieselTankCapacity - currentDieselReserve);
     const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
     const dieselStatus = resolveDieselStatus(backupHours);
     const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
@@ -141,6 +144,8 @@ function fillHospitalData() {
     document.getElementById("hospitalNameInfo").innerText = hospitalName;
     document.getElementById("hospitalUnderThanaInfo").innerText = hospitalUnderThana;
     document.getElementById("generatorCapacityInfo").innerText = generatorCapacity > 0 ? generatorCapacity.toFixed(2) : "-";
+    setTextIfExists("dieselTankCapacityInfo", dieselTankCapacity > 0 ? dieselTankCapacity.toFixed(2) + " L" : "-");
+    setTextIfExists("availableDieselSpaceInfo", dieselTankCapacity > 0 ? availableDieselSpace.toFixed(2) + " L" : "-");
     document.getElementById("contactInfo").innerText = contactNumber || "-";
 
     document.getElementById("backupHoursSummary").innerText = backupHours.toFixed(2) + " hours";
@@ -294,6 +299,8 @@ async function submitHospitalGeneratorRequest() {
 
     const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
     const currentReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const dieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
+    const availableDieselSpace = Math.max(0, dieselTankCapacity - currentReserve);
     const currentBackupHours = calculateBackupHours(generatorCapacity, currentReserve);
     const dieselStatus = resolveDieselStatus(currentBackupHours);
 
@@ -331,6 +338,26 @@ async function submitHospitalGeneratorRequest() {
         return;
     }
 
+    if (dieselTankCapacity <= 0) {
+        showMessage("Hospital diesel tank capacity is not configured. Please contact admin.", "error-text");
+        return;
+    }
+
+    if (availableDieselSpace <= 0) {
+        showMessage("Hospital diesel tank is already full. Diesel request is not allowed.", "error-text");
+        return;
+    }
+
+    if (data.requiredDieselLiter > availableDieselSpace) {
+        showMessage(
+            "Requested diesel cannot be greater than available diesel space. Available space: " +
+            availableDieselSpace.toFixed(2) +
+            " L",
+            "error-text"
+        );
+        return;
+    }
+
     if (!contactNumber) {
         showMessage("Please enter contact number.", "error-text");
         return;
@@ -346,6 +373,8 @@ async function submitHospitalGeneratorRequest() {
         "Hospital Under Thana: " + valueOrDash(loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila) + "\n" +
         "Generator Capacity: " + generatorCapacity.toFixed(2) + "\n" +
         "Current Diesel Reserve: " + currentReserve.toFixed(2) + " L\n" +
+        "Diesel Tank Capacity: " + dieselTankCapacity.toFixed(2) + " L\n" +
+        "Available Diesel Space: " + availableDieselSpace.toFixed(2) + " L\n" +
         "Current Backup: " + currentBackupHours.toFixed(2) + " hours\n" +
         "Current Status: " + dieselStatus + "\n" +
         "Total ICU Units: " + data.totalIcuUnits + "\n" +

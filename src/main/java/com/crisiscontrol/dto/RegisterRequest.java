@@ -52,6 +52,7 @@ public class RegisterRequest {
     private String hospitalAddress;
     private String hospitalUnderThana;
     private String hospitalGeneratorCapacity;
+    private Double hospitalDieselTankCapacity;
     private Double hospitalCurrentDieselReserve;
     private String emergencyContactNumber;
     private Integer totalIcuUnits;

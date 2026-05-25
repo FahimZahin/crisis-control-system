@@ -317,6 +317,30 @@ public class FuelRequestService {
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
         BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+        Double dieselTankCapacity = user.getHospitalDieselTankCapacity();
+        Double currentDieselReserve = user.getHospitalCurrentDieselReserve();
+
+        if (dieselTankCapacity == null || dieselTankCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel tank capacity is not configured");
+        }
+
+        if (currentDieselReserve == null) {
+            currentDieselReserve = 0.0;
+        }
+
+        double availableDieselSpace = dieselTankCapacity - currentDieselReserve;
+
+        if (availableDieselSpace <= 0) {
+            throw new RuntimeException("Hospital diesel tank is already full. Diesel request is not allowed.");
+        }
+
+        if (request.getRequiredDieselLiter().doubleValue() > availableDieselSpace) {
+            throw new RuntimeException(
+                    "Requested diesel cannot be greater than available diesel space. Available space: "
+                            + Math.round(availableDieselSpace * 100.0) / 100.0
+                            + " L"
+            );
+        }
 
         PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
 
@@ -651,8 +675,22 @@ public class FuelRequestService {
             currentReserve = 0.0;
         }
 
+        Double dieselTankCapacity = hospitalUser.getHospitalDieselTankCapacity();
+
+        if (dieselTankCapacity == null || dieselTankCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel tank capacity is not configured");
+        }
+
         double collectedDiesel = fuelRequest.getRequestedLiter().doubleValue();
         double updatedReserve = currentReserve + collectedDiesel;
+
+        if (updatedReserve > dieselTankCapacity) {
+            throw new RuntimeException(
+                    "Collection cannot be completed. Hospital diesel reserve would exceed tank capacity. Available space: "
+                            + Math.max(0, Math.round((dieselTankCapacity - currentReserve) * 100.0) / 100.0)
+                            + " L"
+            );
+        }
 
         updatedReserve = Math.round(updatedReserve * 100.0) / 100.0;
 

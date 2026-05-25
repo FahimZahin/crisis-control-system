@@ -35,10 +35,8 @@ public class AuthService {
                 request.getDistrict()
         );
 
-        Double hospitalDieselCapacity = parseDoubleValue(
-                request.getHospitalGeneratorCapacity(),
-                "Hospital diesel capacity must be a valid number"
-        );
+        Double hospitalGeneratorCapacity = parsePowerValue(request.getHospitalGeneratorCapacity());
+        Double hospitalDieselTankCapacity = request.getHospitalDieselTankCapacity();
 
         User user = User.builder()
                 .fullName(request.getFullName())
@@ -79,7 +77,8 @@ public class AuthService {
                                 ? emptyToNull(resolvedThana)
                                 : emptyToNull(request.getHospitalUnderThana())
                 )
-                .hospitalGeneratorCapacity(hospitalDieselCapacity == null ? 0.0 : hospitalDieselCapacity)
+                .hospitalGeneratorCapacity(hospitalGeneratorCapacity == null ? 0.0 : hospitalGeneratorCapacity)
+                .hospitalDieselTankCapacity(hospitalDieselTankCapacity == null ? 0.0 : hospitalDieselTankCapacity)
                 .hospitalCurrentDieselReserve(request.getHospitalCurrentDieselReserve())
                 .emergencyContactNumber(emptyToNull(request.getEmergencyContactNumber()))
                 .totalIcuUnits(request.getTotalIcuUnits())
@@ -288,25 +287,31 @@ public class AuthService {
             throw new RuntimeException("Hospital under thana is required for hospital authority");
         }
 
-        Double hospitalDieselCapacity = parseDoubleValue(
+        Double generatorCapacityKva = parseDoubleValue(
                 request.getHospitalGeneratorCapacity(),
-                "Hospital diesel capacity must be a valid number"
+                "Hospital generator capacity must be a valid number"
         );
 
-        if (hospitalDieselCapacity == null || hospitalDieselCapacity <= 0) {
-            throw new RuntimeException("Hospital diesel capacity is required");
+        if (generatorCapacityKva == null || generatorCapacityKva <= 0) {
+            throw new RuntimeException("Hospital generator capacity is required");
         }
 
-        if (hospitalDieselCapacity > MAX_HOSPITAL_DIESEL_CAPACITY) {
-            throw new RuntimeException("Hospital diesel capacity cannot be more than 1000 L");
+        Double dieselTankCapacity = request.getHospitalDieselTankCapacity();
+
+        if (dieselTankCapacity == null || dieselTankCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel tank capacity is required");
+        }
+
+        if (dieselTankCapacity > MAX_HOSPITAL_DIESEL_CAPACITY) {
+            throw new RuntimeException("Hospital diesel tank capacity cannot be more than 1000 L");
         }
 
         if (request.getHospitalCurrentDieselReserve() == null || request.getHospitalCurrentDieselReserve() < 0) {
             throw new RuntimeException("Hospital current diesel reserve cannot be negative");
         }
 
-        if (request.getHospitalCurrentDieselReserve() > hospitalDieselCapacity) {
-            throw new RuntimeException("Hospital current diesel reserve cannot be greater than diesel capacity");
+        if (request.getHospitalCurrentDieselReserve() > dieselTankCapacity) {
+            throw new RuntimeException("Hospital current diesel reserve cannot be greater than diesel tank capacity");
         }
 
         if (isBlank(request.getEmergencyContactNumber())) {
@@ -509,6 +514,7 @@ public class AuthService {
                                 ? "0.0"
                                 : String.format("%.2f", user.getHospitalGeneratorCapacity())
                 )
+                .hospitalDieselTankCapacity(user.getHospitalDieselTankCapacity())
                 .hospitalCurrentDieselReserve(user.getHospitalCurrentDieselReserve())
                 .hospitalEstimatedBackupHours(user.getHospitalEstimatedBackupHours())
                 .hospitalDieselStatus(user.getHospitalDieselStatus())

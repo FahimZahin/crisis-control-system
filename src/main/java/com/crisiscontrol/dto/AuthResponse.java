@@ -47,7 +47,8 @@ public class AuthResponse {
     private String hospitalRegistrationNumber;
     private String hospitalAddress;
     private String hospitalUnderThana;
-    private String hospitalGeneratorCapacity;
+    private String hospitalGeneratorCapacity; // kVA
+    private Double hospitalDieselTankCapacity; // Liter
     private Double hospitalCurrentDieselReserve;
     private Double hospitalEstimatedBackupHours;
     private String hospitalDieselStatus;

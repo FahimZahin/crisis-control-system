@@ -122,6 +122,9 @@ public class User {
     @Column(name = "hospital_generator_capacity")
     private Double hospitalGeneratorCapacity;
 
+    @Column(name = "hospital_diesel_tank_capacity")
+    private Double hospitalDieselTankCapacity;
+
     @Column(name = "hospital_current_diesel_reserve")
     private Double hospitalCurrentDieselReserve;
 

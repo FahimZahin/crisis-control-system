@@ -38,7 +38,9 @@ function loadUserInfo() {
     const userId = getLoggedInUserId();
 
     const hospitalGeneratorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const hospitalDieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
     const hospitalCurrentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const hospitalAvailableDieselSpace = Math.max(0, hospitalDieselTankCapacity - hospitalCurrentDieselReserve);
     const hospitalBackupHours = calculateBackupHours(hospitalGeneratorCapacity, hospitalCurrentDieselReserve);
     const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
 
@@ -77,6 +79,16 @@ function loadUserInfo() {
     setTextIfExists(
         "hospitalGeneratorCapacity",
         hospitalGeneratorCapacity > 0 ? hospitalGeneratorCapacity.toFixed(2) : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalDieselTankCapacity",
+        hospitalDieselTankCapacity > 0 ? hospitalDieselTankCapacity.toFixed(2) + " L" : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalAvailableDieselSpace",
+        hospitalDieselTankCapacity > 0 ? hospitalAvailableDieselSpace.toFixed(2) + " L" : "Not Provided"
     );
 
     setTextIfExists(
@@ -161,6 +173,7 @@ function mergeHospitalProfile(profile) {
     loggedInUser.hospitalUnderThana = profile.hospitalUnderThana || profile.thanaOrUpazila || loggedInUser.hospitalUnderThana;
     loggedInUser.thanaOrUpazila = profile.thanaOrUpazila || profile.hospitalUnderThana || loggedInUser.thanaOrUpazila;
     loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
+    loggedInUser.hospitalDieselTankCapacity = profile.hospitalDieselTankCapacity ?? loggedInUser.hospitalDieselTankCapacity;
     loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
     loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateBackupHours(
         loggedInUser.hospitalGeneratorCapacity,
