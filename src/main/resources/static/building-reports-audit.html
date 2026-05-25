@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Role Reports & Audit Logs | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Home</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1 id="roleReportTitle">Reports & Audit Logs</h1>
+            <p id="roleReportSubtitle">Role-specific report records.</p>
+        </div>
+        <span class="role-badge">ROLE REPORT</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Summary</h2>
+        <p id="roleReportMessage"></p>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Requests</h3><p id="totalRequests">0</p></div>
+            <div class="summary-card"><h3>Pending</h3><p id="pendingRequests">0</p></div>
+            <div class="summary-card"><h3>Approved</h3><p id="approvedRequests">0</p></div>
+            <div class="summary-card"><h3>Collected</h3><p id="collectedRequests">0</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Rejected</h3><p id="rejectedRequests">0</p></div>
+            <div class="summary-card"><h3>Total Requested Fuel</h3><p><span id="totalRequestedLiter">0</span> L</p></div>
+            <div class="summary-card"><h3>Total Requested Cost</h3><p><span id="totalEstimatedCost">0</span> BDT</p></div>
+            <div class="summary-card"><h3>Total Current Stock</h3><p><span id="totalCurrentStock">0</span> L</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Total Fuel Types</h3><p id="totalFuelTypes">0</p></div>
+            <div class="summary-card"><h3>Total Capacity</h3><p><span id="totalCapacity">0</span> L</p></div>
+            <div class="summary-card"><h3>Available Space</h3><p><span id="availableSpace">0</span> L</p></div>
+            <div class="summary-card"><h3>Total Outages</h3><p id="totalOutages">0</p></div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card"><h3>Ongoing Outages</h3><p id="ongoingOutages">0</p></div>
+            <div class="summary-card"><h3>Scheduled Outages</h3><p id="scheduledOutages">0</p></div>
+            <div class="summary-card"><h3>Restored Outages</h3><p id="restoredOutages">0</p></div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Profile / Operational Status</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Value</th>
+                </tr>
+                </thead>
+                <tbody id="roleStatusBody">
+                <tr><td colspan="2">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Fuel Request Records</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Source</th>
+                    <th>Details</th>
+                    <th>Fuel</th>
+                    <th>Liter</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Pump</th>
+                    <th>Created</th>
+                </tr>
+                </thead>
+                <tbody id="fuelRequestsBody">
+                <tr><td colspan="9">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Pump Stock Records</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Fuel Type</th>
+                    <th>Current Stock</th>
+                    <th>Capacity</th>
+                    <th>Available Space</th>
+                    <th>Updated</th>
+                </tr>
+                </thead>
+                <tbody id="pumpStocksBody">
+                <tr><td colspan="5">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Power Outage Records</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Provider</th>
+                    <th>City Corporation</th>
+                    <th>Thana</th>
+                    <th>Cause</th>
+                    <th>Status</th>
+                    <th>Expected Restore</th>
+                </tr>
+                </thead>
+                <tbody id="powerOutagesBody">
+                <tr><td colspan="7">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Audit Logs</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody id="auditLogsBody">
+                <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/auth-guard.js"></script>
+<script src="js/role-reports-audit.js"></script>
+
+</body>
+</html>

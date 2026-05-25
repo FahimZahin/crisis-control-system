@@ -44,33 +44,26 @@
         "reports-audit.html": [
             "ADMIN",
             "GOVERNMENT_AUTHORITY",
-            "LOCAL_AUTHORITY",
-            "PUMP_AUTHORITY",
-            "UTILITY_AUTHORITY",
-            "HOSPITAL_AUTHORITY",
-            "BUILDING_MANAGER",
-            "EMERGENCY_VEHICLE_AUTHORITY"
+            "LOCAL_AUTHORITY"
         ],
 
         "fuel-report-details.html": [
             "ADMIN",
             "GOVERNMENT_AUTHORITY",
-            "LOCAL_AUTHORITY",
-            "PUMP_AUTHORITY",
-            "HOSPITAL_AUTHORITY",
-            "BUILDING_MANAGER",
-            "EMERGENCY_VEHICLE_AUTHORITY"
+            "LOCAL_AUTHORITY"
         ],
 
         "utility-report-details.html": [
             "ADMIN",
             "GOVERNMENT_AUTHORITY",
-            "LOCAL_AUTHORITY",
-            "UTILITY_AUTHORITY",
-            "HOSPITAL_AUTHORITY",
-            "BUILDING_MANAGER",
-            "EMERGENCY_VEHICLE_AUTHORITY"
+            "LOCAL_AUTHORITY"
         ],
+
+        "pump-reports-audit.html": ["PUMP_AUTHORITY"],
+        "utility-reports-audit.html": ["UTILITY_AUTHORITY"],
+        "hospital-reports-audit.html": ["HOSPITAL_AUTHORITY"],
+        "building-reports-audit.html": ["BUILDING_MANAGER"],
+        "emergency-reports-audit.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
 
         "profile.html": [
             "ADMIN",
