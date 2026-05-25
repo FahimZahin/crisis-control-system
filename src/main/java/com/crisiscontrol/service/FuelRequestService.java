@@ -1,5 +1,6 @@
 package com.crisiscontrol.service;
 
+import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.dto.EmergencyFuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
@@ -30,7 +31,6 @@ import com.crisiscontrol.repository.PumpFuelStockRepository;
 import com.crisiscontrol.repository.PumpProfileRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.VehicleRepository;
-import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,6 +94,7 @@ public class FuelRequestService {
 
         BigDecimal availableRangeFromSavedFuel = currentFuelLiter.multiply(effectiveMileage);
         BigDecimal estimatedRemainingRange = availableRangeFromSavedFuel.subtract(distanceTravelled);
+
         BigDecimal tankCapacity = vehicle.getTankCapacity() == null
                 ? BigDecimal.ZERO
                 : vehicle.getTankCapacity();
@@ -302,7 +303,6 @@ public class FuelRequestService {
         return mapToResponse(fuelRequestRepository.save(savedRequest));
     }
 
-
     public FuelRequestResponse createHospitalGeneratorFuelRequest(HospitalGeneratorFuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -317,6 +317,7 @@ public class FuelRequestService {
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
         BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+
         Double dieselTankCapacity = user.getHospitalDieselTankCapacity();
         Double currentDieselReserve = user.getHospitalCurrentDieselReserve();
 
@@ -344,7 +345,7 @@ public class FuelRequestService {
 
         PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
 
-        FuelRequestStatus status = FuelRequestStatus.PENDING; // Always PENDING for admin approval
+        FuelRequestStatus status = FuelRequestStatus.PENDING;
         String adminNote = "Hospital diesel request received. Waiting for admin approval.";
 
         if ("CRITICAL".equals(user.getHospitalDieselStatus()) && assignedPump != null) {
@@ -445,7 +446,8 @@ public class FuelRequestService {
                 .buildingGeneratorPower(valueOrDefault(
                         request.getBuildingGeneratorPower(),
                         user.getGeneratorPower() == null ? "0.0" : String.format("%.2f", user.getGeneratorPower())
-                ))              .buildingNumberOfFlats(user.getNumberOfFlats())
+                ))
+                .buildingNumberOfFlats(user.getNumberOfFlats())
                 .buildingReason(request.getReason())
                 .buildingContactNumber(request.getContactNumber())
                 .pricePerUnit(dieselPrice.getPricePerUnit())
@@ -503,6 +505,10 @@ public class FuelRequestService {
             throw new RuntimeException("Selected pump does not have enough " + fuelRequest.getFuelType() + " stock");
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
+            validateHospitalDieselSpaceBeforeCollection(fuelRequest);
+        }
+
         fuelRequest.setPumpProfile(pumpProfile);
         fuelRequest.setRequestStatus(FuelRequestStatus.APPROVED);
         fuelRequest.setCollectionCode(generateCollectionCode(fuelRequest));
@@ -549,7 +555,8 @@ public class FuelRequestService {
                 "Fuel request rejected. Note: " + savedRequest.getAdminNote()
         );
 
-        return mapToResponse(savedRequest);    }
+        return mapToResponse(savedRequest);
+    }
 
     @Transactional
     public FuelRequestResponse collectFuelByCode(FuelCollectionRequest request) {
@@ -588,6 +595,10 @@ public class FuelRequestService {
             validateAndUpdateVehicleOdometerAfterCollection(fuelRequest, request);
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
+            validateHospitalDieselSpaceBeforeCollection(fuelRequest);
+        }
+
         BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
         pumpFuelStock.setCurrentStock(updatedStock);
         pumpFuelStockRepository.save(pumpFuelStock);
@@ -615,7 +626,8 @@ public class FuelRequestService {
                         + savedRequest.getCollectionCode()
         );
 
-        return mapToResponse(savedRequest);    }
+        return mapToResponse(savedRequest);
+    }
 
     private void validateAndUpdateVehicleOdometerAfterCollection(
             FuelRequest fuelRequest,
@@ -653,6 +665,7 @@ public class FuelRequestService {
         fuelRequest.setCollectionOdometerReading(request.getCurrentOdometerReading());
 
         vehicle.setOdometerReading(request.getCurrentOdometerReading());
+
         BigDecimal updatedVehicleFuel = vehicle.getCurrentFuelLiter() == null
                 ? fuelRequest.getRequestedLiter()
                 : vehicle.getCurrentFuelLiter().add(fuelRequest.getRequestedLiter());
@@ -662,12 +675,50 @@ public class FuelRequestService {
         }
 
         vehicle.setCurrentFuelLiter(updatedVehicleFuel);
-
         vehicleRepository.save(vehicle);
+    }
+
+    private void validateHospitalDieselSpaceBeforeCollection(FuelRequest fuelRequest) {
+        User hospitalUser = fuelRequest.getUser();
+
+        if (hospitalUser == null) {
+            throw new RuntimeException("Hospital user information not found for this request");
+        }
+
+        Double dieselTankCapacity = hospitalUser.getHospitalDieselTankCapacity();
+
+        if (dieselTankCapacity == null || dieselTankCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel tank capacity is not configured");
+        }
+
+        Double currentReserve = hospitalUser.getHospitalCurrentDieselReserve();
+
+        if (currentReserve == null) {
+            currentReserve = 0.0;
+        }
+
+        double requestedDiesel = fuelRequest.getRequestedLiter().doubleValue();
+        double availableSpace = dieselTankCapacity - currentReserve;
+
+        if (availableSpace <= 0) {
+            throw new RuntimeException("Hospital diesel tank is already full. Collection is not allowed.");
+        }
+
+        if (requestedDiesel > availableSpace) {
+            throw new RuntimeException(
+                    "Collection cannot be completed. Requested diesel is greater than hospital available tank space. Available space: "
+                            + Math.round(availableSpace * 100.0) / 100.0
+                            + " L"
+            );
+        }
     }
 
     private void updateHospitalDieselReserveAfterCollection(FuelRequest fuelRequest) {
         User hospitalUser = fuelRequest.getUser();
+
+        if (hospitalUser == null) {
+            throw new RuntimeException("Hospital user information not found for this request");
+        }
 
         Double currentReserve = hospitalUser.getHospitalCurrentDieselReserve();
 
@@ -709,7 +760,7 @@ public class FuelRequestService {
             totalCapacity = totalCapacity.add(stock.getFuelCapacity());
             totalCurrentStock = totalCurrentStock.add(stock.getCurrentStock());
 
-            if (!fuelTypesBuilder.isEmpty()) {
+            if (fuelTypesBuilder.length() > 0) {
                 fuelTypesBuilder.append(",");
             }
 
@@ -759,7 +810,6 @@ public class FuelRequestService {
         }
 
         return "CCS-FUEL-REQ-" + fuelRequest.getId();
-
     }
 
     private boolean isLowFuel(String fuelLevelStatus) {
@@ -864,13 +914,11 @@ public class FuelRequestService {
                 .createdAt(fuelRequest.getCreatedAt())
                 .updatedAt(fuelRequest.getUpdatedAt())
                 .build();
-
     }
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
-
 
     private String valueOrDefault(String value, String defaultValue) {
         if (value == null || value.trim().isEmpty()) {
@@ -879,7 +927,6 @@ public class FuelRequestService {
 
         return value;
     }
-
 
     private String valueOrDash(String value) {
         if (value == null || value.trim().isEmpty()) {
@@ -974,6 +1021,4 @@ public class FuelRequestService {
                 + reason
                 + ". Admin approval is required.";
     }
-
 }
-
