@@ -40,7 +40,15 @@ async function loadRoleReport() {
     }
 
     try {
-        const response = await fetch("http://localhost:8081/api/reports/role/" + reportType + "/" + userId + "?time=" + Date.now());
+        const response = await fetch(
+            "http://localhost:8081/api/reports/role/" +
+            reportType +
+            "/" +
+            userId +
+            "?time=" +
+            Date.now()
+        );
+
         const data = await response.json();
 
         if (!response.ok) {
@@ -49,8 +57,8 @@ async function loadRoleReport() {
         }
 
         renderHeader(data);
-        renderSummary(data);
-        controlVisibleSections(reportType);
+        renderSummary(data, reportType);
+        controlVisibleSections(reportType, data);
         renderStatusBox(data);
         renderFuelRequests(data.fuelRequests || []);
         renderPumpStocks(data.pumpStocks || []);
@@ -69,10 +77,11 @@ function renderHeader(data) {
     setText("roleReportSubtitle", data.subtitle || "Role-specific report records.");
 }
 
-function renderSummary(data) {
+function renderSummary(data, reportType) {
     const summary = data.summary || {};
     const stockSummary = data.stockSummary || {};
     const outageSummary = data.outageSummary || {};
+    const hospitalStatus = data.hospitalStatus || null;
 
     setText("totalRequests", summary.totalRequests || 0);
     setText("pendingRequests", summary.pendingRequests || 0);
@@ -82,13 +91,17 @@ function renderSummary(data) {
     setText("totalRequestedLiter", formatNumber(summary.totalRequestedLiter));
     setText("totalEstimatedCost", formatNumber(summary.totalEstimatedCost));
 
-    const hospitalStatus = data.hospitalStatus || null;
-
     if (hospitalStatus) {
-        setText("totalFuelTypes", 0);
         setText("totalCurrentStock", formatNumber(hospitalStatus.currentDieselReserve));
         setText("totalCapacity", formatNumber(hospitalStatus.totalDieselCapacity));
         setText("availableSpace", formatNumber(hospitalStatus.availableDieselSpace));
+
+        /*
+         * Hospital does not need Total Fuel Types.
+         * To keep the 4-card layout without empty space,
+         * we reuse that card position for Ongoing Outages.
+         */
+        setText("totalFuelTypes", outageSummary.ongoingOutages || 0);
     } else {
         setText("totalFuelTypes", stockSummary.totalFuelTypes || 0);
         setText("totalCurrentStock", formatNumber(stockSummary.totalCurrentStock));
@@ -260,6 +273,102 @@ function renderAuditLogs(logs) {
     });
 }
 
+function controlVisibleSections(reportType, data) {
+    const pumpStockSection = document.getElementById("pumpStockSection");
+    const powerOutageSection = document.getElementById("powerOutageSection");
+
+    const totalFuelTypesCard = document.getElementById("totalFuelTypesCard");
+    const totalCurrentStockTitle = document.getElementById("totalCurrentStockTitle");
+    const totalCapacityTitle = document.getElementById("totalCapacityTitle");
+    const availableSpaceTitle = document.getElementById("availableSpaceTitle");
+
+    const originalOngoingOutageCard = getSummaryCardByValueId("ongoingOutages");
+
+    if (pumpStockSection) {
+        pumpStockSection.style.display = reportType === "pump" ? "block" : "none";
+    }
+
+    if (powerOutageSection) {
+        const showOutageSection =
+            reportType === "utility" ||
+            reportType === "hospital" ||
+            reportType === "building" ||
+            reportType === "emergency";
+
+        powerOutageSection.style.display = showOutageSection ? "block" : "none";
+    }
+
+    /*
+     * Important:
+     * Do not add hospital-summary-grid or change grid columns.
+     * Keep the original 4-column layout.
+     */
+
+    if (reportType === "hospital") {
+        if (totalFuelTypesCard) {
+            totalFuelTypesCard.style.display = "block";
+
+            const title = totalFuelTypesCard.querySelector("h3");
+            if (title) {
+                title.innerText = "Ongoing Outages";
+            }
+        }
+
+        if (originalOngoingOutageCard) {
+            originalOngoingOutageCard.style.display = "none";
+        }
+
+        if (totalCurrentStockTitle) {
+            totalCurrentStockTitle.innerText = "Current Diesel Reserve";
+        }
+
+        if (totalCapacityTitle) {
+            totalCapacityTitle.innerText = "Total Diesel Capacity";
+        }
+
+        if (availableSpaceTitle) {
+            availableSpaceTitle.innerText = "Available Diesel Space";
+        }
+
+        return;
+    }
+
+    if (totalFuelTypesCard) {
+        totalFuelTypesCard.style.display = "block";
+
+        const title = totalFuelTypesCard.querySelector("h3");
+        if (title) {
+            title.innerText = "Total Fuel Types";
+        }
+    }
+
+    if (originalOngoingOutageCard) {
+        originalOngoingOutageCard.style.display = "block";
+    }
+
+    if (totalCurrentStockTitle) {
+        totalCurrentStockTitle.innerText = "Total Current Stock";
+    }
+
+    if (totalCapacityTitle) {
+        totalCapacityTitle.innerText = "Total Capacity";
+    }
+
+    if (availableSpaceTitle) {
+        availableSpaceTitle.innerText = "Available Space";
+    }
+}
+
+function getSummaryCardByValueId(valueId) {
+    const valueElement = document.getElementById(valueId);
+
+    if (!valueElement) {
+        return null;
+    }
+
+    return valueElement.closest(".summary-card");
+}
+
 function getCurrentPage() {
     const path = window.location.pathname;
     return path.substring(path.lastIndexOf("/") + 1);
@@ -352,38 +461,4 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
-}
-
-function controlVisibleSections(reportType) {
-    const pumpStockSection = document.getElementById("pumpStockSection");
-    const powerOutageSection = document.getElementById("powerOutageSection");
-
-    const totalFuelTypesCard = document.getElementById("totalFuelTypesCard");
-    const totalCurrentStockTitle = document.getElementById("totalCurrentStockTitle");
-    const totalCapacityTitle = document.getElementById("totalCapacityTitle");
-    const availableSpaceTitle = document.getElementById("availableSpaceTitle");
-
-    if (pumpStockSection) {
-        pumpStockSection.style.display = reportType === "pump" ? "block" : "none";
-    }
-
-    if (powerOutageSection) {
-        const showOutageSection =
-            reportType === "utility" ||
-            reportType === "hospital" ||
-            reportType === "building" ||
-            reportType === "emergency";
-
-        powerOutageSection.style.display = showOutageSection ? "block" : "none";
-    }
-
-    if (totalFuelTypesCard) {
-        totalFuelTypesCard.style.display = reportType === "hospital" ? "none" : "block";
-    }
-
-    if (reportType === "hospital") {
-        if (totalCurrentStockTitle) totalCurrentStockTitle.innerText = "Current Diesel Reserve";
-        if (totalCapacityTitle) totalCapacityTitle.innerText = "Total Diesel Capacity";
-        if (availableSpaceTitle) availableSpaceTitle.innerText = "Available Diesel Space";
-    }
 }
