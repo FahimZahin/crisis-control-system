@@ -283,7 +283,7 @@ function validateSingleField(id) {
         if (id === "hospitalRegistrationNumber") return validateRequired("hospitalRegistrationNumber", data.hospitalRegistrationNumber, "Hospital registration number is required.");
         if (id === "hospitalAddress") return validateRequired("hospitalAddress", data.hospitalAddress, "Hospital address is required.");
         if (id === "hospitalUnderThana") return validateRequired("hospitalUnderThana", data.hospitalUnderThana, "Hospital thana is required.");
-        if (id === "hospitalGeneratorCapacity") return validatePositiveNumber("hospitalGeneratorCapacity", Number(data.hospitalGeneratorCapacity), "Generator capacity must be greater than 0.");
+        if (id === "hospitalGeneratorCapacity") return validateHospitalDieselCapacity(data.hospitalGeneratorCapacity);
         if (id === "hospitalCurrentDieselReserve") {
             if (data.hospitalCurrentDieselReserve === null || data.hospitalCurrentDieselReserve < 0) {
                 setFieldError("hospitalCurrentDieselReserve", "Diesel reserve cannot be negative.");
@@ -293,6 +293,14 @@ function validateSingleField(id) {
             clearFieldError("hospitalCurrentDieselReserve");
             markValidById("hospitalCurrentDieselReserve");
             return true;
+        }
+        if (
+            data.hospitalGeneratorCapacity !== null &&
+            data.hospitalCurrentDieselReserve !== null &&
+            Number(data.hospitalCurrentDieselReserve) > Number(data.hospitalGeneratorCapacity)
+        ) {
+            setFieldError("hospitalCurrentDieselReserve", "Current diesel reserve cannot be greater than diesel capacity.");
+            isValid = false;
         }
         if (id === "emergencyContactNumber") return validatePhoneField("emergencyContactNumber", data.emergencyContactNumber, "Emergency contact must be exactly 11 digits.");
     }
@@ -601,7 +609,9 @@ function validateFrontendData(data, showGlobalMessage) {
         if (!validateRequired("hospitalRegistrationNumber", data.hospitalRegistrationNumber, "Hospital registration number is required.")) isValid = false;
         if (!validateRequired("hospitalAddress", data.hospitalAddress, "Hospital address is required.")) isValid = false;
         if (!validateRequired("hospitalUnderThana", data.hospitalUnderThana, "Hospital thana is required.")) isValid = false;
-        if (!validatePositiveNumber("hospitalGeneratorCapacity", Number(data.hospitalGeneratorCapacity), "Generator capacity must be greater than 0.")) isValid = false;
+        if (!validateHospitalDieselCapacity(data.hospitalGeneratorCapacity)) {
+            isValid = false;
+        }
 
         if (data.hospitalCurrentDieselReserve === null || data.hospitalCurrentDieselReserve < 0) {
             setFieldError("hospitalCurrentDieselReserve", "Diesel reserve cannot be negative.");
@@ -858,4 +868,22 @@ function clearMessage() {
     const message = document.getElementById("message");
     message.className = "";
     message.innerText = "";
+}
+
+function validateHospitalDieselCapacity(value) {
+    const capacity = Number(value);
+
+    if (value === null || value === undefined || value === "" || Number.isNaN(capacity) || capacity <= 0) {
+        setFieldError("hospitalGeneratorCapacity", "Hospital diesel capacity is required.");
+        return false;
+    }
+
+    if (capacity > 1000) {
+        setFieldError("hospitalGeneratorCapacity", "Hospital diesel capacity cannot be more than 1000 L.");
+        return false;
+    }
+
+    clearFieldError("hospitalGeneratorCapacity");
+    markValidById("hospitalGeneratorCapacity");
+    return true;
 }

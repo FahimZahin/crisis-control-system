@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private static final String ADMIN_SECRET_CODE = "CCS-ADMIN-2026";
+    private static final double MAX_HOSPITAL_DIESEL_CAPACITY = 1000.0;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,6 +33,11 @@ public class AuthService {
                 request.getServiceArea(),
                 request.getAssignedArea(),
                 request.getDistrict()
+        );
+
+        Double hospitalDieselCapacity = parseDoubleValue(
+                request.getHospitalGeneratorCapacity(),
+                "Hospital diesel capacity must be a valid number"
         );
 
         User user = User.builder()
@@ -73,11 +79,7 @@ public class AuthService {
                                 ? emptyToNull(resolvedThana)
                                 : emptyToNull(request.getHospitalUnderThana())
                 )
-                .hospitalGeneratorCapacity(
-                        request.getHospitalGeneratorCapacity() == null || request.getHospitalGeneratorCapacity().trim().isEmpty()
-                                ? 0.0
-                                : parsePowerValue(request.getHospitalGeneratorCapacity())
-                )
+                .hospitalGeneratorCapacity(hospitalDieselCapacity == null ? 0.0 : hospitalDieselCapacity)
                 .hospitalCurrentDieselReserve(request.getHospitalCurrentDieselReserve())
                 .emergencyContactNumber(emptyToNull(request.getEmergencyContactNumber()))
                 .totalIcuUnits(request.getTotalIcuUnits())
@@ -120,26 +122,25 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-            validateLoginFields(request);
+        validateLoginFields(request);
 
-            User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
-                    .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
+        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
 
-            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                throw new RuntimeException("Invalid phone number or password");
-            }
-
-            if (user.getStatus() == UserStatus.BLOCKED) {
-                throw new RuntimeException("User account is blocked");
-            }
-
-            if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
-                user = hospitalSupportCalculationService.recalculateAndSave(user);
-            }
-
-            return buildAuthResponse("Login successful", user);
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Invalid phone number or password");
         }
 
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("User account is blocked");
+        }
+
+        if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            user = hospitalSupportCalculationService.recalculateAndSave(user);
+        }
+
+        return buildAuthResponse("Login successful", user);
+    }
 
     private void validateCommonFields(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -167,8 +168,7 @@ public class AuthService {
         Role role = request.getRole();
 
         if ((role == Role.HOSPITAL_AUTHORITY || role == Role.BUILDING_MANAGER || role == Role.PUMP_AUTHORITY)
-                && isBlank(request.getThanaOrUpazila())
-        ) {
+                && isBlank(request.getThanaOrUpazila())) {
             throw new RuntimeException("Thana/Upazila is required for role: " + role);
         }
 
@@ -288,21 +288,39 @@ public class AuthService {
             throw new RuntimeException("Hospital under thana is required for hospital authority");
         }
 
-        if (isBlank(request.getHospitalGeneratorCapacity())) {
-            throw new RuntimeException("Hospital generator capacity is required for hospital authority");
+        Double hospitalDieselCapacity = parseDoubleValue(
+                request.getHospitalGeneratorCapacity(),
+                "Hospital diesel capacity must be a valid number"
+        );
+
+        if (hospitalDieselCapacity == null || hospitalDieselCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel capacity is required");
+        }
+
+        if (hospitalDieselCapacity > MAX_HOSPITAL_DIESEL_CAPACITY) {
+            throw new RuntimeException("Hospital diesel capacity cannot be more than 1000 L");
         }
 
         if (request.getHospitalCurrentDieselReserve() == null || request.getHospitalCurrentDieselReserve() < 0) {
-            throw new RuntimeException("Valid hospital current diesel reserve is required");
+            throw new RuntimeException("Hospital current diesel reserve cannot be negative");
+        }
+
+        if (request.getHospitalCurrentDieselReserve() > hospitalDieselCapacity) {
+            throw new RuntimeException("Hospital current diesel reserve cannot be greater than diesel capacity");
         }
 
         if (isBlank(request.getEmergencyContactNumber())) {
             throw new RuntimeException("Emergency contact number is required for hospital authority");
         }
 
+        if (!request.getEmergencyContactNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Emergency contact number must be exactly 11 digits");
+        }
+
         if (userRepository.existsByHospitalRegistrationNumber(request.getHospitalRegistrationNumber())) {
             throw new RuntimeException("Hospital registration number already registered");
         }
+
         if (request.getTotalIcuUnits() == null || request.getTotalIcuUnits() < 0) {
             throw new RuntimeException("Total ICU units is required for hospital authority");
         }
@@ -546,6 +564,7 @@ public class AuthService {
 
         return null;
     }
+
     private Double parseGeneratorPower(String value) {
         if (value == null || value.trim().isEmpty()) {
             return 0.0;
@@ -554,8 +573,10 @@ public class AuthService {
         String cleanedValue = value.trim()
                 .replace("kVA", "")
                 .replace("KVA", "")
+                .replace("Kva", "")
                 .replace("kw", "")
                 .replace("KW", "")
+                .replace("Kw", "")
                 .replace(" ", "");
 
         return Double.parseDouble(cleanedValue);
@@ -576,6 +597,18 @@ public class AuthService {
                 .replace(" ", "");
 
         return Double.parseDouble(cleanedValue);
+    }
+
+    private Double parseDoubleValue(String value, String errorMessage) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException exception) {
+            throw new RuntimeException(errorMessage);
+        }
     }
 
     private void validateLoginFields(LoginRequest request) {
