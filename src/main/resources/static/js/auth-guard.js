@@ -41,9 +41,36 @@
         "government-dashboard.html": ["GOVERNMENT_AUTHORITY"],
         "local-authority-dashboard.html": ["LOCAL_AUTHORITY"],
 
-        "reports-audit.html": ["ADMIN", "GOVERNMENT_AUTHORITY", "LOCAL_AUTHORITY"],
-        "fuel-report-details.html": ["ADMIN", "GOVERNMENT_AUTHORITY", "LOCAL_AUTHORITY"],
-        "utility-report-details.html": ["ADMIN", "GOVERNMENT_AUTHORITY", "LOCAL_AUTHORITY"],
+        "reports-audit.html": [
+            "ADMIN",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY",
+            "PUMP_AUTHORITY",
+            "UTILITY_AUTHORITY",
+            "HOSPITAL_AUTHORITY",
+            "BUILDING_MANAGER",
+            "EMERGENCY_VEHICLE_AUTHORITY"
+        ],
+
+        "fuel-report-details.html": [
+            "ADMIN",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY",
+            "PUMP_AUTHORITY",
+            "HOSPITAL_AUTHORITY",
+            "BUILDING_MANAGER",
+            "EMERGENCY_VEHICLE_AUTHORITY"
+        ],
+
+        "utility-report-details.html": [
+            "ADMIN",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY",
+            "UTILITY_AUTHORITY",
+            "HOSPITAL_AUTHORITY",
+            "BUILDING_MANAGER",
+            "EMERGENCY_VEHICLE_AUTHORITY"
+        ],
 
         "profile.html": [
             "ADMIN",
