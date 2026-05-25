@@ -193,12 +193,16 @@ public class ReportController {
                 FuelRequestSource.HOSPITAL_GENERATOR
         );
 
+        List<PowerOutageNotice> notices = findOutagesByThana(user.getHospitalUnderThana());
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("title", "Hospital Reports & Audit Logs");
-        response.put("subtitle", "Only your hospital diesel support requests and related records are shown.");
+        response.put("subtitle", "Only your hospital diesel requests, hospital thana outage records, and related audit logs are shown.");
         response.put("summary", buildFuelRequestSummary(requests));
+        response.put("outageSummary", buildPowerOutageSummary(notices));
         response.put("hospitalStatus", buildHospitalStatus(user));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
+        response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
         response.put("auditLogs", getScopedAuditLogs(userId, "HOSPITAL"));
 
         return ResponseEntity.ok(response);
@@ -213,12 +217,16 @@ public class ReportController {
                 FuelRequestSource.BUILDING_GENERATOR
         );
 
+        List<PowerOutageNotice> notices = findOutagesByThana(user.getBuildingUnderThana());
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("title", "Building Reports & Audit Logs");
-        response.put("subtitle", "Only your building generator diesel requests and related records are shown.");
+        response.put("subtitle", "Only your building generator requests, building thana outage records, and related audit logs are shown.");
         response.put("summary", buildFuelRequestSummary(requests));
+        response.put("outageSummary", buildPowerOutageSummary(notices));
         response.put("buildingStatus", buildBuildingStatus(user));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
+        response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
         response.put("auditLogs", getScopedAuditLogs(userId, "BUILDING"));
 
         return ResponseEntity.ok(response);
@@ -280,8 +288,11 @@ public class ReportController {
         Map<String, Object> summary = new LinkedHashMap<>();
 
         summary.put("totalRequests", requests.size());
-        summary.put("pendingRequests", countStatus(requests, FuelRequestStatus.PENDING));
-        summary.put("approvedRequests", countStatus(requests, FuelRequestStatus.APPROVED));
+        long approvedRequests = countStatus(requests, FuelRequestStatus.APPROVED);
+        long collectedRequests = countStatus(requests, FuelRequestStatus.COLLECTED);
+
+        summary.put("approvedRequests", approvedRequests + collectedRequests);
+        summary.put("collectedRequests", collectedRequests);
         summary.put("collectedRequests", countStatus(requests, FuelRequestStatus.COLLECTED));
         summary.put("rejectedRequests", countStatus(requests, FuelRequestStatus.REJECTED));
         summary.put("totalRequestedLiter", calculateTotalLiter(requests));
@@ -324,9 +335,25 @@ public class ReportController {
     private Map<String, Object> buildHospitalStatus(User user) {
         Map<String, Object> map = new LinkedHashMap<>();
 
+        Double totalDieselCapacity = user.getHospitalGeneratorCapacity() == null
+                ? 0.0
+                : user.getHospitalGeneratorCapacity();
+
+        Double currentDieselReserve = user.getHospitalCurrentDieselReserve() == null
+                ? 0.0
+                : user.getHospitalCurrentDieselReserve();
+
+        double availableSpace = totalDieselCapacity - currentDieselReserve;
+
+        if (availableSpace < 0) {
+            availableSpace = 0.0;
+        }
+
         map.put("hospitalName", valueOrDash(user.getHospitalName()));
         map.put("hospitalUnderThana", valueOrDash(user.getHospitalUnderThana()));
-        map.put("dieselReserve", user.getHospitalCurrentDieselReserve());
+        map.put("totalDieselCapacity", roundTwoDecimal(totalDieselCapacity));
+        map.put("currentDieselReserve", roundTwoDecimal(currentDieselReserve));
+        map.put("availableDieselSpace", roundTwoDecimal(availableSpace));
         map.put("backupHours", user.getHospitalEstimatedBackupHours());
         map.put("dieselStatus", valueOrDash(user.getHospitalDieselStatus()));
 
@@ -475,6 +502,14 @@ public class ReportController {
         return value.toLowerCase().contains(keyword.toLowerCase());
     }
 
+
+    private double roundTwoDecimal(Double value) {
+        if (value == null) {
+            return 0.0;
+        }
+
+        return Math.round(value * 100.0) / 100.0;
+    }
     private String valueOrDash(String value) {
         if (value == null || value.trim().isEmpty()) {
             return "-";
@@ -488,7 +523,31 @@ public class ReportController {
                 .filter(request -> request.getRequestStatus() == status)
                 .count();
     }
+    private List<PowerOutageNotice> findOutagesByThana(String thanaName) {
+        if (thanaName == null || thanaName.trim().isEmpty()) {
+            return List.of();
+        }
 
+        String normalizedThana = normalizeText(thanaName);
+
+        return powerOutageRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .filter(notice -> normalizeText(notice.getThanaName()).equals(normalizedThana))
+                .toList();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .toLowerCase()
+                .replace("_", "")
+                .replace("-", "")
+                .replace(" ", "")
+                .trim();
+    }
     private long countSource(List<FuelRequest> requests, FuelRequestSource source) {
         return requests.stream()
                 .filter(request -> request.getRequestSource() == source)

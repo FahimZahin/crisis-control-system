@@ -41,13 +41,27 @@
             <div class="summary-card"><h3>Rejected</h3><p id="rejectedRequests">0</p></div>
             <div class="summary-card"><h3>Total Requested Fuel</h3><p><span id="totalRequestedLiter">0</span> L</p></div>
             <div class="summary-card"><h3>Total Requested Cost</h3><p><span id="totalEstimatedCost">0</span> BDT</p></div>
-            <div class="summary-card"><h3>Total Current Stock</h3><p><span id="totalCurrentStock">0</span> L</p></div>
+            <div class="summary-card" id="totalCurrentStockCard">
+                <h3 id="totalCurrentStockTitle">Total Current Stock</h3>
+                <p><span id="totalCurrentStock">0</span> L</p>
+            </div>
         </div>
 
         <div class="role-summary-grid">
-            <div class="summary-card"><h3>Total Fuel Types</h3><p id="totalFuelTypes">0</p></div>
-            <div class="summary-card"><h3>Total Capacity</h3><p><span id="totalCapacity">0</span> L</p></div>
-            <div class="summary-card"><h3>Available Space</h3><p><span id="availableSpace">0</span> L</p></div>
+            <div class="summary-card" id="totalFuelTypesCard">
+                <h3>Total Fuel Types</h3>
+                <p id="totalFuelTypes">0</p>
+            </div>
+
+            <div class="summary-card" id="totalCapacityCard">
+                <h3 id="totalCapacityTitle">Total Capacity</h3>
+                <p><span id="totalCapacity">0</span> L</p>
+            </div>
+
+            <div class="summary-card" id="availableSpaceCard">
+                <h3 id="availableSpaceTitle">Available Space</h3>
+                <p><span id="availableSpace">0</span> L</p>
+            </div>
             <div class="summary-card"><h3>Total Outages</h3><p id="totalOutages">0</p></div>
         </div>
 
@@ -99,7 +113,7 @@
         </div>
     </div>
 
-    <div class="role-dashboard-section">
+    <div class="role-dashboard-section" id="pumpStockSection">
         <h2>Pump Stock Records</h2>
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -119,7 +133,7 @@
         </div>
     </div>
 
-    <div class="role-dashboard-section">
+    <div class="role-dashboard-section" id="powerOutageSection">
         <h2>Power Outage Records</h2>
         <div class="table-wrapper">
             <table class="admin-users-table">
