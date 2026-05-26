@@ -287,14 +287,23 @@ public class ReportController {
     private Map<String, Object> buildFuelRequestSummary(List<FuelRequest> requests) {
         Map<String, Object> summary = new LinkedHashMap<>();
 
-        summary.put("totalRequests", requests.size());
-        long approvedRequests = countStatus(requests, FuelRequestStatus.APPROVED);
+        long pendingRequests = countStatus(requests, FuelRequestStatus.PENDING);
+        long approvedOnlyRequests = countStatus(requests, FuelRequestStatus.APPROVED);
         long collectedRequests = countStatus(requests, FuelRequestStatus.COLLECTED);
+        long rejectedRequests = countStatus(requests, FuelRequestStatus.REJECTED);
 
-        summary.put("approvedRequests", approvedRequests + collectedRequests);
+        /*
+         * Business meaning:
+         * Approved = currently approved + already collected.
+         * Because every collected request was approved before collection.
+         */
+        long totalApprovedRequests = approvedOnlyRequests + collectedRequests;
+
+        summary.put("totalRequests", requests.size());
+        summary.put("pendingRequests", pendingRequests);
+        summary.put("approvedRequests", totalApprovedRequests);
         summary.put("collectedRequests", collectedRequests);
-        summary.put("collectedRequests", countStatus(requests, FuelRequestStatus.COLLECTED));
-        summary.put("rejectedRequests", countStatus(requests, FuelRequestStatus.REJECTED));
+        summary.put("rejectedRequests", rejectedRequests);
         summary.put("totalRequestedLiter", calculateTotalLiter(requests));
         summary.put("totalEstimatedCost", calculateTotalCost(requests));
 
@@ -335,9 +344,9 @@ public class ReportController {
     private Map<String, Object> buildHospitalStatus(User user) {
         Map<String, Object> map = new LinkedHashMap<>();
 
-        Double totalDieselCapacity = user.getHospitalGeneratorCapacity() == null
+        Double totalDieselCapacity = user.getHospitalDieselTankCapacity() == null
                 ? 0.0
-                : user.getHospitalGeneratorCapacity();
+                : user.getHospitalDieselTankCapacity();
 
         Double currentDieselReserve = user.getHospitalCurrentDieselReserve() == null
                 ? 0.0
