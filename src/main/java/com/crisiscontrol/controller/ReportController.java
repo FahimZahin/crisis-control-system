@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.crisiscontrol.repository.PumpProfileRepository;
-import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Comparator;
 
 import java.math.BigDecimal;
@@ -179,7 +180,10 @@ public class ReportController {
         response.put("stockSummary", buildPumpStockSummary(stocks));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
         response.put("pumpStocks", stocks.stream().map(this::mapPumpStock).toList());
-        response.put("auditLogs", getScopedAuditLogs(userId, "FUEL"));
+        response.put(
+                "auditLogs",
+                getScopedAuditLogs(userId, requests, List.of(), stocks, pumpProfile)
+        );
 
         return ResponseEntity.ok(response);
     }
@@ -203,7 +207,10 @@ public class ReportController {
         response.put("hospitalStatus", buildHospitalStatus(user));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
-        response.put("auditLogs", getScopedAuditLogs(userId, "HOSPITAL"));
+        response.put(
+                "auditLogs",
+                getScopedAuditLogs(userId, requests, notices, List.of(), null)
+        );
 
         return ResponseEntity.ok(response);
     }
@@ -227,7 +234,10 @@ public class ReportController {
         response.put("buildingStatus", buildBuildingStatus(user));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
-        response.put("auditLogs", getScopedAuditLogs(userId, "BUILDING"));
+        response.put(
+                "auditLogs",
+                getScopedAuditLogs(userId, requests, notices, List.of(), null)
+        );
 
         return ResponseEntity.ok(response);
     }
@@ -247,7 +257,10 @@ public class ReportController {
         response.put("summary", buildFuelRequestSummary(requests));
         response.put("emergencyStatus", buildEmergencyStatus(user));
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
-        response.put("auditLogs", getScopedAuditLogs(userId, "EMERGENCY"));
+        response.put(
+                "auditLogs",
+                getScopedAuditLogs(userId, requests, List.of(), List.of(), null)
+        );
 
         return ResponseEntity.ok(response);
     }
@@ -268,7 +281,10 @@ public class ReportController {
         response.put("utilityStatus", buildUtilityStatus(user));
         response.put("outageSummary", buildPowerOutageSummary(notices));
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
-        response.put("auditLogs", getScopedAuditLogs(userId, "POWER_OUTAGE"));
+        response.put(
+                "auditLogs",
+                getScopedAuditLogs(userId, List.of(), notices, List.of(), null)
+        );
 
         return ResponseEntity.ok(response);
     }
@@ -470,15 +486,50 @@ public class ReportController {
         return map;
     }
 
-    private List<Map<String, Object>> getScopedAuditLogs(Long userId, String keyword) {
+    private List<Map<String, Object>> getScopedAuditLogs(
+            Long userId,
+            List<FuelRequest> scopedFuelRequests,
+            List<PowerOutageNotice> scopedPowerOutages,
+            List<PumpFuelStock> scopedPumpStocks,
+            PumpProfile scopedPumpProfile
+    ) {
+        Set<Long> fuelRequestIds = new HashSet<>();
+        Set<Long> powerOutageIds = new HashSet<>();
+        Set<Long> pumpStockIds = new HashSet<>();
+
+        if (scopedFuelRequests != null) {
+            scopedFuelRequests.stream()
+                    .map(FuelRequest::getId)
+                    .filter(id -> id != null)
+                    .forEach(fuelRequestIds::add);
+        }
+
+        if (scopedPowerOutages != null) {
+            scopedPowerOutages.stream()
+                    .map(PowerOutageNotice::getId)
+                    .filter(id -> id != null)
+                    .forEach(powerOutageIds::add);
+        }
+
+        if (scopedPumpStocks != null) {
+            scopedPumpStocks.stream()
+                    .map(PumpFuelStock::getId)
+                    .filter(id -> id != null)
+                    .forEach(pumpStockIds::add);
+        }
+
+        Long pumpProfileId = scopedPumpProfile == null ? null : scopedPumpProfile.getId();
+
         return auditLogService.getAllLogs()
                 .stream()
-                .filter(log ->
-                        userId.equals(log.getActorUserId())
-                                || containsIgnoreCase(log.getAction(), keyword)
-                                || containsIgnoreCase(log.getEntityType(), keyword)
-                                || containsIgnoreCase(log.getDescription(), keyword)
-                )
+                .filter(log -> isAuditLogAllowedForRoleReport(
+                        log,
+                        userId,
+                        fuelRequestIds,
+                        powerOutageIds,
+                        pumpStockIds,
+                        pumpProfileId
+                ))
                 .sorted(Comparator.comparing(
                         AuditLog::getCreatedAt,
                         Comparator.nullsLast(Comparator.reverseOrder())
@@ -486,6 +537,83 @@ public class ReportController {
                 .limit(30)
                 .map(this::mapAuditLog)
                 .toList();
+    }
+
+    private boolean isAuditLogAllowedForRoleReport(
+            AuditLog log,
+            Long userId,
+            Set<Long> fuelRequestIds,
+            Set<Long> powerOutageIds,
+            Set<Long> pumpStockIds,
+            Long pumpProfileId
+    ) {
+        if (log == null) {
+            return false;
+        }
+
+        if (userId != null && userId.equals(log.getActorUserId())) {
+            return true;
+        }
+
+        String entityType = normalizeEntityType(log.getEntityType());
+        Long entityId = log.getEntityId();
+
+        if (entityId == null) {
+            return false;
+        }
+
+        if (isFuelRequestEntity(entityType) && fuelRequestIds.contains(entityId)) {
+            return true;
+        }
+
+        if (isPowerOutageEntity(entityType) && powerOutageIds.contains(entityId)) {
+            return true;
+        }
+
+        if (isPumpStockEntity(entityType) && pumpStockIds.contains(entityId)) {
+            return true;
+        }
+
+        if (isPumpProfileEntity(entityType) && pumpProfileId != null && pumpProfileId.equals(entityId)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private String normalizeEntityType(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .trim()
+                .toUpperCase()
+                .replace("-", "_")
+                .replace(" ", "_");
+    }
+
+    private boolean isFuelRequestEntity(String entityType) {
+        return "FUEL_REQUEST".equals(entityType)
+                || "FUEL_REQUESTS".equals(entityType);
+    }
+
+    private boolean isPowerOutageEntity(String entityType) {
+        return "POWER_OUTAGE".equals(entityType)
+                || "POWER_OUTAGE_NOTICE".equals(entityType)
+                || "POWER_OUTAGE_NOTICES".equals(entityType)
+                || "UTILITY_OUTAGE".equals(entityType);
+    }
+
+    private boolean isPumpStockEntity(String entityType) {
+        return "PUMP_FUEL_STOCK".equals(entityType)
+                || "PUMP_STOCK".equals(entityType)
+                || "FUEL_STOCK".equals(entityType);
+    }
+
+    private boolean isPumpProfileEntity(String entityType) {
+        return "PUMP_PROFILE".equals(entityType)
+                || "PUMP".equals(entityType);
     }
 
     private Map<String, Object> mapAuditLog(AuditLog log) {
@@ -502,15 +630,6 @@ public class ReportController {
 
         return map;
     }
-
-    private boolean containsIgnoreCase(String value, String keyword) {
-        if (value == null || keyword == null) {
-            return false;
-        }
-
-        return value.toLowerCase().contains(keyword.toLowerCase());
-    }
-
 
     private double roundTwoDecimal(Double value) {
         if (value == null) {
