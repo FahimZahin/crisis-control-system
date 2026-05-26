@@ -21,6 +21,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
+    private final AuthTokenService authTokenService;
 
     public AuthResponse register(RegisterRequest request) {
         validateCommonFields(request);
@@ -134,11 +135,18 @@ public class AuthService {
             throw new RuntimeException("User account is blocked");
         }
 
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("User account is inactive. Please request activation.");
+        }
+
         if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
             user = hospitalSupportCalculationService.recalculateAndSave(user);
         }
 
-        return buildAuthResponse("Login successful", user);
+        AuthResponse response = buildAuthResponse("Login successful", user);
+        response.setToken(authTokenService.createToken(user));
+
+        return response;
     }
 
     private void validateCommonFields(RegisterRequest request) {
@@ -462,6 +470,7 @@ public class AuthService {
         );
 
         return AuthResponse.builder()
+                .token(null)
                 .message(message)
                 .userId(user.getId())
                 .fullName(user.getFullName())

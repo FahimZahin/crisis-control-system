@@ -1,5 +1,7 @@
 package com.crisiscontrol.config;
 
+import com.crisiscontrol.security.ApiAuthFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -8,10 +10,14 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final ApiAuthFilter apiAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -20,54 +26,20 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
+                .addFilterBefore(apiAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
                                 "/index.html",
                                 "/login.html",
                                 "/register.html",
-                                "/dashboard.html",
-
-                                "/vehicle-owner-dashboard.html",
-                                "/admin-dashboard.html",
-                                "/pump-authority-dashboard.html",
-                                "/emergency-vehicle-dashboard.html",
-                                "/utility-authority-dashboard.html",
-                                "/hospital-authority-dashboard.html",
-                                "/building-manager-dashboard.html",
-                                "/government-dashboard.html",
-                                "/local-authority-dashboard.html",
-
-                                "/profile.html",
-                                "/profile-setup.html",
-
-                                "/registered-users.html",
-                                "/admin-fuel-settings.html",
-                                "/admin-fuel-requests.html",
-                                "/admin-emergency-vehicles.html",
-
-                                "/fuel-request.html",
-                                "/fuel-request-history.html",
-
-                                "/pump-stock-management.html",
-                                "/pump-fuel-requests.html",
-
-                                "/emergency-vehicle-setup.html",
-                                "/emergency-fuel-request.html",
-                                "/emergency-fuel-request-history.html",
-
-                                "/utility-profile-setup.html",
-                                "/utility-outage-management.html",
-                                "/power-outage-notices.html",
-
-                                "/hospital-generator-request.html",
-                                "/hospital-generator-request-history.html",
-
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
-                                "/api/**"
+                                "/api/auth/register",
+                                "/api/auth/login"
                         ).permitAll()
+                        .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 );
 

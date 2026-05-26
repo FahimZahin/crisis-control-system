@@ -68,6 +68,10 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             result.thanaOrUpazila = resolvedThana;
             result.loginTime = new Date().toISOString();
 
+            if (result.token) {
+                localStorage.setItem("authToken", result.token);
+            }
+
             if (result.role === "BUILDING_MANAGER") {
                 result.buildingUnderThana = firstValidValue(result.buildingUnderThana, resolvedThana);
             }
