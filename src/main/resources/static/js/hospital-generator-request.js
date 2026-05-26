@@ -133,6 +133,18 @@ function fillHospitalData() {
     const dieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
     const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
     const availableDieselSpace = Math.max(0, dieselTankCapacity - currentDieselReserve);
+    setTextIfExists(
+        "availableDieselSpaceHint",
+        dieselTankCapacity > 0
+            ? "Maximum request allowed now: " + availableDieselSpace.toFixed(2) + " L"
+            : "Hospital diesel tank capacity is not configured."
+    );
+
+    const requiredDieselInput = document.getElementById("requiredDieselLiter");
+
+    if (requiredDieselInput && dieselTankCapacity > 0) {
+        requiredDieselInput.max = availableDieselSpace.toFixed(2);
+    }
     const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
     const dieselStatus = resolveDieselStatus(backupHours);
     const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
