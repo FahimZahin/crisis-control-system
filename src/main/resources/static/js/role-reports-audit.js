@@ -284,6 +284,19 @@ function controlVisibleSections(reportType, data) {
 
     const originalOngoingOutageCard = getSummaryCardByValueId("ongoingOutages");
 
+    const outageCards = [
+        getSummaryCardByValueId("totalOutages"),
+        getSummaryCardByValueId("ongoingOutages"),
+        getSummaryCardByValueId("scheduledOutages"),
+        getSummaryCardByValueId("restoredOutages")
+    ];
+
+    outageCards.forEach(function (card) {
+        if (card) {
+            card.style.display = reportType === "emergency" ? "none" : "block";
+        }
+    });
+
     if (pumpStockSection) {
         pumpStockSection.style.display = reportType === "pump" ? "block" : "none";
     }
@@ -292,8 +305,7 @@ function controlVisibleSections(reportType, data) {
         const showOutageSection =
             reportType === "utility" ||
             reportType === "hospital" ||
-            reportType === "building" ||
-            reportType === "emergency";
+            reportType === "building";
 
         powerOutageSection.style.display = showOutageSection ? "block" : "none";
     }
