@@ -63,6 +63,13 @@ public class Vehicle {
     @Column(name = "vehicle_photo_path")
     private String vehiclePhotoPath;
 
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private Boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

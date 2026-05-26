@@ -3,21 +3,21 @@ package com.crisiscontrol.service;
 import com.crisiscontrol.dto.VehicleRequest;
 import com.crisiscontrol.dto.VehicleResponse;
 import com.crisiscontrol.entity.CarCategory;
+import com.crisiscontrol.entity.FuelRequest;
+import com.crisiscontrol.entity.FuelRequestStatus;
 import com.crisiscontrol.entity.User;
 import com.crisiscontrol.entity.Vehicle;
 import com.crisiscontrol.entity.VehicleType;
+import com.crisiscontrol.repository.FuelRequestRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.crisiscontrol.entity.FuelRequest;
-import com.crisiscontrol.entity.FuelRequestStatus;
-import com.crisiscontrol.repository.FuelRequestRepository;
 
 import java.math.BigDecimal;
-import java.util.Optional;
-
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class VehicleService {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (vehicleRepository.existsByNumberPlate(request.getNumberPlate())) {
+        if (vehicleRepository.existsByNumberPlateAndDeletedFalse(request.getNumberPlate())) {
             throw new RuntimeException("Vehicle number plate already exists");
         }
 
@@ -55,6 +55,8 @@ public class VehicleService {
                 .numberPlate(request.getNumberPlate())
                 .odometerReading(request.getOdometerReading())
                 .vehiclePhotoPath(getPhotoPath(request.getVehiclePhotoPath()))
+                .deleted(false)
+                .deletedAt(null)
                 .build();
 
         Vehicle savedVehicle = vehicleRepository.save(vehicle);
@@ -63,7 +65,7 @@ public class VehicleService {
     }
 
     public List<VehicleResponse> getVehiclesByUser(Long userId) {
-        return vehicleRepository.findByUserIdOrderByCreatedAtDesc(userId)
+        return vehicleRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -73,6 +75,10 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found"));
 
+        if (Boolean.TRUE.equals(vehicle.getDeleted())) {
+            throw new RuntimeException("Vehicle not found");
+        }
+
         return mapToResponse(vehicle);
     }
 
@@ -80,7 +86,11 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found"));
 
-        if (vehicleRepository.existsByNumberPlateAndIdNot(request.getNumberPlate(), vehicleId)) {
+        if (Boolean.TRUE.equals(vehicle.getDeleted())) {
+            throw new RuntimeException("Deleted vehicle cannot be updated");
+        }
+
+        if (vehicleRepository.existsByNumberPlateAndDeletedFalseAndIdNot(request.getNumberPlate(), vehicleId)) {
             throw new RuntimeException("Vehicle number plate already exists");
         }
 
@@ -91,7 +101,6 @@ public class VehicleService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         validateOneBikeOneCarRule(user.getId(), request.getVehicleType(), vehicleId);
-
         validateSmartNumberPlate(request.getNumberPlate());
 
         vehicle.setUser(user);
@@ -117,10 +126,21 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found"));
 
-        vehicleRepository.delete(vehicle);
+        if (Boolean.TRUE.equals(vehicle.getDeleted())) {
+            throw new RuntimeException("Vehicle is already deleted");
+        }
+
+        vehicle.setDeleted(true);
+        vehicle.setDeletedAt(LocalDateTime.now());
+
+        vehicleRepository.save(vehicle);
     }
 
     private void validateVehicleCategory(VehicleRequest request) {
+        if (request.getVehicleType() == null) {
+            throw new RuntimeException("Vehicle type is required");
+        }
+
         if (request.getVehicleType() == VehicleType.BIKE) {
             request.setCarCategory(CarCategory.NOT_APPLICABLE);
         }
@@ -138,18 +158,28 @@ public class VehicleService {
 
         boolean alreadyExists;
 
+        /*
+         * Crisis-control rule:
+         * Deleted vehicles are still counted.
+         * A user cannot delete a bike/car and then register another same type vehicle.
+         * This prevents misuse during crisis fuel control.
+         */
         if (currentVehicleId == null) {
             alreadyExists = vehicleRepository.existsByUserIdAndVehicleType(userId, vehicleType);
         } else {
-            alreadyExists = vehicleRepository.existsByUserIdAndVehicleTypeAndIdNot(userId, vehicleType, currentVehicleId);
+            alreadyExists = vehicleRepository.existsByUserIdAndVehicleTypeAndIdNot(
+                    userId,
+                    vehicleType,
+                    currentVehicleId
+            );
         }
 
         if (alreadyExists && vehicleType == VehicleType.BIKE) {
-            throw new RuntimeException("Only one bike can be registered under one account/license");
+            throw new RuntimeException("Only one bike can ever be registered under one account/license, even if a previous bike was deleted.");
         }
 
         if (alreadyExists && vehicleType == VehicleType.CAR) {
-            throw new RuntimeException("Only one car can be registered under one account/license");
+            throw new RuntimeException("Only one car can ever be registered under one account/license, even if a previous car was deleted.");
         }
     }
 
@@ -170,7 +200,7 @@ public class VehicleService {
 
         String lastFuelPumpName = latestCollectedFuelRequest
                 .map(FuelRequest::getPumpProfile)
-                .map(pumpProfile -> pumpProfile.getPumpName())
+                .map(pumpProfile -> pumpProfile == null ? "Not collected yet" : pumpProfile.getPumpName())
                 .orElse("Not collected yet");
 
         BigDecimal fuelAfterLastInsertionLiter = vehicle.getCurrentFuelLiter() == null
@@ -195,6 +225,8 @@ public class VehicleService {
                 .numberPlate(vehicle.getNumberPlate())
                 .odometerReading(vehicle.getOdometerReading())
                 .vehiclePhotoPath(vehicle.getVehiclePhotoPath())
+                .deleted(vehicle.getDeleted())
+                .deletedAt(vehicle.getDeletedAt())
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
                 .build();
@@ -217,7 +249,7 @@ public class VehicleService {
             throw new RuntimeException("Current fuel liter is required");
         }
 
-        if (request.getCurrentFuelLiter().compareTo(java.math.BigDecimal.ZERO) < 0) {
+        if (request.getCurrentFuelLiter().compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Current fuel liter cannot be negative");
         }
 
@@ -229,4 +261,3 @@ public class VehicleService {
         }
     }
 }
-

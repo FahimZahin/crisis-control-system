@@ -40,6 +40,9 @@ public class VehicleResponse {
 
     private String vehiclePhotoPath;
 
+    private Boolean deleted;
+    private LocalDateTime deletedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
