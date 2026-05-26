@@ -174,9 +174,18 @@ public class AuthService {
     private void validateRoleSpecificFields(RegisterRequest request) {
         Role role = request.getRole();
 
-        if ((role == Role.HOSPITAL_AUTHORITY || role == Role.BUILDING_MANAGER || role == Role.PUMP_AUTHORITY)
-                && isBlank(request.getThanaOrUpazila())) {
-            throw new RuntimeException("Thana/Upazila is required for role: " + role);
+        if (
+                role == Role.BUILDING_MANAGER &&
+                        isBlank(firstNonBlank(request.getThanaOrUpazila(), request.getBuildingUnderThana()))
+        ) {
+            throw new RuntimeException("Building thana is required for building manager");
+        }
+
+        if (
+                role == Role.HOSPITAL_AUTHORITY &&
+                        isBlank(firstNonBlank(request.getThanaOrUpazila(), request.getHospitalUnderThana()))
+        ) {
+            throw new RuntimeException("Hospital under thana is required for hospital authority");
         }
 
         if (role == Role.VEHICLE_OWNER) {

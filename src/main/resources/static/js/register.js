@@ -807,56 +807,6 @@ function validateHospitalDieselReserve(currentReserve, dieselTankCapacity) {
     return true;
 }
 
-function setFieldError(id, message) {
-    const field = document.getElementById(id);
-
-    if (!field) {
-        return;
-    }
-
-    let errorElement = document.getElementById(id + "Error");
-
-    if (!errorElement) {
-        errorElement = document.createElement("small");
-        errorElement.id = id + "Error";
-        errorElement.className = "field-error";
-        field.insertAdjacentElement("afterend", errorElement);
-    }
-
-    errorElement.innerText = message;
-
-    field.classList.remove("valid-input");
-    field.classList.add("invalid-input");
-}
-
-function clearFieldError(id) {
-    const field = document.getElementById(id);
-    const errorElement = document.getElementById(id + "Error");
-
-    if (errorElement) {
-        errorElement.innerText = "";
-    }
-
-    if (field) {
-        field.classList.remove("invalid-input");
-    }
-}
-
-function clearAllFieldErrors() {
-    document.querySelectorAll(".field-error").forEach(function (element) {
-        element.innerText = "";
-    });
-
-    document.querySelectorAll(".invalid-input").forEach(function (element) {
-        element.classList.remove("invalid-input");
-    });
-
-    document.querySelectorAll(".valid-input").forEach(function (element) {
-        element.classList.remove("valid-input");
-    });
-
-    clearCheckboxGroupError("fuelTypes");
-}
 
 function markValidById(id) {
     const field = document.getElementById(id);
@@ -874,12 +824,66 @@ function markInvalid(field) {
     }
 }
 
+function setFieldError(id, message) {
+    const field = document.getElementById(id);
+
+    if (!field) {
+        return;
+    }
+
+    let errorElement = document.getElementById(id + "Error");
+
+    if (!errorElement) {
+        errorElement = document.createElement("small");
+        errorElement.id = id + "Error";
+        errorElement.className = "field-error";
+        field.insertAdjacentElement("afterend", errorElement);
+    }
+
+    errorElement.innerText = message;
+    errorElement.style.display = "block";
+
+    field.classList.remove("valid-input");
+    field.classList.add("invalid-input");
+}
+
+function clearFieldError(id) {
+    const field = document.getElementById(id);
+    const errorElement = document.getElementById(id + "Error");
+
+    if (errorElement) {
+        errorElement.innerText = "";
+        errorElement.style.display = "none";
+    }
+
+    if (field) {
+        field.classList.remove("invalid-input");
+    }
+}
+
+function clearAllFieldErrors() {
+    document.querySelectorAll(".field-error").forEach(function (element) {
+        element.innerText = "";
+        element.style.display = "none";
+    });
+
+    document.querySelectorAll(".invalid-input").forEach(function (element) {
+        element.classList.remove("invalid-input");
+    });
+
+    document.querySelectorAll(".valid-input").forEach(function (element) {
+        element.classList.remove("valid-input");
+    });
+
+    clearCheckboxGroupError("fuelTypes");
+}
+
 function setCheckboxGroupError(name, message) {
     let errorElement = document.getElementById(name + "Error");
 
     if (!errorElement) {
         const group = document.querySelector("input[name='" + name + "']");
-        if (group) {
+        if (group && group.closest(".checkbox-group")) {
             errorElement = document.createElement("small");
             errorElement.id = name + "Error";
             errorElement.className = "field-error";
@@ -889,6 +893,7 @@ function setCheckboxGroupError(name, message) {
 
     if (errorElement) {
         errorElement.innerText = message;
+        errorElement.style.display = "block";
     }
 }
 
@@ -897,9 +902,9 @@ function clearCheckboxGroupError(name) {
 
     if (errorElement) {
         errorElement.innerText = "";
+        errorElement.style.display = "none";
     }
 }
-
 function focusFirstInvalidField() {
     const firstInvalid = document.querySelector(".invalid-input");
 
