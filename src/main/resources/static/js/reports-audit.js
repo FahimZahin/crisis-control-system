@@ -11,6 +11,9 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function setupReportsEvents() {
+    setupMainAuditFilterEvents();
+    setupShowAllAuditButtons();
+
     const refreshBtn = document.getElementById("refreshReportsBtn");
     const logoutBtn = document.getElementById("logoutBtn");
 
@@ -25,6 +28,123 @@ function setupReportsEvents() {
             localStorage.clear();
         });
     }
+}
+
+function setupShowAllAuditButtons() {
+    const fuelBtn = document.getElementById("showAllFuelAuditBtn");
+    const utilityBtn = document.getElementById("showAllUtilityAuditBtn");
+
+    if (fuelBtn) {
+        fuelBtn.addEventListener("click", function () {
+            window.location.href = "audit-log-details.html?type=fuel";
+        });
+    }
+
+    if (utilityBtn) {
+        utilityBtn.addEventListener("click", function () {
+            window.location.href = "audit-log-details.html?type=utility";
+        });
+    }
+}
+
+function setupMainAuditFilterEvents() {
+    setupSingleAuditFilter("fuel");
+    setupSingleAuditFilter("utility");
+}
+
+function setupSingleAuditFilter(type) {
+    const capitalized = type.charAt(0).toUpperCase() + type.slice(1);
+
+    const period = document.getElementById(type + "AuditPeriod");
+    const applyBtn = document.getElementById("apply" + capitalized + "AuditFilterBtn");
+    const clearBtn = document.getElementById("clear" + capitalized + "AuditFilterBtn");
+
+    if (period) {
+        period.addEventListener("change", function () {
+            updateMainAuditFilterInputs(type);
+        });
+    }
+
+    if (applyBtn) {
+        applyBtn.addEventListener("click", function () {
+            if (type === "fuel") {
+                loadFuelAuditLogs();
+            } else {
+                loadUtilityAuditLogs();
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            clearMainAuditFilter(type);
+
+            if (type === "fuel") {
+                loadFuelAuditLogs();
+            } else {
+                loadUtilityAuditLogs();
+            }
+        });
+    }
+
+    updateMainAuditFilterInputs(type);
+}
+
+function updateMainAuditFilterInputs(type) {
+    const period = document.getElementById(type + "AuditPeriod");
+    const dateBox = document.getElementById(type + "AuditDateBox");
+    const monthBox = document.getElementById(type + "AuditMonthBox");
+    const yearBox = document.getElementById(type + "AuditYearBox");
+
+    if (!period || !dateBox || !monthBox || !yearBox) {
+        return;
+    }
+
+    dateBox.style.display = period.value === "DAILY" ? "block" : "none";
+    monthBox.style.display = period.value === "MONTHLY" ? "block" : "none";
+    yearBox.style.display = period.value === "YEARLY" ? "block" : "none";
+}
+
+function clearMainAuditFilter(type) {
+    const period = document.getElementById(type + "AuditPeriod");
+    const date = document.getElementById(type + "AuditDate");
+    const month = document.getElementById(type + "AuditMonth");
+    const year = document.getElementById(type + "AuditYear");
+
+    if (period) period.value = "";
+    if (date) date.value = "";
+    if (month) month.value = "";
+    if (year) year.value = "";
+
+    updateMainAuditFilterInputs(type);
+}
+
+function buildMainAuditFilterQuery(type) {
+    const period = document.getElementById(type + "AuditPeriod");
+    const date = document.getElementById(type + "AuditDate");
+    const month = document.getElementById(type + "AuditMonth");
+    const year = document.getElementById(type + "AuditYear");
+
+    const params = new URLSearchParams();
+    params.append("time", Date.now());
+
+    if (period && period.value) {
+        params.append("auditPeriod", period.value);
+    }
+
+    if (date && date.value) {
+        params.append("auditDate", date.value);
+    }
+
+    if (month && month.value) {
+        params.append("auditMonth", month.value);
+    }
+
+    if (year && year.value) {
+        params.append("auditYear", year.value);
+    }
+
+    return params.toString();
 }
 
 async function loadReportsDashboard() {
@@ -119,81 +239,151 @@ async function loadUserSummary() {
 }
 
 async function loadFuelAuditLogs() {
+    const tableBodyId = "fuelAuditLogsBody";
+
     try {
-        const response = await fetch("http://localhost:8081/api/reports/audit-logs/fuel?time=" + Date.now());
-        const logs = await response.json();
+        setTableLoading(tableBodyId, "Loading fuel audit logs...");
+
+        const response = await fetch(
+            "http://localhost:8081/api/reports/audit-logs/fuel?" + buildMainAuditFilterQuery("fuel")
+        );
+
+        const logs = await safeReadJson(response);
 
         if (!response.ok) {
-            renderAuditLogs("fuelAuditLogsBody", []);
+            renderAuditLogs(tableBodyId, []);
             showReportsMessage(getErrorMessage(logs), "error-text");
             return;
         }
 
-        renderAuditLogs("fuelAuditLogsBody", logs);
+        renderAuditLogs(tableBodyId, logs);
 
     } catch (error) {
-        const tableBody = document.getElementById("fuelAuditLogsBody");
-        if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="6">Server connection failed.</td></tr>`;
-        }
+        console.error("Fuel audit loading error:", error);
+        setTableError(tableBodyId, "Server connection failed while loading fuel audit logs.");
     }
 }
 
 async function loadUtilityAuditLogs() {
+    const tableBodyId = "utilityAuditLogsBody";
+
     try {
-        const response = await fetch("http://localhost:8081/api/reports/audit-logs/utility?time=" + Date.now());
-        const logs = await response.json();
+        setTableLoading(tableBodyId, "Loading utility audit logs...");
+
+        const response = await fetch(
+            "http://localhost:8081/api/reports/audit-logs/utility?" + buildMainAuditFilterQuery("utility")
+        );
+
+        const logs = await safeReadJson(response);
 
         if (!response.ok) {
-            renderAuditLogs("utilityAuditLogsBody", []);
+            renderAuditLogs(tableBodyId, []);
             showReportsMessage(getErrorMessage(logs), "error-text");
             return;
         }
 
-        renderAuditLogs("utilityAuditLogsBody", logs);
+        renderAuditLogs(tableBodyId, logs);
 
     } catch (error) {
-        const tableBody = document.getElementById("utilityAuditLogsBody");
-        if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="6">Server connection failed.</td></tr>`;
-        }
+        console.error("Utility audit loading error:", error);
+        setTableError(tableBodyId, "Server connection failed while loading utility audit logs.");
     }
 }
 
-function renderAuditLogs(tableId, logs) {
-    const tableBody = document.getElementById(tableId);
+async function safeReadJson(response) {
+    const contentType = response.headers.get("content-type") || "";
 
-    if (!tableBody) {
+    if (contentType.includes("application/json")) {
+        return await response.json();
+    }
+
+    const text = await response.text();
+    return { message: text || "Request failed." };
+}
+
+function renderAuditLogs(tableId, logs) {
+    const body = document.getElementById(tableId);
+
+    if (!body) {
         return;
     }
 
     if (!logs || logs.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6">No audit log found.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="6">No audit log found.</td></tr>`;
         return;
     }
 
-    tableBody.innerHTML = "";
+    body.innerHTML = "";
 
-    logs.slice(0, 20).forEach(function (log) {
+    logs.forEach(function (log) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
             <td>${valueOrDash(log.id)}</td>
             <td>${formatDateTime(log.createdAt)}</td>
             <td>
-                <strong>${valueOrDash(log.actorName)}</strong><br>
-                <small>${valueOrDash(log.actorRole)}</small>
+              ${valueOrDash(log.actorName)}<br>
+              <small>${formatEnumText(log.actorDisplayRole || log.utilityProvider || log.actorRole)}</small>
             </td>
-            <td>${valueOrDash(log.action)}</td>
+            <td>${formatEnumText(log.action)}</td>
             <td>
-                ${valueOrDash(log.entityType)}<br>
+                ${formatEnumText(log.entityType)}<br>
                 <small>ID: ${valueOrDash(log.entityId)}</small>
             </td>
-            <td>${valueOrDash(log.description)}</td>
+            <td>${formatAuditDescription(log)}</td>
         `;
 
-        tableBody.appendChild(row);
+        body.appendChild(row);
     });
+}
+
+function formatAuditDescription(log) {
+    if (!log) {
+        return "-";
+    }
+
+    let description = valueOrDash(log.description);
+
+    if (isPowerOutageAuditLog(log) && log.currentStatus) {
+        description = description
+            .replace(/,\s*Status:\s*[A-Z_ ]+/i, "")
+            .replace(/Status:\s*[A-Z_ ]+/i, "")
+            .trim();
+
+        return `
+            ${description}
+            <br>
+            <small><strong>Current Status:</strong> ${formatEnumText(log.currentStatus)}</small>
+        `;
+    }
+
+    return description;
+}
+
+function isPowerOutageAuditLog(log) {
+    const entityType = String(log.entityType || "").toUpperCase();
+    const action = String(log.action || "").toUpperCase();
+
+    return entityType.includes("POWER_OUTAGE") ||
+        entityType.includes("OUTAGE") ||
+        action.includes("POWER_OUTAGE") ||
+        action.includes("OUTAGE");
+}
+
+function setTableLoading(tableId, message) {
+    const body = document.getElementById(tableId);
+
+    if (body) {
+        body.innerHTML = `<tr><td colspan="6">${message}</td></tr>`;
+    }
+}
+
+function setTableError(tableId, message) {
+    const body = document.getElementById(tableId);
+
+    if (body) {
+        body.innerHTML = `<tr><td colspan="6">${message}</td></tr>`;
+    }
 }
 
 function setText(id, value) {
@@ -208,8 +398,8 @@ function showReportsMessage(message, className) {
     const element = document.getElementById("reportsMessage");
 
     if (element) {
-        element.className = className;
-        element.innerText = message;
+        element.className = className || "";
+        element.innerText = message || "";
     }
 }
 
@@ -228,7 +418,27 @@ function formatDateTime(value) {
         return "-";
     }
 
-    return String(value).replace("T", " ").substring(0, 16);
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value).replace("T", " ").substring(0, 16);
+    }
+
+    return date.toLocaleString();
+}
+
+function formatEnumText(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value)
+        .replaceAll("_", " ")
+        .replaceAll("-", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, function (char) {
+            return char.toUpperCase();
+        });
 }
 
 function valueOrDash(value) {
@@ -240,8 +450,24 @@ function valueOrDash(value) {
 }
 
 function getErrorMessage(result) {
+    if (!result) {
+        return "Request failed.";
+    }
+
+    if (typeof result === "string") {
+        return result;
+    }
+
     if (result.message) {
         return result.message;
+    }
+
+    if (result.error) {
+        return result.error;
+    }
+
+    if (result.details) {
+        return result.details;
     }
 
     if (result.messages) {

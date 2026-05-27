@@ -1,12 +1,54 @@
 const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 
+const pageRoleMap = {
+    "pump-reports-audit.html": "PUMP_AUTHORITY",
+    "utility-reports-audit.html": "UTILITY_AUTHORITY",
+    "hospital-reports-audit.html": "HOSPITAL_AUTHORITY",
+    "building-reports-audit.html": "BUILDING_MANAGER",
+    "emergency-reports-audit.html": "EMERGENCY_VEHICLE_AUTHORITY"
+};
+
+const endpointMap = {
+    "pump-reports-audit.html": "pump",
+    "utility-reports-audit.html": "utility",
+    "hospital-reports-audit.html": "hospital",
+    "building-reports-audit.html": "building",
+    "emergency-reports-audit.html": "emergency"
+};
+
 document.addEventListener("DOMContentLoaded", function () {
     if (!loggedInUser) {
         window.location.href = "login.html";
         return;
     }
 
+    const page = getCurrentPage();
+    const requiredRole = pageRoleMap[page];
+
+    if (!requiredRole) {
+        showMessage("Invalid report page.", "error-text");
+        return;
+    }
+
+    if (loggedInUser.role !== requiredRole) {
+        showMessage(
+            "Access denied. This page is only for " +
+            formatEnumText(requiredRole) +
+            ". You are logged in as " +
+            formatEnumText(loggedInUser.role) +
+            ".",
+            "error-text"
+        );
+
+        setTimeout(function () {
+            window.location.href = "dashboard.html";
+        }, 1800);
+
+        return;
+    }
+
     setupLogout();
+    setupAuditFilterEvents();
     loadRoleReport();
 });
 
@@ -20,39 +62,123 @@ function setupLogout() {
     }
 }
 
+function setupAuditFilterEvents() {
+    const applyBtn = document.getElementById("applyAuditFilterBtn");
+    const clearBtn = document.getElementById("clearAuditFilterBtn");
+    const periodSelect = document.getElementById("auditPeriod");
+
+    if (periodSelect) {
+        periodSelect.addEventListener("change", updateAuditFilterInputs);
+    }
+
+    if (applyBtn) {
+        applyBtn.addEventListener("click", function () {
+            loadRoleReport();
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            const auditPeriod = document.getElementById("auditPeriod");
+            const auditDate = document.getElementById("auditDate");
+            const auditMonth = document.getElementById("auditMonth");
+            const auditYear = document.getElementById("auditYear");
+
+            if (auditPeriod) auditPeriod.value = "";
+            if (auditDate) auditDate.value = "";
+            if (auditMonth) auditMonth.value = "";
+            if (auditYear) auditYear.value = "";
+
+            updateAuditFilterInputs();
+            loadRoleReport();
+        });
+    }
+
+    updateAuditFilterInputs();
+}
+
+function updateAuditFilterInputs() {
+    const period = document.getElementById("auditPeriod");
+    const dateBox = document.getElementById("auditDateBox");
+    const monthBox = document.getElementById("auditMonthBox");
+    const yearBox = document.getElementById("auditYearBox");
+
+    if (!period || !dateBox || !monthBox || !yearBox) {
+        return;
+    }
+
+    dateBox.style.display = period.value === "DAILY" ? "block" : "none";
+    monthBox.style.display = period.value === "MONTHLY" ? "block" : "none";
+    yearBox.style.display = period.value === "YEARLY" ? "block" : "none";
+}
+
+function buildAuditFilterQuery() {
+    const auditPeriod = document.getElementById("auditPeriod");
+    const auditDate = document.getElementById("auditDate");
+    const auditMonth = document.getElementById("auditMonth");
+    const auditYear = document.getElementById("auditYear");
+
+    const params = new URLSearchParams();
+    params.append("time", Date.now());
+
+    if (auditPeriod && auditPeriod.value) {
+        params.append("auditPeriod", auditPeriod.value);
+    }
+
+    if (auditDate && auditDate.value) {
+        params.append("auditDate", auditDate.value);
+    }
+
+    if (auditMonth && auditMonth.value) {
+        params.append("auditMonth", auditMonth.value);
+    }
+
+    if (auditYear && auditYear.value) {
+        params.append("auditYear", auditYear.value);
+    }
+
+    return params.toString();
+}
+
 async function loadRoleReport() {
     const page = getCurrentPage();
     const userId = loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
-
-    const endpointMap = {
-        "pump-reports-audit.html": "pump",
-        "utility-reports-audit.html": "utility",
-        "hospital-reports-audit.html": "hospital",
-        "building-reports-audit.html": "building",
-        "emergency-reports-audit.html": "emergency"
-    };
-
     const reportType = endpointMap[page];
 
     if (!reportType || !userId) {
-        showMessage("Report type or user ID not found.", "error-text");
+        showMessage("Report type or user ID not found. Please login again.", "error-text");
         return;
     }
 
     try {
-        const response = await fetch(
+        const url =
             "http://localhost:8081/api/reports/role/" +
             reportType +
             "/" +
             userId +
-            "?time=" +
-            Date.now()
-        );
+            "?" +
+            buildAuditFilterQuery();
 
-        const data = await response.json();
+        const response = await fetch(url);
+
+        let data;
+
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            data = { message: text || "Request failed." };
+        }
 
         if (!response.ok) {
             showMessage(getErrorMessage(data), "error-text");
+            console.error("Role report request failed:", {
+                status: response.status,
+                url: url,
+                data: data
+            });
             return;
         }
 
@@ -68,7 +194,8 @@ async function loadRoleReport() {
         showMessage("Report loaded successfully.", "success-text");
 
     } catch (error) {
-        showMessage("Server connection failed while loading report.", "error-text");
+        console.error("Role report loading error:", error);
+        showMessage("Server connection failed while loading report. Check console/network for exact error.", "error-text");
     }
 }
 
@@ -95,12 +222,6 @@ function renderSummary(data, reportType) {
         setText("totalCurrentStock", formatNumber(hospitalStatus.currentDieselReserve));
         setText("totalCapacity", formatNumber(hospitalStatus.totalDieselCapacity));
         setText("availableSpace", formatNumber(hospitalStatus.availableDieselSpace));
-
-        /*
-         * Hospital does not need Total Fuel Types.
-         * To keep the 4-card layout without empty space,
-         * we reuse that card position for Ongoing Outages.
-         */
         setText("totalFuelTypes", outageSummary.ongoingOutages || 0);
     } else {
         setText("totalFuelTypes", stockSummary.totalFuelTypes || 0);
@@ -263,7 +384,10 @@ function renderAuditLogs(logs) {
         row.innerHTML = `
             <td>${valueOrDash(log.id)}</td>
             <td>${formatDateTime(log.createdAt)}</td>
-            <td>${valueOrDash(log.actorName)}<br><small>${valueOrDash(log.actorRole)}</small></td>
+            <td>
+               ${valueOrDash(log.actorName)}<br>
+               <small>${formatEnumText(log.actorDisplayRole || log.utilityProvider || log.actorRole)}</small>
+            </td>
             <td>${formatEnumText(log.action)}</td>
             <td>${formatEnumText(log.entityType)}<br><small>ID: ${valueOrDash(log.entityId)}</small></td>
             <td>${valueOrDash(log.description)}</td>
@@ -276,8 +400,13 @@ function renderAuditLogs(logs) {
 function controlVisibleSections(reportType, data) {
     const pumpStockSection = document.getElementById("pumpStockSection");
     const powerOutageSection = document.getElementById("powerOutageSection");
+    const fuelRequestSection = getSectionByHeading("Fuel Request Records");
 
     const totalFuelTypesCard = document.getElementById("totalFuelTypesCard");
+    const totalCurrentStockCard = document.getElementById("totalCurrentStockCard");
+    const totalCapacityCard = document.getElementById("totalCapacityCard");
+    const availableSpaceCard = document.getElementById("availableSpaceCard");
+
     const totalCurrentStockTitle = document.getElementById("totalCurrentStockTitle");
     const totalCapacityTitle = document.getElementById("totalCapacityTitle");
     const availableSpaceTitle = document.getElementById("availableSpaceTitle");
@@ -291,14 +420,12 @@ function controlVisibleSections(reportType, data) {
         getSummaryCardByValueId("restoredOutages")
     ];
 
-    outageCards.forEach(function (card) {
-        if (card) {
-            card.style.display = reportType === "emergency" ? "none" : "block";
-        }
-    });
-
     if (pumpStockSection) {
         pumpStockSection.style.display = reportType === "pump" ? "block" : "none";
+    }
+
+    if (fuelRequestSection) {
+        fuelRequestSection.style.display = reportType === "utility" ? "none" : "block";
     }
 
     if (powerOutageSection) {
@@ -310,11 +437,22 @@ function controlVisibleSections(reportType, data) {
         powerOutageSection.style.display = showOutageSection ? "block" : "none";
     }
 
-    /*
-     * Important:
-     * Do not add hospital-summary-grid or change grid columns.
-     * Keep the original 4-column layout.
-     */
+    if (reportType === "utility") {
+        arrangeUtilitySummaryCardsInOneLine();
+
+        if (totalFuelTypesCard) totalFuelTypesCard.style.display = "none";
+        if (totalCurrentStockCard) totalCurrentStockCard.style.display = "none";
+        if (totalCapacityCard) totalCapacityCard.style.display = "none";
+        if (availableSpaceCard) availableSpaceCard.style.display = "none";
+
+        return;
+    }
+
+    outageCards.forEach(function (card) {
+        if (card) {
+            card.style.display = reportType === "emergency" ? "none" : "block";
+        }
+    });
 
     if (reportType === "hospital") {
         if (totalFuelTypesCard) {
@@ -345,34 +483,126 @@ function controlVisibleSections(reportType, data) {
         return;
     }
 
-    if (totalFuelTypesCard) {
-        totalFuelTypesCard.style.display = "block";
+    if (reportType === "pump") {
+        if (totalFuelTypesCard) totalFuelTypesCard.style.display = "block";
+        if (totalCurrentStockCard) totalCurrentStockCard.style.display = "block";
+        if (totalCapacityCard) totalCapacityCard.style.display = "block";
+        if (availableSpaceCard) availableSpaceCard.style.display = "block";
 
-        const title = totalFuelTypesCard.querySelector("h3");
-        if (title) {
-            title.innerText = "Total Fuel Types";
-        }
+        if (totalCurrentStockTitle) totalCurrentStockTitle.innerText = "Total Current Stock";
+        if (totalCapacityTitle) totalCapacityTitle.innerText = "Total Capacity";
+        if (availableSpaceTitle) availableSpaceTitle.innerText = "Available Space";
+
+        return;
     }
 
-    if (originalOngoingOutageCard) {
-        originalOngoingOutageCard.style.display = "block";
-    }
-
-    if (totalCurrentStockTitle) {
-        totalCurrentStockTitle.innerText = "Total Current Stock";
-    }
-
-    if (totalCapacityTitle) {
-        totalCapacityTitle.innerText = "Total Capacity";
-    }
-
-    if (availableSpaceTitle) {
-        availableSpaceTitle.innerText = "Available Space";
+    if (reportType === "building" || reportType === "emergency") {
+        if (totalFuelTypesCard) totalFuelTypesCard.style.display = "none";
+        if (totalCurrentStockCard) totalCurrentStockCard.style.display = "none";
+        if (totalCapacityCard) totalCapacityCard.style.display = "none";
+        if (availableSpaceCard) availableSpaceCard.style.display = "none";
     }
 }
 
-function getSummaryCardByValueId(valueId) {
-    const valueElement = document.getElementById(valueId);
+function arrangeUtilitySummaryCardsInOneLine() {
+    const summarySection = getSectionByHeading("Summary");
+
+    if (!summarySection) {
+        return;
+    }
+
+    const grids = summarySection.querySelectorAll(".role-summary-grid");
+
+    if (!grids || grids.length === 0) {
+        return;
+    }
+
+    const firstGrid = grids[0];
+
+    const fuelCardIds = [
+        "totalRequests",
+        "pendingRequests",
+        "approvedRequests",
+        "collectedRequests",
+        "rejectedRequests",
+        "totalRequestedLiter",
+        "totalEstimatedCost",
+        "totalFuelTypes",
+        "totalCurrentStock",
+        "totalCapacity",
+        "availableSpace"
+    ];
+
+    fuelCardIds.forEach(function (id) {
+        const card = getSummaryCardByValueId(id);
+        if (card) {
+            card.style.display = "none";
+        }
+    });
+
+    const outageCardIds = [
+        "totalOutages",
+        "ongoingOutages",
+        "scheduledOutages",
+        "restoredOutages"
+    ];
+
+    outageCardIds.forEach(function (id) {
+        const card = getSummaryCardByValueId(id);
+        if (card) {
+            card.style.display = "block";
+            firstGrid.appendChild(card);
+        }
+    });
+
+    grids.forEach(function (grid, index) {
+        if (index === 0) {
+            grid.style.display = "grid";
+            return;
+        }
+
+        const visibleCards = Array.from(grid.children).filter(function (child) {
+            return child.style.display !== "none";
+        });
+
+        grid.style.display = visibleCards.length === 0 ? "none" : "grid";
+    });
+}
+
+function getSectionByHeading(headingText) {
+    const sections = document.querySelectorAll(".role-dashboard-section");
+
+    for (const section of sections) {
+        const heading = section.querySelector("h2");
+
+        if (heading && heading.innerText.trim().toLowerCase() === headingText.toLowerCase()) {
+            return section;
+        }
+    }
+
+    return null;
+}
+
+function hideFuelSummaryCards() {
+    const fuelCards = [
+        getSummaryCardByValueId("totalRequests"),
+        getSummaryCardByValueId("pendingRequests"),
+        getSummaryCardByValueId("approvedRequests"),
+        getSummaryCardByValueId("collectedRequests"),
+        getSummaryCardByValueId("rejectedRequests"),
+        getSummaryCardByValueId("totalRequestedLiter"),
+        getSummaryCardByValueId("totalEstimatedCost")
+    ];
+
+    fuelCards.forEach(function (card) {
+        if (card) {
+            card.style.display = "none";
+        }
+    });
+}
+
+function getSummaryCardByValueId(id) {
+    const valueElement = document.getElementById(id);
 
     if (!valueElement) {
         return null;
@@ -381,78 +611,68 @@ function getSummaryCardByValueId(valueId) {
     return valueElement.closest(".summary-card");
 }
 
-function getCurrentPage() {
-    const path = window.location.pathname;
-    return path.substring(path.lastIndexOf("/") + 1);
-}
-
 function getFuelRequestSourceRowClass(source) {
-    if (source === "VEHICLE_OWNER") return "fuel-row-vehicle-owner";
-    if (source === "HOSPITAL_GENERATOR") return "fuel-row-hospital-generator";
-    if (source === "BUILDING_GENERATOR") return "fuel-row-building-generator";
-    if (source === "EMERGENCY") return "fuel-row-emergency";
-    return "fuel-row-neutral";
+    if (!source) {
+        return "";
+    }
+
+    const normalized = String(source).toUpperCase();
+
+    if (normalized.includes("HOSPITAL")) {
+        return "row-soft-red";
+    }
+
+    if (normalized.includes("BUILDING")) {
+        return "row-soft-orange";
+    }
+
+    if (normalized.includes("EMERGENCY")) {
+        return "row-soft-purple";
+    }
+
+    if (normalized.includes("VEHICLE")) {
+        return "row-soft-blue";
+    }
+
+    return "";
 }
 
 function getOutageRowClass(provider, cityCorporation) {
-    if (provider === "DESCO" || cityCorporation === "DHAKA_NORTH_CITY_CORPORATION") {
-        return "outage-row-dncc-desco";
+    const normalizedProvider = String(provider || "").toUpperCase();
+    const normalizedCity = String(cityCorporation || "").toUpperCase();
+
+    if (normalizedProvider.includes("DESCO") || normalizedCity.includes("NORTH")) {
+        return "row-soft-blue";
     }
 
-    if (provider === "DPDC" || cityCorporation === "DHAKA_SOUTH_CITY_CORPORATION") {
-        return "outage-row-dscc-dpdc";
+    if (normalizedProvider.includes("DPDC") || normalizedCity.includes("SOUTH")) {
+        return "row-soft-orange";
     }
 
-    return "outage-row-neutral";
+    return "";
+}
+
+function getCurrentPage() {
+    return window.location.pathname.split("/").pop();
+}
+
+function showMessage(message, className) {
+    const messageElement = document.getElementById("roleReportMessage");
+
+    if (!messageElement) {
+        return;
+    }
+
+    messageElement.className = className || "";
+    messageElement.innerText = message || "";
 }
 
 function setText(id, value) {
     const element = document.getElementById(id);
 
     if (element) {
-        element.innerText = value === null || value === undefined ? "0" : value;
+        element.innerText = valueOrDash(value);
     }
-}
-
-function showMessage(message, className) {
-    const element = document.getElementById("roleReportMessage");
-
-    if (element) {
-        element.className = className;
-        element.innerText = message;
-    }
-}
-
-function formatNumber(value) {
-    const numberValue = Number(value);
-
-    if (Number.isNaN(numberValue)) {
-        return "0.00";
-    }
-
-    return numberValue.toFixed(2);
-}
-
-function formatDateTime(value) {
-    if (!value) {
-        return "-";
-    }
-
-    return String(value).replace("T", " ").substring(0, 16);
-}
-
-function formatEnumText(value) {
-    if (!value || value === "-") {
-        return "-";
-    }
-
-    return String(value)
-        .replace(/([a-z])([A-Z])/g, "$1 $2")
-        .replaceAll("_", " ")
-        .toLowerCase()
-        .replace(/\b\w/g, function (letter) {
-            return letter.toUpperCase();
-        });
 }
 
 function valueOrDash(value) {
@@ -463,14 +683,56 @@ function valueOrDash(value) {
     return value;
 }
 
-function getErrorMessage(result) {
-    if (result.message) {
-        return result.message;
+function formatNumber(value) {
+    if (value === null || value === undefined || value === "") {
+        return "0";
     }
 
-    if (result.messages) {
-        return JSON.stringify(result.messages);
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+        return value;
     }
 
-    return "Request failed.";
+    return number.toFixed(2);
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return "-";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleString();
+}
+
+function formatEnumText(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value)
+        .replaceAll("_", " ")
+        .replaceAll("-", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, function (char) {
+            return char.toUpperCase();
+        });
+}
+
+function getErrorMessage(error) {
+    if (!error) {
+        return "Request failed.";
+    }
+
+    if (typeof error === "string") {
+        return error;
+    }
+
+    return error.message || error.error || error.details || "Request failed.";
 }

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Log Details | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="reports-audit.html">Reports</a>
+        <a href="dashboard.html">Home</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1 id="auditDetailsTitle">Audit Log Details</h1>
+            <p id="auditDetailsSubtitle">All audit records are shown here.</p>
+        </div>
+        <span class="role-badge">AUDIT DETAILS</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Audit Filter</h2>
+                <p class="muted-text">Filter all audit logs by daily, monthly, or yearly period.</p>
+            </div>
+        </div>
+
+        <div class="audit-filter-grid">
+            <div>
+                <label>Audit Period</label>
+                <select id="auditPeriod">
+                    <option value="">Latest Logs</option>
+                    <option value="DAILY">Daily Audit</option>
+                    <option value="MONTHLY">Monthly Audit</option>
+                    <option value="YEARLY">Yearly Audit</option>
+                </select>
+            </div>
+
+            <div id="auditDateBox">
+                <label>Select Date</label>
+                <input type="date" id="auditDate">
+            </div>
+
+            <div id="auditMonthBox">
+                <label>Select Month</label>
+                <input type="month" id="auditMonth">
+            </div>
+
+            <div id="auditYearBox">
+                <label>Select Year</label>
+                <input type="number" id="auditYear" min="2020" max="2100" placeholder="Example: 2026">
+            </div>
+
+            <button type="button" class="btn primary" id="applyAuditFilterBtn">
+                Apply Filter
+            </button>
+
+            <button type="button" class="btn secondary" id="clearAuditFilterBtn">
+                Clear Filter
+            </button>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2 id="auditTableTitle">All Audit Logs</h2>
+            <button type="button" class="btn secondary" id="backToReportsBtn">
+                Back to Reports
+            </button>
+        </div>
+
+        <p id="auditDetailsMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody id="auditDetailsBody">
+                <tr><td colspan="6">Loading audit logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/audit-log-details.js"></script>
+
+</body>
+</html>

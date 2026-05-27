@@ -1,23 +1,36 @@
 package com.crisiscontrol.controller;
 
-import com.crisiscontrol.entity.*;
+import com.crisiscontrol.entity.AuditLog;
+import com.crisiscontrol.entity.FuelRequest;
+import com.crisiscontrol.entity.FuelRequestSource;
+import com.crisiscontrol.entity.FuelRequestStatus;
+import com.crisiscontrol.entity.PowerOutageNotice;
+import com.crisiscontrol.entity.PowerOutageStatus;
+import com.crisiscontrol.entity.PumpFuelStock;
+import com.crisiscontrol.entity.PumpProfile;
+import com.crisiscontrol.entity.Role;
+import com.crisiscontrol.entity.User;
+import com.crisiscontrol.entity.UserStatus;
 import com.crisiscontrol.repository.FuelRequestRepository;
 import com.crisiscontrol.repository.PowerOutageRepository;
 import com.crisiscontrol.repository.PumpFuelStockRepository;
+import com.crisiscontrol.repository.PumpProfileRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.crisiscontrol.repository.PumpProfileRepository;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Comparator;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -36,6 +49,92 @@ public class ReportController {
             @RequestParam(required = false) String keyword
     ) {
         return ResponseEntity.ok(auditLogService.searchLogs(keyword));
+    }
+
+    @GetMapping("/audit-logs/fuel")
+    public ResponseEntity<List<Map<String, Object>>> getFuelAuditLogs(
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
+        List<Map<String, Object>> logs = filterAuditLogsByPeriod(
+                auditLogService.getFuelLogs(),
+                auditPeriod,
+                auditDate,
+                auditMonth,
+                auditYear
+        )
+                .stream()
+                .limit(10)
+                .map(this::mapAuditLog)
+                .toList();
+
+        return ResponseEntity.ok(logs);
+    }
+
+    @GetMapping("/audit-logs/utility")
+    public ResponseEntity<List<Map<String, Object>>> getUtilityAuditLogs(
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
+        List<Map<String, Object>> logs = filterAuditLogsByPeriod(
+                auditLogService.getUtilityLogs(),
+                auditPeriod,
+                auditDate,
+                auditMonth,
+                auditYear
+        )
+                .stream()
+                .limit(10)
+                .map(this::mapAuditLog)
+                .toList();
+
+        return ResponseEntity.ok(logs);
+    }
+
+    @GetMapping("/audit-logs/fuel/all")
+    public ResponseEntity<List<Map<String, Object>>> getAllFuelAuditLogs(
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
+        List<Map<String, Object>> logs = filterAuditLogsByPeriod(
+                auditLogService.getFuelLogs(),
+                auditPeriod,
+                auditDate,
+                auditMonth,
+                auditYear
+        )
+                .stream()
+                .map(this::mapAuditLog)
+                .toList();
+
+        return ResponseEntity.ok(logs);
+    }
+
+    @GetMapping("/audit-logs/utility/all")
+    public ResponseEntity<List<Map<String, Object>>> getAllUtilityAuditLogs(
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
+        List<Map<String, Object>> logs = filterAuditLogsByPeriod(
+                auditLogService.getUtilityLogs(),
+                auditPeriod,
+                auditDate,
+                auditMonth,
+                auditYear
+        )
+                .stream()
+                .map(this::mapAuditLog)
+                .toList();
+
+        return ResponseEntity.ok(logs);
     }
 
     @GetMapping("/fuel-summary")
@@ -121,15 +220,6 @@ public class ReportController {
 
         return ResponseEntity.ok(summary);
     }
-    @GetMapping("/audit-logs/fuel")
-    public ResponseEntity<List<AuditLog>> getFuelAuditLogs() {
-        return ResponseEntity.ok(auditLogService.getFuelLogs());
-    }
-
-    @GetMapping("/audit-logs/utility")
-    public ResponseEntity<List<AuditLog>> getUtilityAuditLogs() {
-        return ResponseEntity.ok(auditLogService.getUtilityLogs());
-    }
 
     @GetMapping("/pump-stock-details")
     public ResponseEntity<List<Map<String, Object>>> getPumpStockDetails() {
@@ -163,14 +253,19 @@ public class ReportController {
     }
 
     @GetMapping("/role/pump/{userId}")
-    public ResponseEntity<Map<String, Object>> getPumpRoleReport(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, Object>> getPumpRoleReport(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
         User user = getUserById(userId, Role.PUMP_AUTHORITY);
 
         PumpProfile pumpProfile = pumpProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Pump profile not found"));
 
         List<FuelRequest> requests = fuelRequestRepository.findByPumpProfileId(pumpProfile.getId());
-
         List<PumpFuelStock> stocks = pumpFuelStockRepository.findByPumpProfileIdOrderByFuelTypeAsc(pumpProfile.getId());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -182,14 +277,30 @@ public class ReportController {
         response.put("pumpStocks", stocks.stream().map(this::mapPumpStock).toList());
         response.put(
                 "auditLogs",
-                getScopedAuditLogs(userId, requests, List.of(), stocks, pumpProfile)
+                getScopedAuditLogs(
+                        userId,
+                        requests,
+                        List.of(),
+                        stocks,
+                        pumpProfile,
+                        auditPeriod,
+                        auditDate,
+                        auditMonth,
+                        auditYear
+                )
         );
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/role/hospital/{userId}")
-    public ResponseEntity<Map<String, Object>> getHospitalRoleReport(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, Object>> getHospitalRoleReport(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
         User user = getUserById(userId, Role.HOSPITAL_AUTHORITY);
 
         List<FuelRequest> requests = fuelRequestRepository.findByUserIdAndRequestSourceOrderByCreatedAtDesc(
@@ -209,14 +320,30 @@ public class ReportController {
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
         response.put(
                 "auditLogs",
-                getScopedAuditLogs(userId, requests, notices, List.of(), null)
+                getScopedAuditLogs(
+                        userId,
+                        requests,
+                        notices,
+                        List.of(),
+                        null,
+                        auditPeriod,
+                        auditDate,
+                        auditMonth,
+                        auditYear
+                )
         );
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/role/building/{userId}")
-    public ResponseEntity<Map<String, Object>> getBuildingRoleReport(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, Object>> getBuildingRoleReport(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
         User user = getUserById(userId, Role.BUILDING_MANAGER);
 
         List<FuelRequest> requests = fuelRequestRepository.findByUserIdAndRequestSourceOrderByCreatedAtDesc(
@@ -236,14 +363,30 @@ public class ReportController {
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
         response.put(
                 "auditLogs",
-                getScopedAuditLogs(userId, requests, notices, List.of(), null)
+                getScopedAuditLogs(
+                        userId,
+                        requests,
+                        notices,
+                        List.of(),
+                        null,
+                        auditPeriod,
+                        auditDate,
+                        auditMonth,
+                        auditYear
+                )
         );
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/role/emergency/{userId}")
-    public ResponseEntity<Map<String, Object>> getEmergencyRoleReport(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, Object>> getEmergencyRoleReport(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
         User user = getUserById(userId, Role.EMERGENCY_VEHICLE_AUTHORITY);
 
         List<FuelRequest> requests = fuelRequestRepository.findByUserIdAndRequestSourceOrderByCreatedAtDesc(
@@ -259,14 +402,30 @@ public class ReportController {
         response.put("fuelRequests", requests.stream().map(this::mapFuelRequest).toList());
         response.put(
                 "auditLogs",
-                getScopedAuditLogs(userId, requests, List.of(), List.of(), null)
+                getScopedAuditLogs(
+                        userId,
+                        requests,
+                        List.of(),
+                        List.of(),
+                        null,
+                        auditPeriod,
+                        auditDate,
+                        auditMonth,
+                        auditYear
+                )
         );
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/role/utility/{userId}")
-    public ResponseEntity<Map<String, Object>> getUtilityRoleReport(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, Object>> getUtilityRoleReport(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String auditPeriod,
+            @RequestParam(required = false) String auditDate,
+            @RequestParam(required = false) String auditMonth,
+            @RequestParam(required = false) Integer auditYear
+    ) {
         User user = getUserById(userId, Role.UTILITY_AUTHORITY);
 
         List<PowerOutageNotice> notices = powerOutageRepository.findAllByOrderByCreatedAtDesc()
@@ -283,7 +442,17 @@ public class ReportController {
         response.put("powerOutages", notices.stream().map(this::mapPowerOutage).toList());
         response.put(
                 "auditLogs",
-                getScopedAuditLogs(userId, List.of(), notices, List.of(), null)
+                getScopedAuditLogs(
+                        userId,
+                        List.of(),
+                        notices,
+                        List.of(),
+                        null,
+                        auditPeriod,
+                        auditDate,
+                        auditMonth,
+                        auditYear
+                )
         );
 
         return ResponseEntity.ok(response);
@@ -308,11 +477,6 @@ public class ReportController {
         long collectedRequests = countStatus(requests, FuelRequestStatus.COLLECTED);
         long rejectedRequests = countStatus(requests, FuelRequestStatus.REJECTED);
 
-        /*
-         * Business meaning:
-         * Approved = currently approved + already collected.
-         * Because every collected request was approved before collection.
-         */
         long totalApprovedRequests = approvedOnlyRequests + collectedRequests;
 
         summary.put("totalRequests", requests.size());
@@ -491,7 +655,11 @@ public class ReportController {
             List<FuelRequest> scopedFuelRequests,
             List<PowerOutageNotice> scopedPowerOutages,
             List<PumpFuelStock> scopedPumpStocks,
-            PumpProfile scopedPumpProfile
+            PumpProfile scopedPumpProfile,
+            String auditPeriod,
+            String auditDate,
+            String auditMonth,
+            Integer auditYear
     ) {
         Set<Long> fuelRequestIds = new HashSet<>();
         Set<Long> powerOutageIds = new HashSet<>();
@@ -520,7 +688,13 @@ public class ReportController {
 
         Long pumpProfileId = scopedPumpProfile == null ? null : scopedPumpProfile.getId();
 
-        return auditLogService.getAllLogs()
+        return filterAuditLogsByPeriod(
+                auditLogService.getAllLogs(),
+                auditPeriod,
+                auditDate,
+                auditMonth,
+                auditYear
+        )
                 .stream()
                 .filter(log -> isAuditLogAllowedForRoleReport(
                         log,
@@ -581,6 +755,219 @@ public class ReportController {
         return false;
     }
 
+    private List<AuditLog> filterAuditLogsByPeriod(
+            List<AuditLog> logs,
+            String auditPeriod,
+            String auditDate,
+            String auditMonth,
+            Integer auditYear
+    ) {
+        AuditDateRange range = buildAuditDateRange(auditPeriod, auditDate, auditMonth, auditYear);
+
+        if (range == null) {
+            return logs;
+        }
+
+        return logs.stream()
+                .filter(log -> log.getCreatedAt() != null)
+                .filter(log -> !log.getCreatedAt().isBefore(range.startDateTime))
+                .filter(log -> log.getCreatedAt().isBefore(range.endDateTime))
+                .toList();
+    }
+
+    private AuditDateRange buildAuditDateRange(
+            String auditPeriod,
+            String auditDate,
+            String auditMonth,
+            Integer auditYear
+    ) {
+        if (auditPeriod == null || auditPeriod.trim().isEmpty()) {
+            return null;
+        }
+
+        String period = auditPeriod.trim().toUpperCase();
+
+        try {
+            if ("DAILY".equals(period)) {
+                if (auditDate == null || auditDate.trim().isEmpty()) {
+                    return null;
+                }
+
+                LocalDate date = LocalDate.parse(auditDate.trim());
+
+                return new AuditDateRange(
+                        date.atStartOfDay(),
+                        date.plusDays(1).atStartOfDay()
+                );
+            }
+
+            if ("MONTHLY".equals(period)) {
+                if (auditMonth == null || auditMonth.trim().isEmpty()) {
+                    return null;
+                }
+
+                YearMonth month = YearMonth.parse(auditMonth.trim());
+
+                return new AuditDateRange(
+                        month.atDay(1).atStartOfDay(),
+                        month.plusMonths(1).atDay(1).atStartOfDay()
+                );
+            }
+
+            if ("YEARLY".equals(period)) {
+                if (auditYear == null || auditYear <= 0) {
+                    return null;
+                }
+
+                LocalDate start = LocalDate.of(auditYear, 1, 1);
+
+                return new AuditDateRange(
+                        start.atStartOfDay(),
+                        start.plusYears(1).atStartOfDay()
+                );
+            }
+
+            return null;
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private static class AuditDateRange {
+        private final LocalDateTime startDateTime;
+        private final LocalDateTime endDateTime;
+
+        private AuditDateRange(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+            this.startDateTime = startDateTime;
+            this.endDateTime = endDateTime;
+        }
+    }
+
+    private Map<String, Object> mapAuditLog(AuditLog log) {
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        map.put("id", log.getId());
+        map.put("actorName", log.getActorName());
+        map.put("actorRole", log.getActorRole());
+        map.put("actorDisplayRole", log.getActorRole());
+        map.put("action", log.getAction());
+        map.put("entityType", log.getEntityType());
+        map.put("entityId", log.getEntityId());
+        map.put("createdAt", log.getCreatedAt());
+
+        String description = log.getDescription() == null ? "" : log.getDescription();
+        String normalizedEntityType = normalizeEntityType(log.getEntityType());
+
+        if (isPowerOutageEntity(normalizedEntityType) && log.getEntityId() != null) {
+            powerOutageRepository.findById(log.getEntityId()).ifPresent(notice -> {
+                map.put("currentStatus", notice.getStatus());
+                map.put("currentRestoredAt", notice.getRestoredAt());
+                map.put("currentThanaName", notice.getThanaName());
+
+                if (notice.getProvider() != null) {
+                    map.put("actorDisplayRole", notice.getProvider().name());
+                    map.put("utilityProvider", notice.getProvider().name());
+                }
+            });
+
+            Object currentStatus = map.get("currentStatus");
+
+            if (currentStatus != null) {
+                description = cleanStatusFromDescription(description);
+                description = description + ", Current Status: " + currentStatus;
+            }
+        }
+
+        if (isFuelRequestEntity(normalizedEntityType) && log.getEntityId() != null) {
+            fuelRequestRepository.findById(log.getEntityId()).ifPresent(request -> {
+                map.put("currentStatus", request.getRequestStatus());
+                map.put("currentFuelType", request.getFuelType());
+                map.put("currentRequestedLiter", request.getRequestedLiter());
+                map.put("currentEstimatedCost", request.getEstimatedCost());
+                map.put("currentRequestSource", request.getRequestSource());
+
+                if (request.getPumpProfile() != null) {
+                    map.put("pumpName", request.getPumpProfile().getPumpName());
+
+                    if ("PUMP_AUTHORITY".equalsIgnoreCase(String.valueOf(log.getActorRole()))) {
+                        map.put("actorDisplayRole", request.getPumpProfile().getPumpName());
+                    }
+                }
+            });
+
+            Object currentStatus = map.get("currentStatus");
+            Object currentFuelType = map.get("currentFuelType");
+            Object currentRequestedLiter = map.get("currentRequestedLiter");
+            Object pumpName = map.get("pumpName");
+
+            description = cleanStatusFromDescription(description);
+
+            if (currentFuelType != null && !description.toLowerCase().contains("fuel:")) {
+                description = description + ", Fuel: " + currentFuelType;
+            }
+
+            if (currentRequestedLiter != null && !description.toLowerCase().contains("liter:")) {
+                description = description + ", Liter: " + currentRequestedLiter;
+            }
+
+            if (currentStatus != null) {
+                description = description + ", Current Status: " + currentStatus;
+            }
+
+            if (pumpName != null && !description.toLowerCase().contains("pump:")) {
+                description = description + ", Pump: " + pumpName;
+            }
+        }
+
+        if (isPumpStockEntity(normalizedEntityType) && log.getEntityId() != null) {
+            pumpFuelStockRepository.findById(log.getEntityId()).ifPresent(stock -> {
+                map.put("currentFuelType", stock.getFuelType());
+                map.put("currentStock", stock.getCurrentStock());
+                map.put("fuelCapacity", stock.getFuelCapacity());
+
+                if (stock.getPumpProfile() != null) {
+                    map.put("pumpName", stock.getPumpProfile().getPumpName());
+                    map.put("actorDisplayRole", stock.getPumpProfile().getPumpName());
+                }
+            });
+
+            Object currentFuelType = map.get("currentFuelType");
+            Object currentStock = map.get("currentStock");
+            Object pumpName = map.get("pumpName");
+
+            if (currentFuelType != null && !description.toLowerCase().contains("fuel:")) {
+                description = description + ", Fuel: " + currentFuelType;
+            }
+
+            if (currentStock != null && !description.toLowerCase().contains("stock:")) {
+                description = description + ", Current Stock: " + currentStock + " L";
+            }
+
+            if (pumpName != null && !description.toLowerCase().contains("pump:")) {
+                description = description + ", Pump: " + pumpName;
+            }
+        }
+
+        map.put("description", description);
+
+        return map;
+    }
+
+    private String cleanStatusFromDescription(String description) {
+        if (description == null) {
+            return "";
+        }
+
+        return description
+                .replaceAll(",\\s*Status:\\s*[A-Z_ ]+", "")
+                .replaceAll("Status:\\s*[A-Z_ ]+", "")
+                .replaceAll(",\\s*Previous Status:\\s*[A-Z_ ]+", "")
+                .replaceAll("Previous Status:\\s*[A-Z_ ]+", "")
+                .replaceAll(",\\s*Current Status:\\s*[A-Z_ ]+", "")
+                .replaceAll("Current Status:\\s*[A-Z_ ]+", "")
+                .trim();
+    }
+
     private String normalizeEntityType(String value) {
         if (value == null) {
             return "";
@@ -616,41 +1003,6 @@ public class ReportController {
                 || "PUMP".equals(entityType);
     }
 
-    private Map<String, Object> mapAuditLog(AuditLog log) {
-        Map<String, Object> map = new LinkedHashMap<>();
-
-        map.put("id", log.getId());
-        map.put("actorName", log.getActorName());
-        map.put("actorRole", log.getActorRole());
-        map.put("action", log.getAction());
-        map.put("entityType", log.getEntityType());
-        map.put("entityId", log.getEntityId());
-        map.put("description", log.getDescription());
-        map.put("createdAt", log.getCreatedAt());
-
-        return map;
-    }
-
-    private double roundTwoDecimal(Double value) {
-        if (value == null) {
-            return 0.0;
-        }
-
-        return Math.round(value * 100.0) / 100.0;
-    }
-    private String valueOrDash(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return "-";
-        }
-
-        return value;
-    }
-
-    private long countStatus(List<FuelRequest> requests, FuelRequestStatus status) {
-        return requests.stream()
-                .filter(request -> request.getRequestStatus() == status)
-                .count();
-    }
     private List<PowerOutageNotice> findOutagesByThana(String thanaName) {
         if (thanaName == null || thanaName.trim().isEmpty()) {
             return List.of();
@@ -676,6 +1028,29 @@ public class ReportController {
                 .replace(" ", "")
                 .trim();
     }
+
+    private double roundTwoDecimal(Double value) {
+        if (value == null) {
+            return 0.0;
+        }
+
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    private String valueOrDash(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "-";
+        }
+
+        return value;
+    }
+
+    private long countStatus(List<FuelRequest> requests, FuelRequestStatus status) {
+        return requests.stream()
+                .filter(request -> request.getRequestStatus() == status)
+                .count();
+    }
+
     private long countSource(List<FuelRequest> requests, FuelRequestSource source) {
         return requests.stream()
                 .filter(request -> request.getRequestSource() == source)

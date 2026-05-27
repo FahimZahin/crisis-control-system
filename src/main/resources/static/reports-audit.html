@@ -75,8 +75,54 @@
         </div>
     </div>
 
+
     <div class="role-dashboard-section">
-        <h2>Fuel Audit Logs</h2>
+        <div class="card-title-row">
+            <div>
+                <h2>Fuel Audit Filter</h2>
+                <p class="muted-text">Filter fuel audit logs by daily, monthly, or yearly period.</p>
+            </div>
+        </div>
+
+        <div class="audit-filter-grid">
+            <div>
+                <label>Fuel Audit Period</label>
+                <select id="fuelAuditPeriod">
+                    <option value="">Latest Logs</option>
+                    <option value="DAILY">Daily Audit</option>
+                    <option value="MONTHLY">Monthly Audit</option>
+                    <option value="YEARLY">Yearly Audit</option>
+                </select>
+            </div>
+
+            <div id="fuelAuditDateBox">
+                <label>Select Date</label>
+                <input type="date" id="fuelAuditDate">
+            </div>
+
+            <div id="fuelAuditMonthBox">
+                <label>Select Month</label>
+                <input type="month" id="fuelAuditMonth">
+            </div>
+
+            <div id="fuelAuditYearBox">
+                <label>Select Year</label>
+                <input type="number" id="fuelAuditYear" min="2020" max="2100" placeholder="Example: 2026">
+            </div>
+
+            <button type="button" class="btn primary" id="applyFuelAuditFilterBtn">Apply Fuel Audit Filter</button>
+            <button type="button" class="btn secondary" id="clearFuelAuditFilterBtn">Clear Fuel Filter</button>
+        </div>
+    </div>
+
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Fuel Audit Logs</h2>
+            <button type="button" class="btn secondary" id="showAllFuelAuditBtn">
+                Show All
+            </button>
+        </div>
 
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -96,6 +142,47 @@
             </table>
         </div>
     </div>
+
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Utility Audit Filter</h2>
+                <p class="muted-text">Filter utility audit logs by daily, monthly, or yearly period.</p>
+            </div>
+        </div>
+
+        <div class="audit-filter-grid">
+            <div>
+                <label>Utility Audit Period</label>
+                <select id="utilityAuditPeriod">
+                    <option value="">Latest Logs</option>
+                    <option value="DAILY">Daily Audit</option>
+                    <option value="MONTHLY">Monthly Audit</option>
+                    <option value="YEARLY">Yearly Audit</option>
+                </select>
+            </div>
+
+            <div id="utilityAuditDateBox">
+                <label>Select Date</label>
+                <input type="date" id="utilityAuditDate">
+            </div>
+
+            <div id="utilityAuditMonthBox">
+                <label>Select Month</label>
+                <input type="month" id="utilityAuditMonth">
+            </div>
+
+            <div id="utilityAuditYearBox">
+                <label>Select Year</label>
+                <input type="number" id="utilityAuditYear" min="2020" max="2100" placeholder="Example: 2026">
+            </div>
+
+            <button type="button" class="btn primary" id="applyUtilityAuditFilterBtn">Apply Utility Audit Filter</button>
+            <button type="button" class="btn secondary" id="clearUtilityAuditFilterBtn">Clear Utility Filter</button>
+        </div>
+    </div>
+
 
     <!-- UTILITY REPORT SECTION -->
     <div class="role-dashboard-section">
@@ -125,7 +212,12 @@
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Utility Audit Logs</h2>
+        <div class="card-title-row">
+            <h2>Utility Audit Logs</h2>
+            <button type="button" class="btn secondary" id="showAllUtilityAuditBtn">
+                Show All
+            </button>
+        </div>
 
         <div class="table-wrapper">
             <table class="admin-users-table">

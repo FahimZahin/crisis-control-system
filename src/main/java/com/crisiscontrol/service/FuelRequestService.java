@@ -180,12 +180,16 @@ public class FuelRequestService {
                     "EXTRA_FUEL_REQUEST_CREATED",
                     "FUEL_REQUEST",
                     savedPendingRequest.getId(),
-                    "Extra fuel request submitted. Requested: "
+                    "Extra fuel request submitted. Source: "
+                            + savedPendingRequest.getRequestSource()
+                            + ", Fuel: "
+                            + savedPendingRequest.getFuelType()
+                            + ", Liter: "
                             + savedPendingRequest.getRequestedLiter()
-                            + " L, Cost: "
+                            + ", Cost: "
                             + savedPendingRequest.getEstimatedCost()
-                            + " BDT, Reason: "
-                            + savedPendingRequest.getExtraFuelReasonType()
+                            + " BDT, Current Status: "
+                            + savedPendingRequest.getRequestStatus()
             );
 
             return mapToResponse(savedPendingRequest);
@@ -235,16 +239,33 @@ public class FuelRequestService {
                 "FUEL_REQUEST_CREATED",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
-                "Vehicle fuel request created. Status: "
-                        + savedRequest.getRequestStatus()
-                        + ", Requested: "
+                "Vehicle fuel request created. Source: "
+                        + savedRequest.getRequestSource()
+                        + ", Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
                         + savedRequest.getRequestedLiter()
-                        + " L"
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
         );
 
         if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
             savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
             savedRequest = fuelRequestRepository.save(savedRequest);
+
+            auditLogService.logSystem(
+                    "FUEL_REQUEST_AUTO_APPROVED",
+                    "FUEL_REQUEST",
+                    savedRequest.getId(),
+                    "Fuel request auto-approved. Fuel: "
+                            + savedRequest.getFuelType()
+                            + ", Liter: "
+                            + savedRequest.getRequestedLiter()
+                            + ", Pump: "
+                            + (savedRequest.getPumpProfile() == null ? "Not Assigned" : savedRequest.getPumpProfile().getPumpName())
+                            + ", Current Status: "
+                            + savedRequest.getRequestStatus()
+            );
         }
 
         return mapToResponse(savedRequest);
@@ -299,8 +320,36 @@ public class FuelRequestService {
 
         FuelRequest savedRequest = fuelRequestRepository.save(emergencyRequest);
         savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
+        savedRequest = fuelRequestRepository.save(savedRequest);
 
-        return mapToResponse(fuelRequestRepository.save(savedRequest));
+        auditLogService.log(
+                user,
+                "EMERGENCY_FUEL_REQUEST_CREATED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Emergency fuel request created. Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Pump: "
+                        + (savedRequest.getPumpProfile() == null ? "Not Assigned" : savedRequest.getPumpProfile().getPumpName())
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
+        );
+
+        auditLogService.logSystem(
+                "FUEL_REQUEST_AUTO_APPROVED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Emergency fuel request auto-approved. Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
+        );
+
+        return mapToResponse(savedRequest);
     }
 
     public FuelRequestResponse createHospitalGeneratorFuelRequest(HospitalGeneratorFuelRequestCreateRequest request) {
@@ -376,41 +425,39 @@ public class FuelRequestService {
 
         FuelRequest savedRequest = fuelRequestRepository.save(hospitalRequest);
 
+        auditLogService.log(
+                user,
+                "HOSPITAL_FUEL_REQUEST_CREATED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Hospital diesel request created. Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
+        );
+
         if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
             savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
             savedRequest = fuelRequestRepository.save(savedRequest);
+
+            auditLogService.logSystem(
+                    "FUEL_REQUEST_AUTO_APPROVED",
+                    "FUEL_REQUEST",
+                    savedRequest.getId(),
+                    "Hospital diesel request auto-approved. Fuel: "
+                            + savedRequest.getFuelType()
+                            + ", Liter: "
+                            + savedRequest.getRequestedLiter()
+                            + ", Pump: "
+                            + (savedRequest.getPumpProfile() == null ? "Not Assigned" : savedRequest.getPumpProfile().getPumpName())
+                            + ", Current Status: "
+                            + savedRequest.getRequestStatus()
+            );
         }
 
         return mapToResponse(savedRequest);
-    }
-
-    public List<FuelRequestResponse> getUserFuelRequests(Long userId) {
-        return fuelRequestRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    public List<FuelRequestResponse> getEmergencyFuelRequestsByUser(Long userId) {
-        return fuelRequestRepository
-                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.EMERGENCY)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    public List<FuelRequestResponse> getHospitalGeneratorFuelRequestsByUser(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-
-        if (user != null && user.getRole() == Role.HOSPITAL_AUTHORITY) {
-            hospitalSupportCalculationService.recalculateAndSave(user);
-        }
-
-        return fuelRequestRepository
-                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.HOSPITAL_GENERATOR)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
     }
 
     public FuelRequestResponse createBuildingGeneratorFuelRequest(BuildingGeneratorFuelRequestCreateRequest request) {
@@ -456,7 +503,51 @@ public class FuelRequestService {
                 .adminNote(adminNote)
                 .build();
 
-        return mapToResponse(fuelRequestRepository.save(buildingRequest));
+        FuelRequest savedRequest = fuelRequestRepository.save(buildingRequest);
+
+        auditLogService.log(
+                user,
+                "BUILDING_FUEL_REQUEST_CREATED",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "Building generator diesel request created. Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
+        );
+
+        return mapToResponse(savedRequest);
+    }
+
+    public List<FuelRequestResponse> getUserFuelRequests(Long userId) {
+        return fuelRequestRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<FuelRequestResponse> getEmergencyFuelRequestsByUser(Long userId) {
+        return fuelRequestRepository
+                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.EMERGENCY)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<FuelRequestResponse> getHospitalGeneratorFuelRequestsByUser(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user != null && user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            hospitalSupportCalculationService.recalculateAndSave(user);
+        }
+
+        return fuelRequestRepository
+                .findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, FuelRequestSource.HOSPITAL_GENERATOR)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     public List<FuelRequestResponse> getBuildingGeneratorFuelRequestsByUser(Long userId) {
@@ -524,7 +615,14 @@ public class FuelRequestService {
                 "FUEL_REQUEST_APPROVED",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
-                "Fuel request approved and assigned to pump: " + pumpProfile.getPumpName()
+                "Fuel request approved and assigned to pump: "
+                        + pumpProfile.getPumpName()
+                        + ", Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
         );
 
         return mapToResponse(savedRequest);
@@ -552,7 +650,14 @@ public class FuelRequestService {
                 "FUEL_REQUEST_REJECTED",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
-                "Fuel request rejected. Note: " + savedRequest.getAdminNote()
+                "Fuel request rejected. Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
+                        + savedRequest.getRequestedLiter()
+                        + ", Note: "
+                        + savedRequest.getAdminNote()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
         );
 
         return mapToResponse(savedRequest);
@@ -601,7 +706,21 @@ public class FuelRequestService {
 
         BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
         pumpFuelStock.setCurrentStock(updatedStock);
-        pumpFuelStockRepository.save(pumpFuelStock);
+        PumpFuelStock savedPumpFuelStock = pumpFuelStockRepository.save(pumpFuelStock);
+
+        auditLogService.log(
+                pumpProfile.getUser(),
+                "PUMP_STOCK_UPDATED",
+                "PUMP_FUEL_STOCK",
+                savedPumpFuelStock.getId(),
+                "Pump stock updated after collection. Pump: "
+                        + pumpProfile.getPumpName()
+                        + ", Fuel: "
+                        + savedPumpFuelStock.getFuelType()
+                        + ", Current Stock: "
+                        + savedPumpFuelStock.getCurrentStock()
+                        + " L"
+        );
 
         updatePumpProfileTotalStock(pumpProfile);
 
@@ -616,14 +735,20 @@ public class FuelRequestService {
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
 
         auditLogService.log(
-                savedRequest.getPumpProfile() == null ? null : savedRequest.getPumpProfile().getUser(),
-                "FUEL_COLLECTED",
+                pumpProfile.getUser(),
+                "FUEL_REQUEST_COLLECTED",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
-                "Fuel collected from pump. Requested: "
+                "Fuel collected from pump. Pump: "
+                        + pumpProfile.getPumpName()
+                        + ", Fuel: "
+                        + savedRequest.getFuelType()
+                        + ", Liter: "
                         + savedRequest.getRequestedLiter()
-                        + " L, Collection code: "
+                        + ", Collection code: "
                         + savedRequest.getCollectionCode()
+                        + ", Current Status: "
+                        + savedRequest.getRequestStatus()
         );
 
         return mapToResponse(savedRequest);
@@ -812,24 +937,12 @@ public class FuelRequestService {
         return "CCS-FUEL-REQ-" + fuelRequest.getId();
     }
 
-    private boolean isLowFuel(String fuelLevelStatus) {
-        return fuelLevelStatus.equals("EMPTY") || fuelLevelStatus.equals("LOW");
-    }
-
     private String normalizeFuelLevel(String fuelLevelStatus) {
         if (fuelLevelStatus == null) {
             return "UNKNOWN";
         }
 
         return fuelLevelStatus.trim().toUpperCase();
-    }
-
-    private FuelLimitType getLimitTypeByVehicle(Vehicle vehicle) {
-        if (vehicle.getVehicleType() == VehicleType.BIKE) {
-            return FuelLimitType.BIKE;
-        }
-
-        return FuelLimitType.CAR;
     }
 
     private FuelRequestResponse mapToResponse(FuelRequest fuelRequest) {

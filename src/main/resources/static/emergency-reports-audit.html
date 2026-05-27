@@ -62,6 +62,7 @@
         <h3 id="availableSpaceTitle">Available Space</h3>
         <p><span id="availableSpace">0</span> L</p>
       </div>
+
       <div class="summary-card"><h3>Total Outages</h3><p id="totalOutages">0</p></div>
     </div>
 
@@ -156,6 +157,50 @@
   </div>
 
   <div class="role-dashboard-section">
+    <div class="card-title-row">
+      <div>
+        <h2>Audit Filter</h2>
+        <p class="muted-text">Filter audit logs by daily, monthly, or yearly period.</p>
+      </div>
+    </div>
+
+    <div class="audit-filter-grid">
+      <div>
+        <label>Audit Period</label>
+        <select id="auditPeriod">
+          <option value="">Latest Logs</option>
+          <option value="DAILY">Daily Audit</option>
+          <option value="MONTHLY">Monthly Audit</option>
+          <option value="YEARLY">Yearly Audit</option>
+        </select>
+      </div>
+
+      <div id="auditDateBox">
+        <label>Select Date</label>
+        <input type="date" id="auditDate">
+      </div>
+
+      <div id="auditMonthBox">
+        <label>Select Month</label>
+        <input type="month" id="auditMonth">
+      </div>
+
+      <div id="auditYearBox">
+        <label>Select Year</label>
+        <input type="number" id="auditYear" min="2020" max="2100" placeholder="Example: 2026">
+      </div>
+
+      <button type="button" class="btn primary" id="applyAuditFilterBtn">
+        Apply Audit Filter
+      </button>
+
+      <button type="button" class="btn secondary" id="clearAuditFilterBtn">
+        Clear Filter
+      </button>
+    </div>
+  </div>
+
+  <div class="role-dashboard-section">
     <h2>Audit Logs</h2>
     <div class="table-wrapper">
       <table class="admin-users-table">
@@ -177,7 +222,6 @@
   </div>
 
 </div>
-
 
 <script src="js/api-client.js"></script>
 <script src="js/auth-guard.js"></script>

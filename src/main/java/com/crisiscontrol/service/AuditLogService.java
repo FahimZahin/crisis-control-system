@@ -48,16 +48,58 @@ public class AuditLogService {
                         keyword
                 );
     }
+
     public List<AuditLog> getFuelLogs() {
         return getAllLogs()
                 .stream()
                 .filter(log ->
-                        containsIgnoreCase(log.getAction(), "FUEL")
-                                || containsIgnoreCase(log.getEntityType(), "FUEL")
-                                || containsIgnoreCase(log.getDescription(), "fuel")
-                                || containsIgnoreCase(log.getAction(), "PUMP")
-                                || containsIgnoreCase(log.getDescription(), "pump")
-                                || containsIgnoreCase(log.getDescription(), "odometer")
+                        containsAny(
+                                log.getAction(),
+                                "fuel",
+                                "fuel_request",
+                                "request approved",
+                                "request rejected",
+                                "collected",
+                                "collection",
+                                "pump",
+                                "stock",
+                                "odometer",
+                                "diesel",
+                                "octane",
+                                "petrol",
+                                "cng"
+                        )
+                                || containsAny(
+                                log.getEntityType(),
+                                "fuel",
+                                "fuel_request",
+                                "fuel request",
+                                "pump",
+                                "pump_profile",
+                                "pump profile",
+                                "pump_stock",
+                                "pump stock",
+                                "pump_fuel_stock",
+                                "pump fuel stock"
+                        )
+                                || containsAny(
+                                log.getDescription(),
+                                "fuel",
+                                "fuel request",
+                                "approved",
+                                "rejected",
+                                "collected",
+                                "collection",
+                                "pump",
+                                "stock",
+                                "odometer",
+                                "diesel",
+                                "octane",
+                                "petrol",
+                                "cng",
+                                "liter",
+                                "litre"
+                        )
                 )
                 .toList();
     }
@@ -66,20 +108,67 @@ public class AuditLogService {
         return getAllLogs()
                 .stream()
                 .filter(log ->
-                        containsIgnoreCase(log.getAction(), "POWER_OUTAGE")
-                                || containsIgnoreCase(log.getEntityType(), "POWER_OUTAGE")
-                                || containsIgnoreCase(log.getDescription(), "outage")
-                                || containsIgnoreCase(log.getDescription(), "utility")
-                                || containsIgnoreCase(log.getDescription(), "thana")
+                        containsAny(
+                                log.getAction(),
+                                "power",
+                                "outage",
+                                "utility",
+                                "restore",
+                                "restored",
+                                "schedule",
+                                "scheduled"
+                        )
+                                || containsAny(
+                                log.getEntityType(),
+                                "power",
+                                "outage",
+                                "power_outage",
+                                "power outage",
+                                "power_outage_notice",
+                                "power outage notice",
+                                "utility"
+                        )
+                                || containsAny(
+                                log.getDescription(),
+                                "power",
+                                "outage",
+                                "utility",
+                                "thana",
+                                "desco",
+                                "dpdc",
+                                "restored",
+                                "scheduled",
+                                "ongoing"
+                        )
                 )
                 .toList();
     }
 
-    private boolean containsIgnoreCase(String value, String keyword) {
-        if (value == null || keyword == null) {
+    private boolean containsAny(String value, String... keywords) {
+        if (value == null) {
             return false;
         }
 
-        return value.toLowerCase().contains(keyword.toLowerCase());
+        String normalizedValue = value
+                .toLowerCase()
+                .replace("_", " ")
+                .replace("-", " ");
+
+        for (String keyword : keywords) {
+            if (keyword == null) {
+                continue;
+            }
+
+            String normalizedKeyword = keyword
+                    .toLowerCase()
+                    .replace("_", " ")
+                    .replace("-", " ");
+
+            if (normalizedValue.contains(normalizedKeyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

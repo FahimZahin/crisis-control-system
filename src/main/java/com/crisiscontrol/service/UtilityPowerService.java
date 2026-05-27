@@ -4,7 +4,15 @@ import com.crisiscontrol.dto.PowerOutageRequest;
 import com.crisiscontrol.dto.PowerOutageResponse;
 import com.crisiscontrol.dto.UtilityProfileRequest;
 import com.crisiscontrol.dto.UtilityProfileResponse;
-import com.crisiscontrol.entity.*;
+import com.crisiscontrol.entity.CityCorporation;
+import com.crisiscontrol.entity.PowerOutageCause;
+import com.crisiscontrol.entity.PowerOutageNotice;
+import com.crisiscontrol.entity.PowerOutageStatus;
+import com.crisiscontrol.entity.PowerOutageType;
+import com.crisiscontrol.entity.Role;
+import com.crisiscontrol.entity.User;
+import com.crisiscontrol.entity.UtilityProfile;
+import com.crisiscontrol.entity.UtilityProvider;
 import com.crisiscontrol.repository.PowerOutageRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.UtilityProfileRepository;
@@ -118,7 +126,17 @@ public class UtilityPowerService {
         profile.setOfficeAddress(request.getOfficeAddress());
         profile.setServiceZone(request.getServiceZone());
 
-        return mapProfileToResponse(utilityProfileRepository.save(profile));
+        UtilityProfile savedProfile = utilityProfileRepository.save(profile);
+
+        auditLogService.log(
+                user,
+                "UTILITY_PROFILE_UPDATED",
+                "UTILITY_PROFILE",
+                savedProfile.getId(),
+                "Utility profile saved for provider: " + savedProfile.getProvider()
+        );
+
+        return mapProfileToResponse(savedProfile);
     }
 
     public UtilityProfileResponse getUtilityProfileByUser(Long userId) {
@@ -129,45 +147,6 @@ public class UtilityPowerService {
         }
 
         return mapProfileToResponse(createProfileFromRegistration(userId));
-    }
-
-    private UtilityProfile createProfileFromRegistration(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        validateUtilityUser(user);
-
-        UtilityProvider provider = parseProviderFromRegistration(user);
-
-        if (provider == UtilityProvider.BPDB || provider == UtilityProvider.PALLI_BIDYUT) {
-            throw new RuntimeException(NOT_AVAILABLE_MESSAGE);
-        }
-
-        if (provider != UtilityProvider.DPDC && provider != UtilityProvider.DESCO) {
-            throw new RuntimeException("Utility provider must be DPDC or DESCO");
-        }
-
-        String employeeId = valueOrDefault(user.getUtilityEmployeeId(), "UTILITY-" + user.getId());
-
-        if (utilityProfileRepository.existsByEmployeeId(employeeId)) {
-            employeeId = employeeId + "-" + user.getId();
-        }
-
-        UtilityProfile profile = UtilityProfile.builder()
-                .user(user)
-                .provider(provider)
-                .cityCorporation(getCityCorporationByProvider(provider))
-                .officerName(valueOrDefault(user.getFullName(), "Utility Officer"))
-                .employeeId(employeeId)
-                .officialPhone(valueOrDefault(user.getPhoneNumber(), "Not Provided"))
-                .officeAddress(valueOrDefault(
-                        user.getOfficeAddress(),
-                        valueOrDefault(user.getAddress(), "Not Provided")
-                ))
-                .serviceZone(valueOrDefault(user.getServiceArea(), "Dhaka City"))
-                .build();
-
-        return utilityProfileRepository.save(profile);
     }
 
     public PowerOutageResponse createPowerOutage(PowerOutageRequest request) {
@@ -195,9 +174,7 @@ public class UtilityPowerService {
                 throw new RuntimeException("This thana already has an ongoing outage notice. Creating another current outage may confuse users.");
             }
 
-            if (recentRestored) {
-                throw new RuntimeException("This thana was restored recently. Please confirm before creating another notice.");
-            }
+            throw new RuntimeException("This thana was restored recently. Please confirm before creating another notice.");
         }
 
         PowerOutageNotice notice = PowerOutageNotice.builder()
@@ -228,18 +205,19 @@ public class UtilityPowerService {
                 savedNotice.getId(),
                 "Power outage notice created for thana: "
                         + savedNotice.getThanaName()
-                        + ", Status: "
+                        + ", Current Status: "
                         + savedNotice.getStatus()
         );
 
-        return mapNoticeToResponse(savedNotice);    }
+        return mapNoticeToResponse(savedNotice);
+    }
 
     public List<PowerOutageResponse> getAllPowerOutages() {
         autoRestoreExpiredOutages();
 
         return powerOutageRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
-                .map(this::mapNoticeToResponse)
+                .map(this::mapNoticeToResponseWithoutAutoRestore)
                 .toList();
     }
 
@@ -251,7 +229,7 @@ public class UtilityPowerService {
                         List.of(PowerOutageStatus.ONGOING, PowerOutageStatus.SCHEDULED)
                 )
                 .stream()
-                .map(this::mapNoticeToResponse)
+                .map(this::mapNoticeToResponseWithoutAutoRestore)
                 .toList();
     }
 
@@ -263,7 +241,7 @@ public class UtilityPowerService {
 
         return powerOutageRepository.findByUserIdOrderByCreatedAtDesc(profile.getUser().getId())
                 .stream()
-                .map(this::mapNoticeToResponse)
+                .map(this::mapNoticeToResponseWithoutAutoRestore)
                 .toList();
     }
 
@@ -276,7 +254,7 @@ public class UtilityPowerService {
                 .stream()
                 .filter(notice -> notice.getRestoredAt() != null)
                 .filter(notice -> notice.getRestoredAt().isAfter(thirtyMinutesAgo))
-                .map(this::mapNoticeToResponse)
+                .map(this::mapNoticeToResponseWithoutAutoRestore)
                 .toList();
     }
 
@@ -315,18 +293,36 @@ public class UtilityPowerService {
 
         PowerOutageNotice savedNotice = powerOutageRepository.save(notice);
 
-        auditLogService.log(
-                savedNotice.getUser(),
-                "POWER_OUTAGE_UPDATED",
-                "POWER_OUTAGE",
-                savedNotice.getId(),
-                "Power outage notice updated for thana: "
-                        + savedNotice.getThanaName()
-                        + ", Status: "
-                        + savedNotice.getStatus()
-        );
+        if (newStatus == PowerOutageStatus.RESTORED && oldStatus != PowerOutageStatus.RESTORED) {
+            auditLogService.log(
+                    savedNotice.getUser(),
+                    "POWER_OUTAGE_RESTORED",
+                    "POWER_OUTAGE",
+                    savedNotice.getId(),
+                    "Power outage restored for thana: "
+                            + savedNotice.getThanaName()
+                            + ", Previous Status: "
+                            + oldStatus
+                            + ", Current Status: "
+                            + savedNotice.getStatus()
+            );
+        } else {
+            auditLogService.log(
+                    savedNotice.getUser(),
+                    "POWER_OUTAGE_UPDATED",
+                    "POWER_OUTAGE",
+                    savedNotice.getId(),
+                    "Power outage notice updated for thana: "
+                            + savedNotice.getThanaName()
+                            + ", Previous Status: "
+                            + oldStatus
+                            + ", Current Status: "
+                            + savedNotice.getStatus()
+            );
+        }
 
-        return mapNoticeToResponse(savedNotice);    }
+        return mapNoticeToResponseWithoutAutoRestore(savedNotice);
+    }
 
     public void deletePowerOutage(Long id) {
         PowerOutageNotice notice = powerOutageRepository.findById(id)
@@ -337,7 +333,10 @@ public class UtilityPowerService {
                 "POWER_OUTAGE_DELETED",
                 "POWER_OUTAGE",
                 notice.getId(),
-                "Power outage notice deleted for thana: " + notice.getThanaName()
+                "Power outage notice deleted for thana: "
+                        + notice.getThanaName()
+                        + ", Last Status: "
+                        + notice.getStatus()
         );
 
         powerOutageRepository.delete(notice);
@@ -351,13 +350,7 @@ public class UtilityPowerService {
                 );
 
         for (PowerOutageNotice notice : expiredNotices) {
-            notice.setStatus(PowerOutageStatus.RESTORED);
-
-            if (notice.getRestoredAt() == null) {
-                notice.setRestoredAt(LocalDateTime.now());
-            }
-
-            powerOutageRepository.save(notice);
+            restoreNoticeAutomatically(notice);
         }
     }
 
@@ -367,16 +360,97 @@ public class UtilityPowerService {
                         && notice.getExpectedRestorationDateTime() != null
                         && !notice.getExpectedRestorationDateTime().isAfter(LocalDateTime.now())
         ) {
-            notice.setStatus(PowerOutageStatus.RESTORED);
-
-            if (notice.getRestoredAt() == null) {
-                notice.setRestoredAt(LocalDateTime.now());
-            }
-
-            return powerOutageRepository.save(notice);
+            return restoreNoticeAutomatically(notice);
         }
 
         return notice;
+    }
+
+    private PowerOutageNotice restoreNoticeAutomatically(PowerOutageNotice notice) {
+        PowerOutageStatus oldStatus = notice.getStatus();
+
+        notice.setStatus(PowerOutageStatus.RESTORED);
+
+        if (notice.getRestoredAt() == null) {
+            notice.setRestoredAt(LocalDateTime.now());
+        }
+
+        PowerOutageNotice savedNotice = powerOutageRepository.save(notice);
+
+        boolean alreadyLogged = auditLogService.getAllLogs()
+                .stream()
+                .anyMatch(log ->
+                        "POWER_OUTAGE_AUTO_RESTORED".equalsIgnoreCase(log.getAction())
+                                && "POWER_OUTAGE".equalsIgnoreCase(log.getEntityType())
+                                && savedNotice.getId().equals(log.getEntityId())
+                );
+
+        if (!alreadyLogged) {
+            auditLogService.log(
+                    savedNotice.getUser(),
+                    "POWER_OUTAGE_AUTO_RESTORED",
+                    "POWER_OUTAGE",
+                    savedNotice.getId(),
+                    "Power outage automatically restored for thana: "
+                            + savedNotice.getThanaName()
+                            + ", Previous Status: "
+                            + oldStatus
+                            + ", Current Status: "
+                            + savedNotice.getStatus()
+            );
+        }
+
+        return savedNotice;
+    }
+
+    private UtilityProfile createProfileFromRegistration(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        validateUtilityUser(user);
+
+        UtilityProvider provider = parseProviderFromRegistration(user);
+
+        if (provider == UtilityProvider.BPDB || provider == UtilityProvider.PALLI_BIDYUT) {
+            throw new RuntimeException(NOT_AVAILABLE_MESSAGE);
+        }
+
+        if (provider != UtilityProvider.DPDC && provider != UtilityProvider.DESCO) {
+            throw new RuntimeException("Utility provider must be DPDC or DESCO");
+        }
+
+        String employeeId = valueOrDefault(user.getUtilityEmployeeId(), "UTILITY-" + user.getId());
+
+        if (utilityProfileRepository.existsByEmployeeId(employeeId)) {
+            employeeId = employeeId + "-" + user.getId();
+        }
+
+        UtilityProfile profile = UtilityProfile.builder()
+                .user(user)
+                .provider(provider)
+                .cityCorporation(getCityCorporationByProvider(provider))
+                .officerName(valueOrDefault(user.getFullName(), "Utility Officer"))
+                .employeeId(employeeId)
+                .officialPhone(valueOrDefault(user.getPhoneNumber(), "Not Provided"))
+                .officeAddress(valueOrDefault(
+                        user.getOfficeAddress(),
+                        valueOrDefault(user.getAddress(), "Not Provided")
+                ))
+                .serviceZone(valueOrDefault(user.getServiceArea(), "Dhaka City"))
+                .build();
+
+        UtilityProfile savedProfile = utilityProfileRepository.save(profile);
+
+        auditLogService.log(
+                user,
+                "UTILITY_PROFILE_CREATED",
+                "UTILITY_PROFILE",
+                savedProfile.getId(),
+                "Utility profile automatically created from registration for provider: "
+                        + savedProfile.getProvider()
+        );
+
+        return savedProfile;
     }
 
     private void validateUtilityUser(User user) {
@@ -489,8 +563,10 @@ public class UtilityPowerService {
     }
 
     private PowerOutageResponse mapNoticeToResponse(PowerOutageNotice notice) {
-        notice = autoRestoreIfExpired(notice);
+        return mapNoticeToResponseWithoutAutoRestore(autoRestoreIfExpired(notice));
+    }
 
+    private PowerOutageResponse mapNoticeToResponseWithoutAutoRestore(PowerOutageNotice notice) {
         boolean ongoing = powerOutageRepository.existsByThanaNameIgnoreCaseAndStatus(
                 notice.getThanaName(),
                 PowerOutageStatus.ONGOING
