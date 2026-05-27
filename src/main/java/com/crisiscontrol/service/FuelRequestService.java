@@ -665,13 +665,21 @@ public class FuelRequestService {
 
     @Transactional
     public FuelRequestResponse collectFuelByCode(FuelCollectionRequest request) {
+        if (request.getCollectionCode() == null || request.getCollectionCode().trim().isEmpty()) {
+            throw new RuntimeException("Collection code is required");
+        }
+
         String normalizedCode = request.getCollectionCode().trim().toUpperCase();
 
         FuelRequest fuelRequest = fuelRequestRepository.findByCollectionCode(normalizedCode)
                 .orElseThrow(() -> new RuntimeException("Invalid collection code"));
 
+        if (fuelRequest.getCollectedAt() != null || fuelRequest.getRequestStatus() == FuelRequestStatus.COLLECTED) {
+            throw new RuntimeException("This collection code has already been used");
+        }
+
         if (fuelRequest.getRequestStatus() != FuelRequestStatus.APPROVED) {
-            throw new RuntimeException("This request is not approved or already collected");
+            throw new RuntimeException("This collection code is not valid for collection because the request is not approved");
         }
 
         if (fuelRequest.getPumpProfile() == null) {
@@ -706,6 +714,7 @@ public class FuelRequestService {
 
         BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
         pumpFuelStock.setCurrentStock(updatedStock);
+
         PumpFuelStock savedPumpFuelStock = pumpFuelStockRepository.save(pumpFuelStock);
 
         auditLogService.log(
@@ -739,14 +748,14 @@ public class FuelRequestService {
                 "FUEL_REQUEST_COLLECTED",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
-                "Fuel collected from pump. Pump: "
+                "One-time collection code used successfully. Pump: "
                         + pumpProfile.getPumpName()
                         + ", Fuel: "
                         + savedRequest.getFuelType()
                         + ", Liter: "
                         + savedRequest.getRequestedLiter()
                         + ", Collection code: "
-                        + savedRequest.getCollectionCode()
+                        + normalizedCode
                         + ", Current Status: "
                         + savedRequest.getRequestStatus()
         );

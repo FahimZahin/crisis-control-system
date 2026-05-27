@@ -71,20 +71,59 @@ function setupEvents() {
 async function loadInitialData() {
     await loadFuelSettings();
     await loadVehicles();
+
+    const vehicleSelect = document.getElementById("vehicleSelect");
+
+    if (vehicleSelect && vehicleSelect.value) {
+        handleVehicleSelection();
+    }
 }
 
 async function loadFuelSettings() {
     try {
-        const response = await fetch("http://localhost:8081/api/admin/fuel-settings");
-        fuelSettings = await response.json();
+        let response = await fetch("http://localhost:8081/api/fuel-settings?time=" + Date.now());
+        let result = await response.json();
 
         if (!response.ok) {
-            showMessage("fuelRequestMessage", "Failed to load fuel settings.", "error-text");
+            response = await fetch("http://localhost:8081/api/admin/fuel-settings?time=" + Date.now());
+            result = await response.json();
         }
 
+        if (!response.ok) {
+            fuelSettings = null;
+            showMessage("fuelRequestMessage", getErrorMessage(result), "error-text");
+            return;
+        }
+
+        fuelSettings = normalizeFuelSettings(result);
+
     } catch (error) {
+        fuelSettings = null;
         showMessage("fuelRequestMessage", "Server connection failed while loading fuel settings.", "error-text");
     }
+}
+
+function normalizeFuelSettings(settings) {
+    if (!settings) {
+        return {
+            petrolPrice: 0,
+            octanePrice: 0,
+            dieselPrice: 0,
+            cngPrice: 0
+        };
+    }
+
+    return {
+        petrolPrice: toNumber(settings.petrolPrice),
+        octanePrice: toNumber(settings.octanePrice),
+        dieselPrice: toNumber(settings.dieselPrice),
+        cngPrice: toNumber(settings.cngPrice),
+        bikeLimit: toNumber(settings.bikeLimit),
+        carLimit: toNumber(settings.carLimit),
+        emergencyVehicleLimit: toNumber(settings.emergencyVehicleLimit),
+        generatorDieselLimit: toNumber(settings.generatorDieselLimit),
+        lastUpdatedAt: settings.lastUpdatedAt
+    };
 }
 
 async function loadVehicles() {
@@ -116,11 +155,11 @@ async function loadVehicles() {
             return;
         }
 
-        vehicles = result;
+        vehicles = Array.isArray(result) ? result : [];
 
         vehicleSelect.innerHTML = `<option value="">Select saved vehicle</option>`;
 
-        if (!Array.isArray(vehicles) || vehicles.length === 0) {
+        if (vehicles.length === 0) {
             vehicleSelect.innerHTML = `<option value="">No vehicle found. Add vehicle first.</option>`;
             showMessage("fuelRequestMessage", "Please add a vehicle before requesting fuel.", "error-text");
             return;
@@ -133,7 +172,16 @@ async function loadVehicles() {
             vehicleSelect.appendChild(option);
         });
 
-        showMessage("fuelRequestMessage", "Vehicles loaded successfully.", "success-text");
+        /*
+         * Auto-select first vehicle only when browser has not already selected one.
+         */
+        if (!vehicleSelect.value && vehicles.length > 0) {
+            vehicleSelect.value = vehicles[0].id;
+        }
+
+        handleVehicleSelection();
+
+        showMessage("fuelRequestMessage", "Vehicles and fuel prices loaded successfully.", "success-text");
 
     } catch (error) {
         vehicleSelect.innerHTML = `<option value="">Server connection failed</option>`;
@@ -145,7 +193,7 @@ function handleVehicleSelection() {
     const vehicleId = Number(document.getElementById("vehicleSelect").value);
 
     selectedVehicle = vehicles.find(function (vehicle) {
-        return vehicle.id === vehicleId;
+        return Number(vehicle.id) === vehicleId;
     });
 
     const fuelTypeSelect = document.getElementById("fuelType");
@@ -161,25 +209,24 @@ function handleVehicleSelection() {
     const currentFuelLiter = Number(selectedVehicle.currentFuelLiter || 0);
     const tankCapacity = Number(selectedVehicle.tankCapacity || 0);
 
-    document.getElementById("vehicleType").value = selectedVehicle.vehicleType;
-    document.getElementById("numberPlate").value = selectedVehicle.numberPlate;
+    document.getElementById("vehicleType").value = selectedVehicle.vehicleType || "";
+    document.getElementById("numberPlate").value = selectedVehicle.numberPlate || "";
     document.getElementById("companyMileage").value = companyMileage.toFixed(2) + " km/l";
     document.getElementById("effectiveMileage").value = effectiveMileage.toFixed(2) + " km/l";
     document.getElementById("tankCapacity").value = tankCapacity.toFixed(2) + " liter";
     document.getElementById("savedCurrentFuelLiter").value = currentFuelLiter.toFixed(2) + " L";
     document.getElementById("normalFuelLimit").value = getFixedFuelLimitByVehicle() + " BDT";
-    document.getElementById("lastVerifiedOdometer").value = selectedVehicle.odometerReading + " km";
+    document.getElementById("lastVerifiedOdometer").value = valueOrDash(selectedVehicle.odometerReading) + " km";
 
     const option = document.createElement("option");
     option.value = selectedVehicle.fuelType;
     option.innerText = selectedVehicle.fuelType;
     fuelTypeSelect.appendChild(option);
-
     fuelTypeSelect.value = selectedVehicle.fuelType;
 
     updateFuelLevelFromSavedFuel();
-    updateFuelRequestCalculation("liter");
     updateOdometerPreview();
+    updateFuelRequestCalculation("liter");
 }
 
 function updateOdometerPreview() {
@@ -237,15 +284,22 @@ function updateFuelRequestCalculation(source) {
     const bdtInput = document.getElementById("requestedAmountBdt");
 
     document.getElementById("selectedFuelTypePreview").innerText = fuelType || "-";
+    document.getElementById("pricePerUnitPreview").innerText = price > 0 ? price.toFixed(2) : "0";
 
-    if (!price || price <= 0) {
-        document.getElementById("pricePerUnitPreview").innerText = "0";
+    let requestedLiter = Number(literInput.value || 0);
+    let requestedAmountBdt = Number(bdtInput.value || 0);
+
+    if (!fuelType) {
         document.getElementById("estimatedCostPreview").innerText = "0";
         return;
     }
 
-    let requestedLiter = Number(literInput.value);
-    let requestedAmountBdt = Number(bdtInput.value);
+    if (!price || price <= 0) {
+        bdtInput.value = "";
+        document.getElementById("estimatedCostPreview").innerText = "0";
+        showMessage("fuelRequestMessage", "Fuel price is not loaded for " + fuelType + ". Please check admin fuel settings.", "error-text");
+        return;
+    }
 
     if (source === "liter") {
         requestedAmountBdt = requestedLiter * price;
@@ -257,8 +311,8 @@ function updateFuelRequestCalculation(source) {
         literInput.value = requestedAmountBdt > 0 ? requestedLiter.toFixed(2) : "";
     }
 
-    document.getElementById("pricePerUnitPreview").innerText = price;
-    document.getElementById("estimatedCostPreview").innerText = requestedAmountBdt > 0 ? requestedAmountBdt.toFixed(2) : "0";
+    document.getElementById("estimatedCostPreview").innerText =
+        requestedAmountBdt > 0 ? requestedAmountBdt.toFixed(2) : "0";
 
     updateExtraFuelMessage();
 }
@@ -295,8 +349,8 @@ function updateExtraFuelMessage() {
         return;
     }
 
-    const requestedLiter = Number(document.getElementById("requestedLiter").value);
-    const requestedAmountBdt = Number(document.getElementById("requestedAmountBdt").value);
+    const requestedLiter = Number(document.getElementById("requestedLiter").value || 0);
+    const requestedAmountBdt = Number(document.getElementById("requestedAmountBdt").value || 0);
     const limit = getFixedFuelLimitByVehicle();
     const reason = document.getElementById("extraFuelReasonType").value;
 
@@ -407,7 +461,6 @@ async function submitFuelRequest() {
     const companyMileage = Number(selectedVehicle.companyMileage || 0);
     const effectiveMileage = calculateEffectiveMileage(companyMileage);
 
-    const fullTankRange = effectiveMileage * tankCapacity;
     const availableRangeFromSavedFuel = effectiveMileage * savedCurrentFuelLiter;
     const distanceTravelled = currentOdometerReading - previousOdometer;
     const remainingRange = Math.max(0, availableRangeFromSavedFuel - distanceTravelled);
@@ -422,7 +475,7 @@ async function submitFuelRequest() {
     }
 
     const data = {
-        userId: Number(loggedInUser.userId || localStorage.getItem("userId")),
+        userId: Number(loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId")),
         vehicleId: selectedVehicle.id,
         fuelType: fuelType,
         requestedLiter: requestedLiter,
@@ -471,19 +524,21 @@ function getPriceByFuelType(fuelType) {
         return 0;
     }
 
-    if (fuelType === "PETROL") {
+    const normalizedFuelType = String(fuelType).trim().toUpperCase();
+
+    if (normalizedFuelType === "PETROL") {
         return Number(fuelSettings.petrolPrice || 0);
     }
 
-    if (fuelType === "OCTANE") {
+    if (normalizedFuelType === "OCTANE") {
         return Number(fuelSettings.octanePrice || 0);
     }
 
-    if (fuelType === "DIESEL") {
+    if (normalizedFuelType === "DIESEL") {
         return Number(fuelSettings.dieselPrice || 0);
     }
 
-    if (fuelType === "CNG") {
+    if (normalizedFuelType === "CNG") {
         return Number(fuelSettings.cngPrice || 0);
     }
 
@@ -496,10 +551,10 @@ function getFixedFuelLimitByVehicle() {
     }
 
     if (selectedVehicle.vehicleType === "BIKE") {
-        return 500;
+        return fuelSettings && fuelSettings.bikeLimit ? Number(fuelSettings.bikeLimit) : 500;
     }
 
-    return 2000;
+    return fuelSettings && fuelSettings.carLimit ? Number(fuelSettings.carLimit) : 2000;
 }
 
 function calculateEffectiveMileage(companyMileage) {
@@ -543,6 +598,7 @@ function clearVehiclePreview() {
     document.getElementById("remainingRangePreview").innerText = "0";
     document.getElementById("fuelLevelStatus").value = "";
     document.getElementById("requestedAmountBdt").value = "";
+    document.getElementById("requestedLiter").value = "";
     document.getElementById("extraFuelReasonType").value = "";
     document.getElementById("extraFuelDemandMessage").value = "";
     document.getElementById("extraFuelReasonSection").classList.add("hidden-section");
@@ -559,6 +615,10 @@ function showMessage(id, message, className) {
 }
 
 function getErrorMessage(result) {
+    if (!result) {
+        return "Request failed.";
+    }
+
     if (result.message) {
         return result.message;
     }
@@ -568,6 +628,28 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
+}
+
+function valueOrDash(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
+}
+
+function toNumber(value) {
+    if (value === null || value === undefined || value === "") {
+        return 0;
+    }
+
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return 0;
+    }
+
+    return numberValue;
 }
 
 function setupLogout() {

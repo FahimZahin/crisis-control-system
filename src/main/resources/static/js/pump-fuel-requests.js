@@ -162,7 +162,7 @@ async function collectByManualCode() {
         return;
     }
 
-    const collectionCode = document.getElementById("collectionCode").value.trim();
+    const collectionCode = document.getElementById("collectionCode").value.trim().toUpperCase();
     const verifiedNumberPlate = document.getElementById("verifiedNumberPlate").value.trim();
     const currentOdometerReading = document.getElementById("collectionOdometerReading").value;
 
@@ -171,7 +171,44 @@ async function collectByManualCode() {
         return;
     }
 
-    const confirmed = confirm("Verify this collection code and mark fuel as collected?");
+    const request = findRequestByCollectionCode(collectionCode);
+
+    if (!request) {
+        showMessage(
+            "collectionMessage",
+            "This code is not in your approved assigned request list. It may be invalid, already collected, or assigned to another pump.",
+            "error-text"
+        );
+        return;
+    }
+
+    if (request.requestStatus !== "APPROVED") {
+        showMessage("collectionMessage", "This request is not approved or already collected.", "error-text");
+        return;
+    }
+
+    if (isNormalVehicleRequest(request)) {
+        if (!verifiedNumberPlate) {
+            showMessage("collectionMessage", "Verified number plate is required for normal vehicle fuel collection.", "error-text");
+            return;
+        }
+
+        if (!currentOdometerReading) {
+            showMessage("collectionMessage", "Current odometer reading is required for normal vehicle fuel collection.", "error-text");
+            return;
+        }
+    }
+
+    const confirmMessage =
+        "Confirm one-time fuel collection?\n\n" +
+        "Request ID: " + request.id + "\n" +
+        "User: " + valueOrDash(request.userName) + "\n" +
+        "Fuel: " + valueOrDash(request.fuelType) + "\n" +
+        "Liter: " + valueOrDash(request.requestedLiter) + " L\n" +
+        "Code: " + collectionCode + "\n\n" +
+        "After confirmation, this code cannot be used again.";
+
+    const confirmed = confirm(confirmMessage);
 
     if (!confirmed) {
         return;
@@ -196,10 +233,16 @@ async function collectByManualCode() {
         const result = await response.json();
 
         if (response.ok) {
-            showMessage("collectionMessage", "Fuel collection verified successfully. Stock deducted and odometer updated if vehicle request.", "success-text");
+            showMessage(
+                "collectionMessage",
+                "Fuel collection completed successfully. This collection code is now used and cannot be reused.",
+                "success-text"
+            );
+
             document.getElementById("collectionCode").value = "";
             document.getElementById("verifiedNumberPlate").value = "";
             document.getElementById("collectionOdometerReading").value = "";
+
             loadPumpAndRequests();
         } else {
             showMessage("collectionMessage", getErrorMessage(result), "error-text");
@@ -252,7 +295,7 @@ function renderVerificationActionPanel(request) {
 
             <div style="margin-top: 8px;">
                 <button class="btn primary tiny-btn" onclick="collectVerifiedRequest(${requestId})">
-                    Collect Now
+                             Use Code & Collect
                 </button>
             </div>
         </div>
@@ -399,6 +442,16 @@ function findRequestById(requestId) {
     return window.assignedFuelRequests.find(function (request) {
         return Number(request.id) === Number(requestId);
     });
+}
+
+function findRequestByCollectionCode(collectionCode) {
+    if (!window.assignedFuelRequests || !collectionCode) {
+        return null;
+    }
+
+    return window.assignedFuelRequests.find(function (request) {
+        return String(request.collectionCode || "").trim().toUpperCase() === collectionCode.trim().toUpperCase();
+    }) || null;
 }
 
 function isNormalVehicleRequest(request) {

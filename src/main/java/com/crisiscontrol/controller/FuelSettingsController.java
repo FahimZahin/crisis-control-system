@@ -13,17 +13,29 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/admin/fuel-settings")
 public class FuelSettingsController {
 
     private final FuelSettingsService fuelSettingsService;
 
-    @GetMapping
-    public ResponseEntity<FuelSettingsResponse> getFuelSettings() {
+    /*
+     * Public fuel settings endpoint.
+     * Vehicle owner pages need this to calculate requested amount in BDT.
+     */
+    @GetMapping("/api/fuel-settings")
+    public ResponseEntity<FuelSettingsResponse> getPublicFuelSettings() {
         return ResponseEntity.ok(fuelSettingsService.getFuelSettings());
     }
 
-    @PutMapping("/prices")
+    /*
+     * Admin fuel settings endpoint.
+     * Keep this for admin fuel settings page.
+     */
+    @GetMapping("/api/admin/fuel-settings")
+    public ResponseEntity<FuelSettingsResponse> getAdminFuelSettings() {
+        return ResponseEntity.ok(fuelSettingsService.getFuelSettings());
+    }
+
+    @PutMapping("/api/admin/fuel-settings/prices")
     public ResponseEntity<Map<String, String>> updateFuelPrices(
             @Valid @RequestBody FuelPriceRequest request
     ) {
@@ -34,7 +46,7 @@ public class FuelSettingsController {
         );
     }
 
-    @PutMapping("/limits")
+    @PutMapping("/api/admin/fuel-settings/limits")
     public ResponseEntity<Map<String, String>> updateFuelLimits(
             @Valid @RequestBody FuelLimitRequest request
     ) {
