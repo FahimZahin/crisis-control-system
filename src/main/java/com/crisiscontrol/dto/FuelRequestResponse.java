@@ -86,6 +86,12 @@ public class FuelRequestResponse {
     private FuelRequestStatus requestStatus;
     private String adminNote;
 
+    private String paymentMethod;
+    private BigDecimal cashAmountBdt;
+    private String bkashTransactionId;
+    private BigDecimal paidAmountBdt;
+    private LocalDateTime paymentRecordedAt;
+
     private LocalDateTime collectedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

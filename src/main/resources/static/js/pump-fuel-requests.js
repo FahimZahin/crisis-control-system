@@ -27,6 +27,12 @@ function setupEvents() {
     document.getElementById("refreshAssignedRequestsBtn").addEventListener("click", function () {
         loadPumpAndRequests();
     });
+
+    document.getElementById("paymentMethod").addEventListener("change", function () {
+        toggleBkashTransactionField();
+    });
+
+    toggleBkashTransactionField();
 }
 
 async function loadPumpAndRequests() {
@@ -165,9 +171,21 @@ async function collectByManualCode() {
     const collectionCode = document.getElementById("collectionCode").value.trim().toUpperCase();
     const verifiedNumberPlate = document.getElementById("verifiedNumberPlate").value.trim();
     const currentOdometerReading = document.getElementById("collectionOdometerReading").value;
+    const paymentMethod = document.getElementById("paymentMethod").value;
+    const bkashTransactionId = document.getElementById("bkashTransactionId").value.trim();
 
     if (!collectionCode) {
         showMessage("collectionMessage", "Please enter collection code.", "error-text");
+        return;
+    }
+
+    if (!paymentMethod) {
+        showMessage("collectionMessage", "Please select payment method.", "error-text");
+        return;
+    }
+
+    if (paymentMethod === "BKASH" && !bkashTransactionId) {
+        showMessage("collectionMessage", "bKash transaction ID is required for bKash payment.", "error-text");
         return;
     }
 
@@ -205,6 +223,8 @@ async function collectByManualCode() {
         "User: " + valueOrDash(request.userName) + "\n" +
         "Fuel: " + valueOrDash(request.fuelType) + "\n" +
         "Liter: " + valueOrDash(request.requestedLiter) + " L\n" +
+        "Payment: " + paymentMethod + "\n" +
+        "bKash Transaction ID: " + (paymentMethod === "BKASH" ? bkashTransactionId : "-") + "\n" +
         "Code: " + collectionCode + "\n\n" +
         "After confirmation, this code cannot be used again.";
 
@@ -218,7 +238,9 @@ async function collectByManualCode() {
         pumpId: currentPump.id,
         collectionCode: collectionCode,
         verifiedNumberPlate: verifiedNumberPlate,
-        currentOdometerReading: currentOdometerReading ? Number(currentOdometerReading) : null
+        currentOdometerReading: currentOdometerReading ? Number(currentOdometerReading) : null,
+        paymentMethod: paymentMethod,
+        bkashTransactionId: paymentMethod === "BKASH" ? bkashTransactionId : null
     };
 
     try {
@@ -242,6 +264,9 @@ async function collectByManualCode() {
             document.getElementById("collectionCode").value = "";
             document.getElementById("verifiedNumberPlate").value = "";
             document.getElementById("collectionOdometerReading").value = "";
+            document.getElementById("paymentMethod").value = "";
+            document.getElementById("bkashTransactionId").value = "";
+            toggleBkashTransactionField();
 
             loadPumpAndRequests();
         } else {
@@ -534,6 +559,25 @@ function formatDateTime(value) {
     }
 
     return value.replace("T", " ").substring(0, 16);
+}
+
+function toggleBkashTransactionField() {
+    const paymentMethod = document.getElementById("paymentMethod");
+    const bkashTransactionBox = document.getElementById("bkashTransactionBox");
+    const bkashTransactionId = document.getElementById("bkashTransactionId");
+
+    if (!paymentMethod || !bkashTransactionBox || !bkashTransactionId) {
+        return;
+    }
+
+    if (paymentMethod.value === "BKASH") {
+        bkashTransactionBox.style.display = "block";
+        bkashTransactionId.required = true;
+    } else {
+        bkashTransactionBox.style.display = "none";
+        bkashTransactionId.required = false;
+        bkashTransactionId.value = "";
+    }
 }
 function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");

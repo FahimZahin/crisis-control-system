@@ -36,8 +36,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -690,6 +693,10 @@ public class FuelRequestService {
             throw new RuntimeException("This fuel request is not assigned to your pump");
         }
 
+        String paymentMethod = normalizePaymentMethod(request.getPaymentMethod());
+        String bkashTransactionId = normalizeBkashTransactionId(paymentMethod, request.getBkashTransactionId());
+        BigDecimal paidAmount = resolvePaymentAmount(fuelRequest);
+
         PumpProfile pumpProfile = fuelRequest.getPumpProfile();
 
         if (pumpProfile.getPumpStatus() != PumpStatus.OPEN) {
@@ -739,7 +746,12 @@ public class FuelRequestService {
 
         fuelRequest.setRequestStatus(FuelRequestStatus.COLLECTED);
         fuelRequest.setCollectedAt(LocalDateTime.now());
-        fuelRequest.setAdminNote("Fuel collected successfully from assigned pump.");
+        fuelRequest.setPaymentMethod(paymentMethod);
+        fuelRequest.setPaidAmountBdt(paidAmount);
+        fuelRequest.setCashAmountBdt("CASH".equals(paymentMethod) ? paidAmount : BigDecimal.ZERO);
+        fuelRequest.setBkashTransactionId(bkashTransactionId);
+        fuelRequest.setPaymentRecordedAt(LocalDateTime.now());
+        fuelRequest.setAdminNote("Fuel collected successfully from assigned pump. Payment method: " + paymentMethod + ".");
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
 
@@ -754,7 +766,11 @@ public class FuelRequestService {
                         + savedRequest.getFuelType()
                         + ", Liter: "
                         + savedRequest.getRequestedLiter()
-                        + ", Collection code: "
+                        + ", Payment Method: "
+                        + savedRequest.getPaymentMethod()
+                        + ", Paid Amount: "
+                        + savedRequest.getPaidAmountBdt()
+                        + " BDT, Collection code: "
                         + normalizedCode
                         + ", Current Status: "
                         + savedRequest.getRequestStatus()
@@ -762,6 +778,52 @@ public class FuelRequestService {
 
         return mapToResponse(savedRequest);
     }
+
+    public Map<String, Object> getPumpTransparencyToday(Long pumpId) {
+        PumpProfile pumpProfile = pumpProfileRepository.findById(pumpId)
+                .orElseThrow(() -> new RuntimeException("Pump profile not found"));
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startDateTime = today.atStartOfDay();
+        LocalDateTime endDateTime = startDateTime.plusDays(1);
+
+        List<FuelRequest> collectedRequests =
+                fuelRequestRepository.findByPumpProfileIdAndRequestStatusAndCollectedAtBetweenOrderByCollectedAtDesc(
+                        pumpId,
+                        FuelRequestStatus.COLLECTED,
+                        startDateTime,
+                        endDateTime
+                );
+
+        BigDecimal dailyCashTotal = BigDecimal.ZERO;
+        BigDecimal dailyBkashTotal = BigDecimal.ZERO;
+        BigDecimal fuelSoldToday = BigDecimal.ZERO;
+
+        for (FuelRequest request : collectedRequests) {
+            fuelSoldToday = fuelSoldToday.add(safeAmount(request.getRequestedLiter()));
+
+            if ("CASH".equalsIgnoreCase(valueOrDash(request.getPaymentMethod()))) {
+                dailyCashTotal = dailyCashTotal.add(safeAmount(request.getPaidAmountBdt()));
+            }
+
+            if ("BKASH".equalsIgnoreCase(valueOrDash(request.getPaymentMethod()))) {
+                dailyBkashTotal = dailyBkashTotal.add(safeAmount(request.getPaidAmountBdt()));
+            }
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("pumpId", pumpProfile.getId());
+        response.put("pumpName", pumpProfile.getPumpName());
+        response.put("date", today.toString());
+        response.put("dailyCashTotal", dailyCashTotal);
+        response.put("dailyBkashTotal", dailyBkashTotal);
+        response.put("totalPaymentToday", dailyCashTotal.add(dailyBkashTotal));
+        response.put("fuelSoldToday", fuelSoldToday);
+        response.put("totalCollectionsToday", collectedRequests.size());
+
+        return response;
+    }
+
 
     private void validateAndUpdateVehicleOdometerAfterCollection(
             FuelRequest fuelRequest,
@@ -1032,6 +1094,11 @@ public class FuelRequestService {
                 .collectionCode(fuelRequest.getCollectionCode())
                 .requestStatus(fuelRequest.getRequestStatus())
                 .adminNote(fuelRequest.getAdminNote())
+                .paymentMethod(fuelRequest.getPaymentMethod())
+                .cashAmountBdt(fuelRequest.getCashAmountBdt())
+                .bkashTransactionId(fuelRequest.getBkashTransactionId())
+                .paidAmountBdt(fuelRequest.getPaidAmountBdt())
+                .paymentRecordedAt(fuelRequest.getPaymentRecordedAt())
                 .collectedAt(fuelRequest.getCollectedAt())
                 .createdAt(fuelRequest.getCreatedAt())
                 .updatedAt(fuelRequest.getUpdatedAt())
@@ -1142,5 +1209,51 @@ public class FuelRequestService {
                 + " BDT. Reason: "
                 + reason
                 + ". Admin approval is required.";
+    }
+
+    private String normalizePaymentMethod(String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
+            throw new RuntimeException("Payment method is required");
+        }
+
+        String normalizedPaymentMethod = paymentMethod.trim().toUpperCase();
+
+        if (!"CASH".equals(normalizedPaymentMethod) && !"BKASH".equals(normalizedPaymentMethod)) {
+            throw new RuntimeException("Payment method must be CASH or BKASH");
+        }
+
+        return normalizedPaymentMethod;
+    }
+
+    private String normalizeBkashTransactionId(String paymentMethod, String bkashTransactionId) {
+        if ("BKASH".equals(paymentMethod)) {
+            if (bkashTransactionId == null || bkashTransactionId.trim().isEmpty()) {
+                throw new RuntimeException("bKash transaction ID is required for bKash payment");
+            }
+
+            return bkashTransactionId.trim();
+        }
+
+        return null;
+    }
+
+    private BigDecimal resolvePaymentAmount(FuelRequest fuelRequest) {
+        if (fuelRequest.getEstimatedCost() != null) {
+            return fuelRequest.getEstimatedCost();
+        }
+
+        if (fuelRequest.getRequestedAmountBdt() != null) {
+            return fuelRequest.getRequestedAmountBdt();
+        }
+
+        if (fuelRequest.getPricePerUnit() != null && fuelRequest.getRequestedLiter() != null) {
+            return fuelRequest.getPricePerUnit().multiply(fuelRequest.getRequestedLiter());
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+    private BigDecimal safeAmount(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

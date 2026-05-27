@@ -214,6 +214,8 @@ async function loadPumpForDashboard() {
 
         if (response.ok) {
             fillPumpDashboard(pump);
+            loadPumpTransparencyToday(pump.id);
+            setupPumpTransparencyRefresh(pump.id);
             showDashboardPumpMessage("Pump profile loaded from database.", "success-text");
         } else {
             showDashboardPumpMessage(getErrorMessage(pump), "error-text");
@@ -243,6 +245,56 @@ function fillPumpDashboard(pump) {
     }
 
     renderPumpFuelStockTable(pump.fuelStocks);
+}
+
+async function loadPumpTransparencyToday(pumpId) {
+    if (!pumpId) {
+        showPumpTransparencyMessage("Pump ID not found. Transparency summary cannot be loaded.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/pumps/" + pumpId + "/transparency/today");
+        const transparency = await response.json();
+
+        if (!response.ok) {
+            showPumpTransparencyMessage(getErrorMessage(transparency), "error-text");
+            return;
+        }
+
+        setTextIfExists("dailyCashTotal", formatNumber(transparency.dailyCashTotal));
+        setTextIfExists("dailyBkashTotal", formatNumber(transparency.dailyBkashTotal));
+        setTextIfExists("totalPaymentToday", formatNumber(transparency.totalPaymentToday));
+        setTextIfExists("fuelSoldToday", formatNumber(transparency.fuelSoldToday));
+        setTextIfExists("totalCollectionsToday", transparency.totalCollectionsToday || 0);
+        setTextIfExists("transparencyDate", transparency.date || "-");
+
+        showPumpTransparencyMessage("Transparency dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showPumpTransparencyMessage("Server connection failed while loading transparency dashboard.", "error-text");
+    }
+}
+
+function setupPumpTransparencyRefresh(pumpId) {
+    const refreshButton = document.getElementById("refreshPumpTransparencyBtn");
+
+    if (!refreshButton) {
+        return;
+    }
+
+    refreshButton.onclick = function () {
+        loadPumpTransparencyToday(pumpId);
+    };
+}
+
+function showPumpTransparencyMessage(message, className) {
+    const element = document.getElementById("pumpTransparencyMessage");
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
 }
 
 async function loadVehiclesForDashboard() {

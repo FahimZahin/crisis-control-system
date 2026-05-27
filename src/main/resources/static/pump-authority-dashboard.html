@@ -122,6 +122,53 @@
         </div>
     </div>
 
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Pump Transparency Dashboard</h2>
+                <p class="muted-text">Today&apos;s cash, bKash, and fuel distribution summary from collected requests.</p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshPumpTransparencyBtn">
+                Refresh Transparency
+            </button>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Daily Cash Total</h3>
+                <p><span id="dailyCashTotal">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Daily bKash Total</h3>
+                <p><span id="dailyBkashTotal">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Total Payment Today</h3>
+                <p><span id="totalPaymentToday">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Fuel Sold Today</h3>
+                <p><span id="fuelSoldToday">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Collections Today</h3>
+                <p id="totalCollectionsToday">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Transparency Date</h3>
+                <p id="transparencyDate">-</p>
+            </div>
+        </div>
+
+        <div id="pumpTransparencyMessage"></div>
+    </div>
     <div class="role-dashboard-section">
         <h2>Available Features Preview</h2>
 

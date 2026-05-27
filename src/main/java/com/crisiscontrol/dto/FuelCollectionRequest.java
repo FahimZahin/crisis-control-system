@@ -20,4 +20,9 @@ public class FuelCollectionRequest {
     private String verifiedNumberPlate;
 
     private BigDecimal currentOdometerReading;
+
+    @NotBlank(message = "Payment method is required")
+    private String paymentMethod;
+
+    private String bkashTransactionId;
 }

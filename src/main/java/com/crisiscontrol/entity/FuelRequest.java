@@ -133,6 +133,21 @@ public class FuelRequest {
     @Column(name = "collected_at")
     private LocalDateTime collectedAt;
 
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    @Column(name = "cash_amount_bdt", precision = 12, scale = 2)
+    private BigDecimal cashAmountBdt;
+
+    @Column(name = "bkash_transaction_id")
+    private String bkashTransactionId;
+
+    @Column(name = "paid_amount_bdt", precision = 12, scale = 2)
+    private BigDecimal paidAmountBdt;
+
+    @Column(name = "payment_recorded_at")
+    private LocalDateTime paymentRecordedAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

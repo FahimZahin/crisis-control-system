@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 import java.util.List;
 
@@ -108,5 +109,12 @@ public class FuelRequestController {
             @Valid @RequestBody FuelCollectionRequest request
     ) {
         return ResponseEntity.ok(fuelRequestService.collectFuelByCode(request));
+    }
+
+    @GetMapping("/api/pumps/{pumpId}/transparency/today")
+    public ResponseEntity<Map<String, Object>> getPumpTransparencyToday(
+            @PathVariable Long pumpId
+    ) {
+        return ResponseEntity.ok(fuelRequestService.getPumpTransparencyToday(pumpId));
     }
 }
