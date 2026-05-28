@@ -824,6 +824,50 @@ public class FuelRequestService {
         return response;
     }
 
+    public Map<String, Object> getPumpPaymentRecords(Long pumpId, String paymentMethod, LocalDate selectedDate) {
+        PumpProfile pumpProfile = pumpProfileRepository.findById(pumpId)
+                .orElseThrow(() -> new RuntimeException("Pump profile not found"));
+
+        String normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
+
+        LocalDateTime startDateTime = selectedDate.atStartOfDay();
+        LocalDateTime endDateTime = startDateTime.plusDays(1);
+
+        List<FuelRequest> collectedRequests =
+                fuelRequestRepository.findByPumpProfileIdAndRequestStatusAndCollectedAtBetweenOrderByCollectedAtDesc(
+                        pumpId,
+                        FuelRequestStatus.COLLECTED,
+                        startDateTime,
+                        endDateTime
+                );
+
+        List<FuelRequestResponse> filteredRecords = collectedRequests
+                .stream()
+                .filter(request -> normalizedPaymentMethod.equalsIgnoreCase(valueOrDash(request.getPaymentMethod())))
+                .map(this::mapToResponse)
+                .toList();
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalFuelSold = BigDecimal.ZERO;
+
+        for (FuelRequestResponse record : filteredRecords) {
+            totalAmount = totalAmount.add(safeAmount(record.getPaidAmountBdt()));
+            totalFuelSold = totalFuelSold.add(safeAmount(record.getRequestedLiter()));
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("pumpId", pumpProfile.getId());
+        response.put("pumpName", pumpProfile.getPumpName());
+        response.put("paymentMethod", normalizedPaymentMethod);
+        response.put("date", selectedDate.toString());
+        response.put("totalAmount", totalAmount);
+        response.put("totalFuelSold", totalFuelSold);
+        response.put("totalRecords", filteredRecords.size());
+        response.put("records", filteredRecords);
+
+        return response;
+    }
+
 
     private void validateAndUpdateVehicleOdometerAfterCollection(
             FuelRequest fuelRequest,

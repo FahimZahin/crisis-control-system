@@ -530,6 +530,7 @@ function renderPumpFuelStockTable(fuelStocks) {
         tableBody.appendChild(row);
     });
 }
+
 function formatLiter(value) {
     if (value === null || value === undefined || value === "") {
         return "0.00 L";

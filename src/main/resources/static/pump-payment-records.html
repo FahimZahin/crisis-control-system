@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pump Payment Records | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="pump-authority-dashboard.html">Pump Dashboard</a>
+        <a href="pump-fuel-requests.html">Fuel Requests</a>
+        <a href="pump-stock-management.html">Stock Management</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Pump Payment Records</h1>
+            <p>Search cash or bKash fuel collection payment records by specific date.</p>
+        </div>
+        <span class="role-badge">PAYMENT RECORDS</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Pump Name</h3>
+            <p id="paymentPumpName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Payment Method</h3>
+            <p id="selectedPaymentMethod">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Selected Date</h3>
+            <p id="selectedPaymentDate">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Total Records</h3>
+            <p id="paymentTotalRecords">0</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Search Payment Records</h2>
+                <p class="muted-text">Choose payment method and date to view pump collection payment records.</p>
+            </div>
+
+            <a href="pump-authority-dashboard.html" class="btn secondary small-btn">Back to Dashboard</a>
+        </div>
+
+        <form id="paymentRecordSearchForm" class="settings-form-grid">
+            <div>
+                <label>Payment Method</label>
+                <select id="paymentMethod" required>
+                    <option value="CASH">Cash</option>
+                    <option value="BKASH">bKash</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Search Date</label>
+                <input type="date" id="paymentDate" required>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Search Records
+            </button>
+        </form>
+
+        <div id="paymentRecordsMessage"></div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Payment Summary</h2>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Total Amount</h3>
+                <p><span id="paymentTotalAmount">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Total Fuel Sold</h3>
+                <p><span id="paymentTotalFuelSold">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Total Collections</h3>
+                <p id="paymentTotalCollections">0</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Payment Record List</h2>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Request Source</th>
+                    <th>Fuel Type</th>
+                    <th>Liter</th>
+                    <th>Amount</th>
+                    <th>Payment Method</th>
+                    <th>bKash Transaction ID</th>
+                    <th>Collected Time</th>
+                </tr>
+                </thead>
+
+                <tbody id="paymentRecordsTableBody">
+                <tr>
+                    <td colspan="10">Search records by date.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/pump-payment-records.js"></script>
+</body>
+</html>

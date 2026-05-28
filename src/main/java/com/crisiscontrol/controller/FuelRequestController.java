@@ -1,5 +1,6 @@
 package com.crisiscontrol.controller;
 
+import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.dto.EmergencyFuelRequestCreateRequest;
 import com.crisiscontrol.dto.FuelCollectionRequest;
 import com.crisiscontrol.dto.FuelRequestCreateRequest;
@@ -7,14 +8,14 @@ import com.crisiscontrol.dto.FuelRequestDecisionRequest;
 import com.crisiscontrol.dto.FuelRequestResponse;
 import com.crisiscontrol.dto.HospitalGeneratorFuelRequestCreateRequest;
 import com.crisiscontrol.service.FuelRequestService;
-import com.crisiscontrol.dto.BuildingGeneratorFuelRequestCreateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -66,13 +67,15 @@ public class FuelRequestController {
 
     @PostMapping("/api/building-generator-fuel-requests")
     public ResponseEntity<FuelRequestResponse> createBuildingGeneratorFuelRequest(
-            @RequestBody @Valid BuildingGeneratorFuelRequestCreateRequest request) {
+            @RequestBody @Valid BuildingGeneratorFuelRequestCreateRequest request
+    ) {
         return ResponseEntity.ok(fuelRequestService.createBuildingGeneratorFuelRequest(request));
     }
 
     @GetMapping("/api/building-generator-fuel-requests/user/{userId}")
     public ResponseEntity<List<FuelRequestResponse>> getBuildingGeneratorFuelRequestsByUser(
-            @PathVariable Long userId) {
+            @PathVariable Long userId
+    ) {
         return ResponseEntity.ok(fuelRequestService.getBuildingGeneratorFuelRequestsByUser(userId));
     }
 
@@ -116,5 +119,15 @@ public class FuelRequestController {
             @PathVariable Long pumpId
     ) {
         return ResponseEntity.ok(fuelRequestService.getPumpTransparencyToday(pumpId));
+    }
+
+    @GetMapping("/api/pumps/{pumpId}/payment-records")
+    public ResponseEntity<Map<String, Object>> getPumpPaymentRecords(
+            @PathVariable Long pumpId,
+            @RequestParam String paymentMethod,
+            @RequestParam String date
+    ) {
+        LocalDate selectedDate = LocalDate.parse(date);
+        return ResponseEntity.ok(fuelRequestService.getPumpPaymentRecords(pumpId, paymentMethod, selectedDate));
     }
 }
