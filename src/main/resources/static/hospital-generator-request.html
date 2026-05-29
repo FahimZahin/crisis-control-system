@@ -23,14 +23,14 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Hospital Generator Diesel Support</h1>
-            <p>Hospital can request DIESEL. Requests within admin weekly allocation may be auto-approved if pump stock is available.</p>
+            <p>Hospital support is calculated from critical electrical services, ICU units, patient capacity, and minimum 6-hour emergency backup.</p>
         </div>
         <span class="role-badge">HOSPITAL DIESEL</span>
     </div>
 
     <div class="role-summary-grid">
         <div class="summary-card">
-            <h3>Backup Power Estimate</h3>
+            <h3>Current Backup</h3>
             <p id="backupHoursSummary">-</p>
         </div>
 
@@ -45,8 +45,18 @@
         </div>
 
         <div class="summary-card">
-            <h3>Admin Weekly Allocation</h3>
-            <p><span id="hospitalWeeklyAllocationSummary">0.00</span> L</p>
+            <h3>Critical Load</h3>
+            <p><span id="criticalLoadSummary">0.00</span> kW</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Hourly Diesel Use</h3>
+            <p><span id="hourlyDieselSummary">0.00</span> L/hour</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Auto Approval Limit</h3>
+            <p><span id="autoApprovalLimitSummary">0.00</span> L</p>
         </div>
 
         <div class="summary-card">
@@ -58,9 +68,9 @@
     <div class="role-dashboard-section">
         <div class="card-title-row">
             <div>
-                <h2>Current Hospital Generator Status</h2>
+                <h2>Hospital Critical Service Calculation</h2>
                 <p class="muted-text">
-                    Press refresh after pump collection to update diesel reserve and backup status without logout.
+                    Hospital calculation is not based on building flat load. It includes ICU, patient care load, base emergency load, generator capacity, current diesel reserve, and tank space.
                 </p>
             </div>
 
@@ -98,8 +108,23 @@
             </div>
 
             <div>
-                <label>Admin Weekly Allocation</label>
-                <p><span id="hospitalWeeklyAllocationInfo">0.00</span> L</p>
+                <label>Required Diesel for 6 Hours</label>
+                <p><span id="requiredSixHourDieselInfo">0.00</span> L</p>
+            </div>
+
+            <div>
+                <label>Shortage to Reach 6 Hours</label>
+                <p><span id="dieselShortageInfo">0.00</span> L</p>
+            </div>
+
+            <div>
+                <label>Effective Supported Load</label>
+                <p><span id="effectiveCriticalLoadInfo">0.00</span> kW</p>
+            </div>
+
+            <div>
+                <label>Generator Load Warning</label>
+                <p id="generatorLoadWarningInfo">-</p>
             </div>
 
             <div>
@@ -125,19 +150,20 @@
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Create Generator Diesel Request</h2>
+        <h2>Create Hospital Generator Diesel Request</h2>
         <p class="muted-text">
-            Enter either Expected Backup Hours Needed or Required Diesel Liter. Weekly allocation is set by admin and is used for auto-approval decision.
+            Auto approval applies only when current backup is below 6 hours and requested diesel is within the calculated shortage needed to restore critical services to 6 hours.
         </p>
 
         <form id="hospitalGeneratorRequestForm" class="settings-form-grid">
+
             <div>
                 <label>Outage Situation</label>
                 <select id="outageSituation" required>
                     <option value="">Select situation</option>
-                    <option value="ONGOING_OUTAGE">Ongoing outage in hospital thana</option>
-                    <option value="SCHEDULED_OUTAGE">Scheduled outage announced</option>
-                    <option value="PRECAUTIONARY_REFILL">Precautionary refill for hospital backup</option>
+                    <option value="ONGOING_OUTAGE">Emergency outage affecting hospital services</option>
+                    <option value="SCHEDULED_OUTAGE">Scheduled outage risk</option>
+                    <option value="PRECAUTIONARY_REFILL">Precautionary refill for critical hospital backup</option>
                 </select>
             </div>
 
@@ -155,12 +181,6 @@
             <div>
                 <label>Hourly Diesel Consumption</label>
                 <input type="text" id="hourlyDieselConsumption" readonly>
-            </div>
-
-            <div>
-                <label>Admin Weekly Allocation (L)</label>
-                <input type="number" id="hospitalWeeklyAllocation" readonly>
-                <small class="muted-text">This value is set by admin in Fuel Settings.</small>
             </div>
 
             <div>
@@ -189,7 +209,7 @@
             </div>
 
             <div class="settings-full-row">
-                <label>Generated Crisis Reason</label>
+                <label>Generated Critical Service Reason</label>
                 <textarea id="generatedReasonPreview" rows="8" readonly></textarea>
             </div>
 

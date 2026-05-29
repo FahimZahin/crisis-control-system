@@ -1,8 +1,13 @@
 let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || {};
 
-document.addEventListener("DOMContentLoaded", function () {
-    loadUserInfo();
+document.addEventListener("DOMContentLoaded", async function () {
     setupLogout();
+
+    if (loggedInUser.role === "HOSPITAL_AUTHORITY" || document.getElementById("hospitalName")) {
+        await refreshHospitalProfileSilently();
+    }
+
+    loadUserInfo();
 
     if (document.getElementById("vehicleDashboardList")) {
         loadVehiclesForDashboard();
@@ -41,13 +46,24 @@ function loadUserInfo() {
     const hospitalDieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
     const hospitalCurrentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
     const hospitalAvailableDieselSpace = Math.max(0, hospitalDieselTankCapacity - hospitalCurrentDieselReserve);
-    const hospitalBackupHours = calculateBackupHours(hospitalGeneratorCapacity, hospitalCurrentDieselReserve);
-    const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
 
     const totalIcuUnits = cleanNumber(loggedInUser.totalIcuUnits || localStorage.getItem("totalIcuUnits"));
     const acPatientCapacity = cleanNumber(loggedInUser.acPatientCapacity || localStorage.getItem("acPatientCapacity"));
     const nonAcPatientCapacity = cleanNumber(loggedInUser.nonAcPatientCapacity || localStorage.getItem("nonAcPatientCapacity"));
     const totalPatientCapacity = acPatientCapacity + nonAcPatientCapacity;
+
+
+    const hospitalBackupHours = calculateHospitalCriticalBackupHoursForDashboard(
+        hospitalGeneratorCapacity,
+        hospitalCurrentDieselReserve,
+        totalIcuUnits,
+        acPatientCapacity,
+        nonAcPatientCapacity
+    );
+
+    const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
+
+
     const hospitalPriorityLevel = resolveHospitalPriorityLevelForDashboard(
         hospitalDieselStatus,
         totalIcuUnits,
@@ -169,6 +185,29 @@ function loadUserInfo() {
     setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || loggedInUser.hospitalUnderThana || loggedInUser.buildingUnderThana || "Not Provided");
 }
 
+
+async function refreshHospitalProfileSilently() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/hospital-authority/profile/" + userId + "?time=" + Date.now());
+        const profile = await response.json();
+
+        if (!response.ok) {
+            return;
+        }
+
+        mergeHospitalProfile(profile);
+
+    } catch (error) {
+        // Dashboard will still load local data if server refresh fails.
+    }
+}
+
 async function refreshHospitalProfile() {
     const userId = getLoggedInUserId();
 
@@ -219,10 +258,14 @@ function mergeHospitalProfile(profile) {
     loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
     loggedInUser.hospitalDieselTankCapacity = profile.hospitalDieselTankCapacity ?? loggedInUser.hospitalDieselTankCapacity;
     loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
-    loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateBackupHours(
+    loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateHospitalCriticalBackupHoursForDashboard(
         loggedInUser.hospitalGeneratorCapacity,
-        loggedInUser.hospitalCurrentDieselReserve
+        loggedInUser.hospitalCurrentDieselReserve,
+        profile.totalIcuUnits ?? loggedInUser.totalIcuUnits ?? localStorage.getItem("totalIcuUnits"),
+        profile.acPatientCapacity ?? loggedInUser.acPatientCapacity ?? localStorage.getItem("acPatientCapacity"),
+        profile.nonAcPatientCapacity ?? loggedInUser.nonAcPatientCapacity ?? localStorage.getItem("nonAcPatientCapacity")
     );
+
     loggedInUser.hospitalDieselStatus = profile.hospitalDieselStatus || resolveDieselStatus(
         cleanNumber(loggedInUser.hospitalEstimatedBackupHours)
     );
@@ -530,7 +573,11 @@ function resolveDieselStatus(backupHours) {
         return "MIDDLE";
     }
 
-    return "RISK_FREE";
+    if (hours < 12) {
+        return "RISK_FREE";
+    }
+
+    return "ENOUGH";
 }
 
 function calculateBuildingBackupHoursForDashboard(generatorPower, numberOfFlats, currentFuel) {
@@ -952,6 +999,56 @@ async function loadDashboardWeeklyAllocations() {
         setTextIfExists("hospitalDashboardWeeklyAllocation", formatNumber(hospitalWeeklyAllocation));
 
     } catch (error) {
-
+        // Dashboard can still load without weekly allocation preview.
     }
+}
+
+function calculateHospitalCriticalBackupHoursForDashboard(
+    generatorCapacity,
+    currentDieselReserve,
+    totalIcuUnits,
+    acPatientCapacity,
+    nonAcPatientCapacity
+) {
+    const reserve = cleanNumber(currentDieselReserve);
+    const generator = cleanNumber(generatorCapacity);
+    const icu = cleanNumber(totalIcuUnits);
+    const acPatients = cleanNumber(acPatientCapacity);
+    const nonAcPatients = cleanNumber(nonAcPatientCapacity);
+
+    if (reserve <= 0) {
+        return 0;
+    }
+
+    const baseCriticalServiceLoadKw = 5.0;
+    const icuUnitLoadKw = 1.5;
+    const acPatientLoadKw = 0.08;
+    const nonAcPatientLoadKw = 0.04;
+    const dieselLiterPerKwh = 0.27;
+    const generatorSafeLoadFactor = 0.80;
+
+    let criticalLoadKw = baseCriticalServiceLoadKw;
+    criticalLoadKw += icu * icuUnitLoadKw;
+    criticalLoadKw += acPatients * acPatientLoadKw;
+    criticalLoadKw += nonAcPatients * nonAcPatientLoadKw;
+
+    let safeGeneratorCapacityKw = 0;
+
+    if (generator > 0) {
+        safeGeneratorCapacityKw = generator * generatorSafeLoadFactor;
+    }
+
+    let effectiveLoadKw = criticalLoadKw;
+
+    if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < criticalLoadKw) {
+        effectiveLoadKw = safeGeneratorCapacityKw;
+    }
+
+    const hourlyDieselUse = effectiveLoadKw * dieselLiterPerKwh;
+
+    if (hourlyDieselUse <= 0) {
+        return 0;
+    }
+
+    return reserve / hourlyDieselUse;
 }

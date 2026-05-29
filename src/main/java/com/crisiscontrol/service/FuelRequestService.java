@@ -375,7 +375,9 @@ public class FuelRequestService {
 
         BigDecimal requestedDiesel = safeAmount(request.getRequiredDieselLiter())
                 .setScale(2, java.math.RoundingMode.HALF_UP);
-        BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit());
+
+        BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit())
+                .setScale(2, java.math.RoundingMode.HALF_UP);
 
         Double dieselTankCapacity = user.getHospitalDieselTankCapacity();
         Double currentDieselReserve = user.getHospitalCurrentDieselReserve();
@@ -388,7 +390,7 @@ public class FuelRequestService {
             currentDieselReserve = 0.0;
         }
 
-        double availableDieselSpace = dieselTankCapacity - currentDieselReserve;
+        double availableDieselSpace = hospitalSupportCalculationService.calculateAvailableTankSpace(user);
 
         if (availableDieselSpace <= 0) {
             throw new RuntimeException("Hospital diesel tank is already full. Diesel request is not allowed.");
@@ -402,63 +404,55 @@ public class FuelRequestService {
             );
         }
 
-        BigDecimal weeklyAllocation = getBuildingWeeklyAllocation(user);
+        double currentBackupHours = hospitalSupportCalculationService.calculateBackupHours(user, currentDieselReserve);
+        double criticalLoadKw = hospitalSupportCalculationService.calculateCriticalServiceLoadKw(user);
+        double effectiveCriticalLoadKw = hospitalSupportCalculationService.calculateEffectiveCriticalLoadKw(user);
+        double hourlyDieselConsumption = hospitalSupportCalculationService.calculateHourlyDieselConsumption(user);
+        double requiredSixHourDiesel = hospitalSupportCalculationService.calculateRequiredDieselForMinimumBackup(user);
+        double dieselShortage = hospitalSupportCalculationService.calculateDieselShortageForMinimumBackup(user);
+        double autoApprovalLimit = hospitalSupportCalculationService.calculateAutoApprovalDieselLimit(user);
+        boolean overloadRisk = hospitalSupportCalculationService.hasGeneratorOverloadRisk(user);
 
-        BigDecimal usedThisWeek = calculateWeeklyUsedDiesel(
-                user.getId(),
-                FuelRequestSource.HOSPITAL_GENERATOR
-        );
+        boolean eligibleForAutoApproval = currentBackupHours < 6
+                && autoApprovalLimit > 0
+                && requestedDiesel.doubleValue() <= autoApprovalLimit;
 
-        BigDecimal remainingWeeklyAllocation = weeklyAllocation.subtract(usedThisWeek);
-
-        if (remainingWeeklyAllocation.compareTo(BigDecimal.ZERO) < 0) {
-            remainingWeeklyAllocation = BigDecimal.ZERO;
-        }
-
-        boolean withinWeeklyAllocation = requestedDiesel.compareTo(remainingWeeklyAllocation) <= 0;
-
-        PumpProfile assignedPump = withinWeeklyAllocation
+        PumpProfile assignedPump = eligibleForAutoApproval
                 ? findAvailablePumpForFuelOrNull(FuelType.DIESEL, requestedDiesel)
                 : null;
 
         FuelRequestStatus status = FuelRequestStatus.PENDING;
         String adminNote;
 
-        if (withinWeeklyAllocation && assignedPump != null) {
+        if (eligibleForAutoApproval && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            adminNote = "Auto-approved within admin-set hospital weekly diesel allocation. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L.";
-        } else if (withinWeeklyAllocation) {
-            adminNote = "Within admin-set hospital weekly diesel allocation, but no open pump has enough diesel stock. Waiting for admin review/pump assignment. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L.";
+            adminNote = "Auto-approved for hospital critical service backup. "
+                    + "Hospital backup is below 6 hours. "
+                    + "Critical service load: " + roundTwo(criticalLoadKw) + " kW, "
+                    + "Effective supported load: " + roundTwo(effectiveCriticalLoadKw) + " kW, "
+                    + "Hourly diesel consumption: " + roundTwo(hourlyDieselConsumption) + " L/hour, "
+                    + "Required diesel for 6 hours: " + roundTwo(requiredSixHourDiesel) + " L, "
+                    + "Current reserve: " + roundTwo(currentDieselReserve) + " L, "
+                    + "Auto approval limit: " + roundTwo(autoApprovalLimit) + " L.";
+        } else if (eligibleForAutoApproval) {
+            adminNote = "Hospital qualifies for emergency 6-hour backup support, but no open pump has enough diesel stock. "
+                    + "Waiting for admin review/pump assignment. "
+                    + "Auto approval limit: " + roundTwo(autoApprovalLimit) + " L.";
         } else {
-            adminNote = "Admin approval required because request exceeds remaining hospital weekly diesel allocation. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Requested: "
-                    + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L.";
+            adminNote = "Admin approval required. Hospital request is above the automatic 6-hour critical-service support limit. "
+                    + "Current backup: " + roundTwo(currentBackupHours) + " hours, "
+                    + "Critical service load: " + roundTwo(criticalLoadKw) + " kW, "
+                    + "Effective supported load: " + roundTwo(effectiveCriticalLoadKw) + " kW, "
+                    + "Hourly diesel consumption: " + roundTwo(hourlyDieselConsumption) + " L/hour, "
+                    + "Required diesel for 6 hours: " + roundTwo(requiredSixHourDiesel) + " L, "
+                    + "Current reserve: " + roundTwo(currentDieselReserve) + " L, "
+                    + "Shortage to reach 6 hours: " + roundTwo(dieselShortage) + " L, "
+                    + "Available tank space: " + roundTwo(availableDieselSpace) + " L, "
+                    + "Auto approval limit: " + roundTwo(autoApprovalLimit) + " L, "
+                    + "Requested: " + requestedDiesel + " L.";
         }
 
-        String hospitalPriorityLevel = resolveHospitalPriorityLevel(
-                user.getHospitalDieselStatus(),
-                user.getTotalIcuUnits(),
-                user.getAcPatientCapacity(),
-                user.getNonAcPatientCapacity()
-        );
+        String hospitalPriorityLevel = hospitalSupportCalculationService.resolveHospitalPriorityLevel(user);
 
         FuelRequest hospitalRequest = FuelRequest.builder()
                 .user(user)
@@ -496,10 +490,12 @@ public class FuelRequestService {
                         + savedRequest.getFuelType()
                         + ", Liter: "
                         + savedRequest.getRequestedLiter()
-                        + ", Weekly Allocation: "
-                        + weeklyAllocation
-                        + " L, Used This Week: "
-                        + usedThisWeek
+                        + ", Critical Load: "
+                        + roundTwo(criticalLoadKw)
+                        + " kW, Effective Load: "
+                        + roundTwo(effectiveCriticalLoadKw)
+                        + " kW, Auto Approval Limit: "
+                        + roundTwo(autoApprovalLimit)
                         + " L, Auto Approved: "
                         + (status == FuelRequestStatus.APPROVED)
                         + ", Current Status: "
@@ -514,7 +510,7 @@ public class FuelRequestService {
                     "FUEL_REQUEST_AUTO_APPROVED",
                     "FUEL_REQUEST",
                     savedRequest.getId(),
-                    "Hospital diesel request auto-approved within weekly allocation. Fuel: "
+                    "Hospital diesel request auto-approved for minimum 6-hour critical-service support. Fuel: "
                             + savedRequest.getFuelType()
                             + ", Liter: "
                             + savedRequest.getRequestedLiter()
@@ -1747,6 +1743,10 @@ public class FuelRequestService {
         double weeklyDieselLiter = effectiveLoadKw * weeklyOutageHours * 0.27;
 
         return BigDecimal.valueOf(Math.ceil(weeklyDieselLiter)).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private double roundTwo(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private BigDecimal safeAmount(BigDecimal value) {

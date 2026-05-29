@@ -137,6 +137,9 @@ function setupLiveValidation() {
         "hospitalGeneratorCapacity",
         "hospitalDieselTankCapacity",
         "hospitalCurrentDieselReserve",
+        "totalIcuUnits",
+        "acPatientCapacity",
+        "nonAcPatientCapacity",
         "emergencyContactNumber",
 
         "utilityOrganizationType",
@@ -332,6 +335,18 @@ function validateSingleField(id) {
 
         if (id === "hospitalCurrentDieselReserve") {
             return validateHospitalDieselReserve(data.hospitalCurrentDieselReserve, data.hospitalDieselTankCapacity);
+        }
+
+        if (id === "totalIcuUnits") {
+            return validateZeroOrPositiveNumber("totalIcuUnits", data.totalIcuUnits, "Total ICU units cannot be negative.");
+        }
+
+        if (id === "acPatientCapacity") {
+            return validateZeroOrPositiveNumber("acPatientCapacity", data.acPatientCapacity, "AC patient capacity cannot be negative.");
+        }
+
+        if (id === "nonAcPatientCapacity") {
+            return validateZeroOrPositiveNumber("nonAcPatientCapacity", data.nonAcPatientCapacity, "Non-AC patient capacity cannot be negative.");
         }
 
         if (id === "emergencyContactNumber") {
@@ -546,11 +561,10 @@ function buildRegistrationData(selectedRole) {
         data.hospitalGeneratorCapacity = getValue("hospitalGeneratorCapacity");
         data.hospitalDieselTankCapacity = getNumberValue("hospitalDieselTankCapacity");
         data.hospitalCurrentDieselReserve = getNumberValue("hospitalCurrentDieselReserve");
+        data.totalIcuUnits = getNumberValue("totalIcuUnits");
+        data.acPatientCapacity = getNumberValue("acPatientCapacity");
+        data.nonAcPatientCapacity = getNumberValue("nonAcPatientCapacity");
         data.emergencyContactNumber = getValue("emergencyContactNumber");
-
-        data.totalIcuUnits = 0;
-        data.acPatientCapacity = 0;
-        data.nonAcPatientCapacity = 0;
     }
 
     if (selectedRole === "UTILITY_AUTHORITY") {
@@ -672,7 +686,15 @@ function validateFrontendData(data, showGlobalMessage) {
             isValid = false;
         }
 
-        if (!validateHospitalDieselReserve(data.hospitalCurrentDieselReserve, data.hospitalDieselTankCapacity)) {
+        if (!validateZeroOrPositiveNumber("totalIcuUnits", data.totalIcuUnits, "Total ICU units cannot be negative.")) {
+            isValid = false;
+        }
+
+        if (!validateZeroOrPositiveNumber("acPatientCapacity", data.acPatientCapacity, "AC patient capacity cannot be negative.")) {
+            isValid = false;
+        }
+
+        if (!validateZeroOrPositiveNumber("nonAcPatientCapacity", data.nonAcPatientCapacity, "Non-AC patient capacity cannot be negative.")) {
             isValid = false;
         }
 
@@ -759,6 +781,17 @@ function validatePhoneField(id, value, message) {
 
 function validatePositiveNumber(id, value, message) {
     if (value === null || value === undefined || value === "" || Number(value) <= 0 || Number.isNaN(Number(value))) {
+        setFieldError(id, message);
+        return false;
+    }
+
+    clearFieldError(id);
+    markValidById(id);
+    return true;
+}
+
+function validateZeroOrPositiveNumber(id, value, message) {
+    if (value === null || value === undefined || value === "" || Number(value) < 0 || Number.isNaN(Number(value))) {
         setFieldError(id, message);
         return false;
     }
