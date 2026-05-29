@@ -569,23 +569,21 @@ public class FuelRequestService {
             );
         }
 
-        BigDecimal weeklyAllocation = getAdminWeeklyDieselAllocation(
-                FuelLimitType.BUILDING_GENERATOR_WEEKLY_DIESEL,
-                new BigDecimal("100.00")
-        );
+        BigDecimal weeklyAllocation = getBuildingWeeklyAllocation(user)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
 
-        BigDecimal usedThisWeek = calculateWeeklyUsedDiesel(
-                user.getId(),
-                FuelRequestSource.BUILDING_GENERATOR
-        );
+        BigDecimal projectedStockAfterRequest = currentFuel.add(requestedDiesel)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
 
-        BigDecimal remainingWeeklyAllocation = weeklyAllocation.subtract(usedThisWeek);
+        BigDecimal remainingWeeklyAllocation = weeklyAllocation.subtract(currentFuel);
 
         if (remainingWeeklyAllocation.compareTo(BigDecimal.ZERO) < 0) {
             remainingWeeklyAllocation = BigDecimal.ZERO;
         }
 
-        boolean withinWeeklyAllocation = requestedDiesel.compareTo(remainingWeeklyAllocation) <= 0;
+        remainingWeeklyAllocation = remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP);
+
+        boolean withinWeeklyAllocation = projectedStockAfterRequest.compareTo(weeklyAllocation) <= 0;
 
         PumpProfile assignedPump = withinWeeklyAllocation
                 ? findAvailablePumpForFuelOrNull(FuelType.DIESEL, requestedDiesel)
@@ -596,30 +594,40 @@ public class FuelRequestService {
 
         if (withinWeeklyAllocation && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            adminNote = "Auto-approved within admin-set building weekly diesel allocation. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L.";
-        } else if (withinWeeklyAllocation) {
-            adminNote = "Within admin-set building weekly diesel allocation, but no open pump has enough diesel stock. Waiting for admin review/pump assignment. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L.";
-        } else {
-            adminNote = "Admin approval required because request exceeds remaining building weekly diesel allocation. Weekly allocation: "
-                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Used this week: "
-                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
-                    + " L, Remaining before request: "
-                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+            adminNote = "Auto-approved within building weekly allocation. Current stock: "
+                    + currentFuel.setScale(2, java.math.RoundingMode.HALF_UP)
                     + " L, Requested: "
                     + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Projected stock after request: "
+                    + projectedStockAfterRequest
+                    + " L, Weekly allocation: "
+                    + weeklyAllocation
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation
+                    + " L.";
+        } else if (withinWeeklyAllocation) {
+            adminNote = "Within building weekly allocation, but no open pump has enough diesel stock. Waiting for admin review/pump assignment. Current stock: "
+                    + currentFuel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Requested: "
+                    + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Projected stock after request: "
+                    + projectedStockAfterRequest
+                    + " L, Weekly allocation: "
+                    + weeklyAllocation
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation
+                    + " L.";
+        } else {
+            adminNote = "Admin approval required because current stock plus requested diesel exceeds building weekly allocation. Current stock: "
+                    + currentFuel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Requested: "
+                    + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Projected stock after request: "
+                    + projectedStockAfterRequest
+                    + " L, Weekly allocation: "
+                    + weeklyAllocation
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation
                     + " L.";
         }
 
@@ -675,8 +683,10 @@ public class FuelRequestService {
                         + savedRequest.getRequestedLiter()
                         + ", Weekly Allocation: "
                         + weeklyAllocation
-                        + " L, Used This Week: "
-                        + usedThisWeek
+                        + ", Current Stock: "
+                        + currentFuel
+                        + " L, Projected Stock After Request: "
+                        + projectedStockAfterRequest
                         + " L, Auto Approved: "
                         + (status == FuelRequestStatus.APPROVED)
                         + ", Current Status: "
@@ -765,8 +775,28 @@ public class FuelRequestService {
             throw new RuntimeException("Only pending requests can be approved");
         }
 
-        PumpProfile pumpProfile = pumpProfileRepository.findById(decisionRequest.getPumpId())
-                .orElseThrow(() -> new RuntimeException("Pump not found"));
+        PumpProfile pumpProfile;
+
+        if (
+                decisionRequest.getPumpId() == null
+                        && (
+                        fuelRequest.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR
+                                || fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR
+                                || fuelRequest.getRequestSource() == FuelRequestSource.EMERGENCY
+                )
+        ) {
+            pumpProfile = findAvailablePumpForFuelOrNull(
+                    fuelRequest.getFuelType(),
+                    fuelRequest.getRequestedLiter()
+            );
+
+            if (pumpProfile == null) {
+                throw new RuntimeException("No open pump has enough " + fuelRequest.getFuelType() + " stock for this request");
+            }
+        } else {
+            pumpProfile = pumpProfileRepository.findById(decisionRequest.getPumpId())
+                    .orElseThrow(() -> new RuntimeException("Pump not found"));
+        }
 
         if (pumpProfile.getPumpStatus() != PumpStatus.OPEN) {
             throw new RuntimeException("Selected pump is closed");
@@ -784,13 +814,17 @@ public class FuelRequestService {
             validateHospitalDieselSpaceBeforeCollection(fuelRequest);
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
+            validateBuildingDieselSpaceBeforeCollection(fuelRequest);
+        }
+
         fuelRequest.setPumpProfile(pumpProfile);
         fuelRequest.setRequestStatus(FuelRequestStatus.APPROVED);
         fuelRequest.setCollectionCode(generateCollectionCode(fuelRequest));
         fuelRequest.setAdminNote(
                 isBlank(decisionRequest.getAdminNote())
-                        ? "Approved by admin. Please collect from assigned pump."
-                        : decisionRequest.getAdminNote()
+                        ? "Approved by admin. Pump auto-assigned: " + pumpProfile.getPumpName() + "."
+                        : decisionRequest.getAdminNote() + " Pump auto-assigned: " + pumpProfile.getPumpName() + "."
         );
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);

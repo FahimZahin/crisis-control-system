@@ -102,23 +102,10 @@ function renderAllocationRequests(requests) {
 }
 
 async function approveRequest(requestId) {
-    const pumpIdInput = prompt(
-        "Enter pump ID for this approval.\n\n" +
-        "The approved request needs an assigned pump for collection."
-    );
-
-    if (!pumpIdInput) {
-        return;
-    }
-
-    const pumpId = Number(pumpIdInput);
-
-    if (!pumpId || pumpId <= 0) {
-        showMessage("Valid pump ID is required for approval.", "error-text");
-        return;
-    }
-
-    const adminNote = prompt("Write approval note:", "Approved extra diesel above weekly allocation.") || "Approved extra diesel above weekly allocation.";
+    const adminNote = prompt(
+        "Write approval note:",
+        "Approved extra building diesel above weekly allocation. Pump will be auto-assigned."
+    ) || "Approved extra building diesel above weekly allocation. Pump auto-assigned.";
 
     try {
         const response = await fetch("http://localhost:8081/api/admin/fuel-requests/" + requestId + "/approve", {
@@ -127,7 +114,6 @@ async function approveRequest(requestId) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                pumpId: pumpId,
                 adminNote: adminNote
             })
         });
@@ -139,7 +125,7 @@ async function approveRequest(requestId) {
             return;
         }
 
-        showMessage("Request approved successfully.", "success-text");
+        showMessage("Request approved successfully. Pump was auto-assigned.", "success-text");
         loadAllocationRequests();
 
     } catch (error) {

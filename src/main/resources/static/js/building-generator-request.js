@@ -116,6 +116,10 @@ function updateBuildingStockPreview() {
     const requestedDiesel = cleanNumber(document.getElementById("requiredDieselLiter").value);
 
     const availableSpace = Math.max(0, tankCapacity - currentFuel);
+    const projectedStockAfterRequest = currentFuel + requestedDiesel;
+    const remainingWeeklyAllocation = Math.max(0, weeklyAllocation - currentFuel);
+    const withinWeeklyAllocation = requestedDiesel > 0 && projectedStockAfterRequest <= weeklyAllocation;
+
     const backupHours = calculateBuildingBackupHours(currentFuel);
     const lowStockAlert = resolveLowStockAlert(tankCapacity, currentFuel, backupHours);
 
@@ -136,15 +140,15 @@ function updateBuildingStockPreview() {
     const approvalRule = document.getElementById("approvalRuleSummary");
 
     if (approvalRule) {
-        if (requestedDiesel > 0 && weeklyAllocation > 0 && requestedDiesel <= weeklyAllocation) {
-            approvalRule.innerText = "Within weekly allocation";
-            approvalRule.className = "success-text";
-        } else if (requestedDiesel > weeklyAllocation && weeklyAllocation > 0) {
-            approvalRule.innerText = "Exceeds weekly allocation";
-            approvalRule.className = "error-text";
-        } else {
+        if (requestedDiesel <= 0) {
             approvalRule.innerText = "Enter requested diesel";
             approvalRule.className = "muted-text";
+        } else if (withinWeeklyAllocation) {
+            approvalRule.innerText = "Within weekly allocation";
+            approvalRule.className = "success-text";
+        } else {
+            approvalRule.innerText = "Exceeds weekly allocation";
+            approvalRule.className = "error-text";
         }
     }
 
@@ -152,13 +156,40 @@ function updateBuildingStockPreview() {
 
     if (hint) {
         hint.innerText =
-            "Available tank space: " + formatNumber(availableSpace) +
-            " L | Admin weekly allocation: " + formatNumber(weeklyAllocation) +
-            " L. Within allocation may auto-approve; exceeding allocation needs admin approval.";
+            "Current stock: " + formatNumber(currentFuel) +
+            " L | Requested: " + formatNumber(requestedDiesel) +
+            " L | Projected stock: " + formatNumber(projectedStockAfterRequest) +
+            " L | Weekly allocation: " + formatNumber(weeklyAllocation) +
+            " L | Remaining allocation: " + formatNumber(remainingWeeklyAllocation) +
+            " L | Available tank space: " + formatNumber(availableSpace) + " L.";
     }
 
     if (requestedDiesel > 0 && requestedDiesel > availableSpace) {
         showMessage("Requested diesel is greater than available tank space.", "error-text");
+        return;
+    }
+
+    if (requestedDiesel > 0 && !withinWeeklyAllocation) {
+        showMessage(
+            "Admin approval required. Current stock + requested diesel = " +
+            formatNumber(projectedStockAfterRequest) +
+            " L, which exceeds weekly allocation " +
+            formatNumber(weeklyAllocation) +
+            " L.",
+            "error-text"
+        );
+        return;
+    }
+
+    if (requestedDiesel > 0 && withinWeeklyAllocation) {
+        showMessage(
+            "Within weekly allocation. Current stock + requested diesel = " +
+            formatNumber(projectedStockAfterRequest) +
+            " L / " +
+            formatNumber(weeklyAllocation) +
+            " L.",
+            "success-text"
+        );
         return;
     }
 
@@ -177,9 +208,14 @@ function generateRequestReason() {
     const tankCapacity = cleanNumber(document.getElementById("buildingDieselTankCapacity").value);
     const weeklyAllocation = cleanNumber(adminBuildingWeeklyAllocation);
     const currentFuel = cleanNumber(document.getElementById("buildingCurrentFuel").value);
+    const requestedDiesel = cleanNumber(diesel);
+    const projectedStockAfterRequest = currentFuel + requestedDiesel;
+    const remainingWeeklyAllocation = Math.max(0, weeklyAllocation - currentFuel);
+
     const backupHours = calculateBuildingBackupHours(currentFuel);
     const lowStockAlert = resolveLowStockAlert(tankCapacity, currentFuel, backupHours);
     const availableSpace = Math.max(0, tankCapacity - currentFuel);
+    const withinWeeklyAllocation = requestedDiesel > 0 && projectedStockAfterRequest <= weeklyAllocation;
 
     const situationLabel = {
         "ONGOING_OUTAGE": "ongoing outage in building thana",
@@ -194,20 +230,21 @@ function generateRequestReason() {
     message += "Number of Flats: " + (loggedInUser.numberOfFlats || "-") + ".\n";
     message += "Building Thana: " + (loggedInUser.buildingUnderThana || loggedInUser.thanaOrUpazila || "-") + ".\n";
     message += "Tank Capacity: " + formatNumber(tankCapacity) + " L.\n";
-    message += "Admin Weekly Allocation: " + formatNumber(weeklyAllocation) + " L.\n";
+    message += "Weekly Allocation: " + formatNumber(weeklyAllocation) + " L.\n";
     message += "Current Diesel Stock: " + formatNumber(currentFuel) + " L.\n";
+    message += "Remaining Weekly Allocation: " + formatNumber(remainingWeeklyAllocation) + " L.\n";
     message += "Available Tank Space: " + formatNumber(availableSpace) + " L.\n";
     message += "Estimated Backup: " + formatNumber(backupHours) + " hours.\n";
     message += "Low-Stock Alert: " + (lowStockAlert ? "YES" : "NO") + ".\n";
 
-    if (diesel) {
-        const requestedDiesel = cleanNumber(diesel);
+    if (requestedDiesel > 0) {
         message += "Diesel Required: " + formatNumber(requestedDiesel) + " L.\n";
+        message += "Projected Stock After Request: " + formatNumber(projectedStockAfterRequest) + " L.\n";
 
-        if (weeklyAllocation > 0 && requestedDiesel <= weeklyAllocation) {
-            message += "Weekly Allocation Rule: within admin weekly allocation, auto-approval may apply if pump stock is available.\n";
+        if (withinWeeklyAllocation) {
+            message += "Weekly Allocation Rule: current stock plus requested diesel is within weekly allocation, so auto-approval may apply if pump stock is available.\n";
         } else {
-            message += "Weekly Allocation Rule: exceeds admin weekly allocation, admin approval is required.\n";
+            message += "Weekly Allocation Rule: current stock plus requested diesel exceeds weekly allocation, so admin approval is required.\n";
         }
     }
 
@@ -288,9 +325,13 @@ async function submitBuildingGeneratorRequest() {
     const backupHours = calculateBuildingBackupHours(currentFuel);
     const lowStockAlert = resolveLowStockAlert(tankCapacity, currentFuel, backupHours);
 
-    const approvalMessage = requiredDieselLiter <= weeklyAllocation
-        ? "Within admin weekly allocation. Auto-approval may apply if pump stock is available."
-        : "Exceeds admin weekly allocation. Admin approval is required.";
+    const projectedStockAfterRequest = currentFuel + requiredDieselLiter;
+    const remainingWeeklyAllocation = Math.max(0, weeklyAllocation - currentFuel);
+    const withinWeeklyAllocation = projectedStockAfterRequest <= weeklyAllocation;
+
+    const approvalMessage = withinWeeklyAllocation
+        ? "Within weekly allocation. Auto-approval may apply if pump stock is available."
+        : "Current stock plus requested diesel exceeds weekly allocation. Admin approval is required.";
 
     const confirmed = confirm(
         "Confirm Building Generator Diesel Request?\n\n" +
@@ -299,6 +340,8 @@ async function submitBuildingGeneratorRequest() {
         "Tank Capacity: " + formatNumber(tankCapacity) + " L\n" +
         "Admin Weekly Allocation: " + formatNumber(weeklyAllocation) + " L\n" +
         "Current Stock: " + formatNumber(currentFuel) + " L\n" +
+        "Remaining Weekly Allocation: " + formatNumber(remainingWeeklyAllocation) + " L\n" +
+        "Projected Stock After Request: " + formatNumber(projectedStockAfterRequest) + " L\n" +
         "Estimated Backup: " + formatNumber(backupHours) + " hours\n" +
         "Low-Stock Alert: " + (lowStockAlert ? "YES" : "NO") + "\n" +
         "Diesel Required: " + formatNumber(requiredDieselLiter) + " L\n" +
