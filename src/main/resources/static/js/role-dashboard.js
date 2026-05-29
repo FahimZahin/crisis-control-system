@@ -44,6 +44,30 @@ function loadUserInfo() {
     const hospitalBackupHours = calculateBackupHours(hospitalGeneratorCapacity, hospitalCurrentDieselReserve);
     const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
 
+    const totalIcuUnits = cleanNumber(loggedInUser.totalIcuUnits || localStorage.getItem("totalIcuUnits"));
+    const acPatientCapacity = cleanNumber(loggedInUser.acPatientCapacity || localStorage.getItem("acPatientCapacity"));
+    const nonAcPatientCapacity = cleanNumber(loggedInUser.nonAcPatientCapacity || localStorage.getItem("nonAcPatientCapacity"));
+    const totalPatientCapacity = acPatientCapacity + nonAcPatientCapacity;
+    const hospitalPriorityLevel = resolveHospitalPriorityLevelForDashboard(
+        hospitalDieselStatus,
+        totalIcuUnits,
+        acPatientCapacity,
+        nonAcPatientCapacity
+    );
+
+    const buildingDieselTankCapacity = cleanNumber(loggedInUser.buildingDieselTankCapacity || localStorage.getItem("buildingDieselTankCapacity"));
+    const buildingWeeklyAllocationLiter = cleanNumber(localStorage.getItem("buildingWeeklyAllocationLiter") || loggedInUser.buildingWeeklyAllocationLiter);
+    const buildingCurrentFuel = cleanNumber(loggedInUser.buildingCurrentFuel || localStorage.getItem("buildingCurrentFuel"));
+    const buildingEstimatedBackupHours = calculateBuildingBackupHoursForDashboard(
+        loggedInUser.generatorPower,
+        buildingCurrentFuel
+    );
+    const buildingLowStockAlert = resolveBuildingLowStockAlertForDashboard(
+        buildingDieselTankCapacity,
+        buildingCurrentFuel,
+        buildingEstimatedBackupHours
+    );
+
     setTextIfExists("dashboardUserName", fullName);
     setTextIfExists("dashboardUserPhone", phoneNumber);
     setTextIfExists("dashboardUserRole", role);
@@ -59,6 +83,18 @@ function loadUserInfo() {
     setTextIfExists("generatorPower", loggedInUser.generatorPower || "Not Provided");
     setTextIfExists("buildingUnderThana", loggedInUser.buildingUnderThana || loggedInUser.thanaOrUpazila || "Not Provided");
     setTextIfExists("generatorPowerInfo", loggedInUser.generatorPower || "Not Provided");
+
+    setTextIfExists("buildingDieselTankCapacity", formatNumber(buildingDieselTankCapacity));
+    setTextIfExists("buildingWeeklyAllocationLiter", formatNumber(buildingWeeklyAllocationLiter));
+    setTextIfExists("buildingCurrentFuel", formatNumber(buildingCurrentFuel));
+    setTextIfExists("buildingEstimatedBackupHours", formatNumber(buildingEstimatedBackupHours));
+
+    setTextIfExists("buildingDieselTankCapacityInfo", formatNumber(buildingDieselTankCapacity));
+    setTextIfExists("buildingWeeklyAllocationInfo", formatNumber(buildingWeeklyAllocationLiter));
+    setTextIfExists("buildingCurrentFuelInfo", formatNumber(buildingCurrentFuel));
+    setTextIfExists("buildingBackupInfo", formatNumber(buildingEstimatedBackupHours));
+
+    setBuildingLowStockAlertDisplay("buildingLowStockAlert", buildingLowStockAlert);
 
     setTextIfExists("pumpName", loggedInUser.pumpName || "Not Provided");
     setTextIfExists("businessLicenseNumber", loggedInUser.businessLicenseNumber || "Not Provided");
@@ -105,6 +141,13 @@ function loadUserInfo() {
         "hospitalDieselStatus",
         hospitalDieselStatus || loggedInUser.hospitalDieselStatus || "Not Provided"
     );
+
+    setTextIfExists("totalIcuUnits", totalIcuUnits);
+    setTextIfExists("acPatientCapacity", acPatientCapacity);
+    setTextIfExists("nonAcPatientCapacity", nonAcPatientCapacity);
+    setTextIfExists("totalPatientCapacity", totalPatientCapacity);
+    setTextIfExists("hospitalPriorityLevel", hospitalPriorityLevel);
+    loadDashboardWeeklyAllocations();
 
     setTextIfExists("utilityOrganizationType", loggedInUser.utilityOrganizationType || "Not Provided");
     setTextIfExists("utilityEmployeeId", loggedInUser.utilityEmployeeId || "Not Provided");
@@ -184,12 +227,30 @@ function mergeHospitalProfile(profile) {
     );
     loggedInUser.emergencyContactNumber = profile.emergencyContactNumber || loggedInUser.emergencyContactNumber;
 
+    loggedInUser.totalIcuUnits = profile.totalIcuUnits ?? loggedInUser.totalIcuUnits ?? localStorage.getItem("totalIcuUnits") ?? 0;
+    loggedInUser.acPatientCapacity = profile.acPatientCapacity ?? loggedInUser.acPatientCapacity ?? localStorage.getItem("acPatientCapacity") ?? 0;
+    loggedInUser.nonAcPatientCapacity = profile.nonAcPatientCapacity ?? loggedInUser.nonAcPatientCapacity ?? localStorage.getItem("nonAcPatientCapacity") ?? 0;
+
+    loggedInUser.buildingDieselTankCapacity = profile.buildingDieselTankCapacity ?? loggedInUser.buildingDieselTankCapacity ?? localStorage.getItem("buildingDieselTankCapacity") ?? 0;
+    loggedInUser.buildingWeeklyAllocationLiter = profile.buildingWeeklyAllocationLiter ?? loggedInUser.buildingWeeklyAllocationLiter ?? localStorage.getItem("buildingWeeklyAllocationLiter") ?? 0;
+    loggedInUser.buildingCurrentFuel = profile.buildingCurrentFuel ?? loggedInUser.buildingCurrentFuel ?? localStorage.getItem("buildingCurrentFuel") ?? 0;
+    loggedInUser.buildingEstimatedBackupHours = profile.buildingEstimatedBackupHours ?? loggedInUser.buildingEstimatedBackupHours ?? localStorage.getItem("buildingEstimatedBackupHours") ?? 0;
+
     localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
     localStorage.setItem("userId", loggedInUser.userId || "");
     localStorage.setItem("fullName", loggedInUser.fullName || "");
     localStorage.setItem("phoneNumber", loggedInUser.phoneNumber || "");
     localStorage.setItem("role", loggedInUser.role || "");
     localStorage.setItem("status", loggedInUser.status || "");
+
+    localStorage.setItem("totalIcuUnits", loggedInUser.totalIcuUnits || "");
+    localStorage.setItem("acPatientCapacity", loggedInUser.acPatientCapacity || "");
+    localStorage.setItem("nonAcPatientCapacity", loggedInUser.nonAcPatientCapacity || "");
+
+    localStorage.setItem("buildingDieselTankCapacity", loggedInUser.buildingDieselTankCapacity || "");
+    localStorage.setItem("buildingWeeklyAllocationLiter", loggedInUser.buildingWeeklyAllocationLiter || "");
+    localStorage.setItem("buildingCurrentFuel", loggedInUser.buildingCurrentFuel || "");
+    localStorage.setItem("buildingEstimatedBackupHours", loggedInUser.buildingEstimatedBackupHours || "");
 }
 
 async function loadPumpForDashboard() {
@@ -469,6 +530,84 @@ function resolveDieselStatus(backupHours) {
     }
 
     return "RISK_FREE";
+}
+
+function calculateBuildingBackupHoursForDashboard(generatorPower, currentFuel) {
+    const power = cleanNumber(generatorPower);
+    const fuel = cleanNumber(currentFuel);
+
+    if (power <= 0 || fuel <= 0) {
+        return 0;
+    }
+
+    const hourlyConsumption = power * 0.25;
+
+    if (hourlyConsumption <= 0) {
+        return 0;
+    }
+
+    return fuel / hourlyConsumption;
+}
+
+function resolveBuildingLowStockAlertForDashboard(tankCapacity, currentFuel, backupHours) {
+    const tank = cleanNumber(tankCapacity);
+    const fuel = cleanNumber(currentFuel);
+    const backup = cleanNumber(backupHours);
+
+    if (tank <= 0 || fuel <= 0) {
+        return true;
+    }
+
+    const stockPercentage = (fuel * 100) / tank;
+
+    return stockPercentage <= 20 || backup < 6;
+}
+
+function setBuildingLowStockAlertDisplay(id, isLowStock) {
+    const element = document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    if (isLowStock) {
+        element.innerText = "LOW STOCK";
+        element.className = "error-text";
+    } else {
+        element.innerText = "NORMAL";
+        element.className = "success-text";
+    }
+}
+
+function resolveHospitalPriorityLevelForDashboard(
+    dieselStatus,
+    totalIcuUnits,
+    acPatientCapacity,
+    nonAcPatientCapacity
+) {
+    const status = valueOrDash(dieselStatus);
+    const icu = cleanNumber(totalIcuUnits);
+    const acPatients = cleanNumber(acPatientCapacity);
+    const nonAcPatients = cleanNumber(nonAcPatientCapacity);
+    const totalPatients = acPatients + nonAcPatients;
+
+    if (status === "CRITICAL" && icu > 0) {
+        return "CRITICAL ICU PRIORITY";
+    }
+
+    if (status === "CRITICAL" && totalPatients >= 50) {
+        return "CRITICAL HIGH PATIENT PRIORITY";
+    }
+
+    if (status === "CRITICAL") {
+        return "CRITICAL STANDARD PRIORITY";
+    }
+
+    if (icu > 0 || totalPatients >= 50) {
+        return "PATIENT SAFETY PRIORITY";
+    }
+
+    return "STANDARD PRIORITY";
 }
 
 function valueOrDash(value) {
@@ -774,4 +913,28 @@ function authorityFormatDate(value) {
     }
 
     return String(value).replace("T", " ").substring(0, 16);
+}
+
+async function loadDashboardWeeklyAllocations() {
+    try {
+        const response = await fetch("http://localhost:8081/api/fuel-settings");
+        const settings = await response.json();
+
+        if (!response.ok) {
+            return;
+        }
+
+        const buildingWeeklyAllocation = cleanNumber(settings.buildingGeneratorWeeklyDieselAllocation);
+        const hospitalWeeklyAllocation = cleanNumber(settings.hospitalGeneratorWeeklyDieselAllocation);
+
+        localStorage.setItem("buildingWeeklyAllocationLiter", buildingWeeklyAllocation);
+        localStorage.setItem("hospitalGeneratorWeeklyDieselAllocation", hospitalWeeklyAllocation);
+
+        setTextIfExists("buildingWeeklyAllocationLiter", formatNumber(buildingWeeklyAllocation));
+        setTextIfExists("buildingWeeklyAllocationInfo", formatNumber(buildingWeeklyAllocation));
+        setTextIfExists("hospitalDashboardWeeklyAllocation", formatNumber(hospitalWeeklyAllocation));
+
+    } catch (error) {
+
+    }
 }

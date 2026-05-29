@@ -56,6 +56,20 @@ public class FuelSettingsService {
                 "Maximum diesel support amount for generator per request"
         );
 
+        FuelLimit buildingGeneratorWeeklyDiesel = getOrCreateFuelLimit(
+                FuelLimitType.BUILDING_GENERATOR_WEEKLY_DIESEL,
+                new BigDecimal("100.00"),
+                "Liter/Week",
+                "Weekly diesel allocation for building generator support"
+        );
+
+        FuelLimit hospitalGeneratorWeeklyDiesel = getOrCreateFuelLimit(
+                FuelLimitType.HOSPITAL_GENERATOR_WEEKLY_DIESEL,
+                new BigDecimal("500.00"),
+                "Liter/Week",
+                "Weekly diesel allocation for hospital generator support"
+        );
+
         LocalDateTime lastUpdatedAt = findLatestUpdatedAt(
                 petrol,
                 octane,
@@ -64,7 +78,9 @@ public class FuelSettingsService {
                 bike,
                 car,
                 emergencyVehicle,
-                generatorDiesel
+                generatorDiesel,
+                buildingGeneratorWeeklyDiesel,
+                hospitalGeneratorWeeklyDiesel
         );
 
         return FuelSettingsResponse.builder()
@@ -76,6 +92,8 @@ public class FuelSettingsService {
                 .carLimit(car.getLimitAmount())
                 .emergencyVehicleLimit(emergencyVehicle.getLimitAmount())
                 .generatorDieselLimit(generatorDiesel.getLimitAmount())
+                .buildingGeneratorWeeklyDieselAllocation(buildingGeneratorWeeklyDiesel.getLimitAmount())
+                .hospitalGeneratorWeeklyDieselAllocation(hospitalGeneratorWeeklyDiesel.getLimitAmount())
                 .lastUpdatedAt(lastUpdatedAt)
                 .build();
     }
@@ -114,6 +132,20 @@ public class FuelSettingsService {
                 request.getGeneratorDieselLimit(),
                 "BDT",
                 "Maximum diesel support amount for generator per request"
+        );
+
+        updateFuelLimit(
+                FuelLimitType.BUILDING_GENERATOR_WEEKLY_DIESEL,
+                request.getBuildingGeneratorWeeklyDieselAllocation(),
+                "Liter/Week",
+                "Weekly diesel allocation for building generator support"
+        );
+
+        updateFuelLimit(
+                FuelLimitType.HOSPITAL_GENERATOR_WEEKLY_DIESEL,
+                request.getHospitalGeneratorWeeklyDieselAllocation(),
+                "Liter/Week",
+                "Weekly diesel allocation for hospital generator support"
         );
     }
 
@@ -175,7 +207,9 @@ public class FuelSettingsService {
             FuelLimit bike,
             FuelLimit car,
             FuelLimit emergencyVehicle,
-            FuelLimit generatorDiesel
+            FuelLimit generatorDiesel,
+            FuelLimit buildingGeneratorWeeklyDiesel,
+            FuelLimit hospitalGeneratorWeeklyDiesel
     ) {
         LocalDateTime latest = null;
 
@@ -187,6 +221,8 @@ public class FuelSettingsService {
         latest = getLatest(latest, car.getUpdatedAt());
         latest = getLatest(latest, emergencyVehicle.getUpdatedAt());
         latest = getLatest(latest, generatorDiesel.getUpdatedAt());
+        latest = getLatest(latest, buildingGeneratorWeeklyDiesel.getUpdatedAt());
+        latest = getLatest(latest, hospitalGeneratorWeeklyDiesel.getUpdatedAt());
 
         return latest;
     }

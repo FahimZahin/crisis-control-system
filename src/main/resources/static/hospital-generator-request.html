@@ -23,7 +23,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Hospital Generator Diesel Support</h1>
-            <p>Hospital can request DIESEL anytime. CRITICAL requests may auto-approve; others wait for admin approval.</p>
+            <p>Hospital can request DIESEL. Requests within admin weekly allocation may be auto-approved if pump stock is available.</p>
         </div>
         <span class="role-badge">HOSPITAL DIESEL</span>
     </div>
@@ -42,6 +42,11 @@
         <div class="summary-card">
             <h3>Current Diesel Reserve</h3>
             <p><span id="currentDieselReserveSummary">-</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Admin Weekly Allocation</h3>
+            <p><span id="hospitalWeeklyAllocationSummary">0.00</span> L</p>
         </div>
 
         <div class="summary-card">
@@ -93,9 +98,15 @@
             </div>
 
             <div>
+                <label>Admin Weekly Allocation</label>
+                <p><span id="hospitalWeeklyAllocationInfo">0.00</span> L</p>
+            </div>
+
+            <div>
                 <label>Emergency Contact</label>
                 <p id="contactInfo">-</p>
             </div>
+
             <div>
                 <label>Total ICU Units</label>
                 <p id="totalIcuUnitsInfo">-</p>
@@ -116,7 +127,7 @@
     <div class="role-dashboard-section">
         <h2>Create Generator Diesel Request</h2>
         <p class="muted-text">
-            Enter either Expected Backup Hours Needed or Required Diesel Liter. The system will calculate the other value automatically.
+            Enter either Expected Backup Hours Needed or Required Diesel Liter. Weekly allocation is set by admin and is used for auto-approval decision.
         </p>
 
         <form id="hospitalGeneratorRequestForm" class="settings-form-grid">
@@ -132,25 +143,13 @@
 
             <div>
                 <label>Expected Backup Hours Needed</label>
-                <input type="number" id="backupHoursNeeded" min="1" step="0.5" placeholder="Example: 4">
+                <input type="number" id="backupHoursNeeded" min="0" step="0.01">
             </div>
 
             <div>
                 <label>Required Diesel Liter</label>
-                <input type="number" id="requiredDieselLiter" min="1" step="0.01" placeholder="Example: 50">
-                <small class="muted-text" id="availableDieselSpaceHint">
-                    Available diesel space will be checked automatically.
-                </small>
-            </div>
-
-            <div>
-                <label>Contact Number</label>
-                <input type="text" id="contactNumber" required>
-            </div>
-
-            <div>
-                <label>System Status</label>
-                <input type="text" id="urgencyLevel" readonly>
+                <input type="number" id="requiredDieselLiter" min="1" step="0.01">
+                <small id="availableDieselSpaceHint" class="muted-text"></small>
             </div>
 
             <div>
@@ -158,13 +157,44 @@
                 <input type="text" id="hourlyDieselConsumption" readonly>
             </div>
 
-            <div class="settings-full-row">
-                <label>Auto Generated Crisis Message</label>
-                <textarea id="generatedReasonPreview" readonly></textarea>
+            <div>
+                <label>Admin Weekly Allocation (L)</label>
+                <input type="number" id="hospitalWeeklyAllocation" readonly>
+                <small class="muted-text">This value is set by admin in Fuel Settings.</small>
             </div>
 
-            <button type="submit" class="btn primary full-width settings-full-row" id="submitHospitalGeneratorRequestBtn">
-                Submit Generator Diesel Request
+            <div>
+                <label>Urgency Level</label>
+                <input type="text" id="urgencyLevel" readonly>
+            </div>
+
+            <div>
+                <label>Total ICU Units</label>
+                <input type="number" id="totalIcuUnits" min="0" required>
+            </div>
+
+            <div>
+                <label>AC Patient Capacity</label>
+                <input type="number" id="acPatientCapacity" min="0" required>
+            </div>
+
+            <div>
+                <label>Non-AC Patient Capacity</label>
+                <input type="number" id="nonAcPatientCapacity" min="0" required>
+            </div>
+
+            <div>
+                <label>Contact Number</label>
+                <input type="text" id="contactNumber" required>
+            </div>
+
+            <div class="settings-full-row">
+                <label>Generated Crisis Reason</label>
+                <textarea id="generatedReasonPreview" rows="8" readonly></textarea>
+            </div>
+
+            <button type="submit" id="submitHospitalGeneratorRequestBtn" class="btn primary full-width settings-full-row">
+                Submit Hospital Generator Diesel Request
             </button>
         </form>
     </div>
@@ -173,7 +203,6 @@
 
 <script src="js/api-client.js"></script>
 <script src="js/auth-guard.js"></script>
-<script src="js/hospital-outage-warning.js"></script>
 <script src="js/hospital-generator-request.js"></script>
 
 </body>

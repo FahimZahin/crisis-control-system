@@ -23,7 +23,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Building Generator Request History</h1>
-            <p>Track approval status, assigned pump, collection code, and diesel request history.</p>
+            <p>Track approval status, assigned pump, collection code, diesel stock, weekly allocation, and low-stock alert.</p>
         </div>
         <span class="role-badge">REQUEST HISTORY</span>
     </div>
@@ -33,17 +33,30 @@
             <h3>Total Requests</h3>
             <p id="totalBuildingRequests">0</p>
         </div>
+
         <div class="summary-card">
             <h3>Pending</h3>
             <p id="pendingBuildingRequests">0</p>
         </div>
+
         <div class="summary-card">
             <h3>Approved</h3>
             <p id="approvedBuildingRequests">0</p>
         </div>
+
         <div class="summary-card">
             <h3>Collected</h3>
             <p id="collectedBuildingRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Latest Stock</h3>
+            <p><span id="latestBuildingStock">0.00</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Low-Stock Requests</h3>
+            <p id="lowStockRequestCount">0</p>
         </div>
     </div>
 
@@ -53,6 +66,7 @@
                 <h2>My Generator Diesel Requests</h2>
                 <p class="muted-text">All building generator diesel requests and their current status.</p>
             </div>
+
             <button class="btn primary small-btn" id="refreshBuildingHistoryBtn">
                 Refresh History
             </button>
@@ -68,6 +82,11 @@
                     <th>Building</th>
                     <th>Thana</th>
                     <th>Diesel (L)</th>
+                    <th>Tank Capacity</th>
+                    <th>Weekly Allocation</th>
+                    <th>Current Stock</th>
+                    <th>Backup Hours</th>
+                    <th>Low Stock</th>
                     <th>Est. Cost</th>
                     <th>Status</th>
                     <th>Pump</th>
@@ -77,9 +96,10 @@
                     <th>Collected</th>
                 </tr>
                 </thead>
+
                 <tbody id="buildingHistoryBody">
                 <tr>
-                    <td colspan="11">Loading...</td>
+                    <td colspan="16">Loading building generator request history...</td>
                 </tr>
                 </tbody>
             </table>

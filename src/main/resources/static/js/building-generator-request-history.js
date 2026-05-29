@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadBuildingHistory();
 
     const refreshBtn = document.getElementById("refreshBuildingHistoryBtn");
+
     if (refreshBtn) {
         refreshBtn.addEventListener("click", loadBuildingHistory);
     }
@@ -27,7 +28,7 @@ async function loadBuildingHistory() {
     const tableBody = document.getElementById("buildingHistoryBody");
 
     if (!userId) {
-        tableBody.innerHTML = `<tr><td colspan="11">User ID not found. Please login again.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="16">User ID not found. Please login again.</td></tr>`;
         return;
     }
 
@@ -39,17 +40,20 @@ async function loadBuildingHistory() {
         const data = await response.json();
 
         if (!response.ok) {
-            tableBody.innerHTML = `<tr><td colspan="11">Failed to load history.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="16">Failed to load history.</td></tr>`;
+            showMessage(getErrorMessage(data), "error-text");
             return;
         }
 
-        buildingRequests = data;
+        buildingRequests = data || [];
 
         updateSummaryCards();
         renderHistoryTable();
+        showMessage("Building request history loaded successfully.", "success-text");
 
     } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="11">Server connection failed.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="16">Server connection failed.</td></tr>`;
+        showMessage("Server connection failed while loading building history.", "error-text");
     }
 }
 
@@ -59,17 +63,26 @@ function updateSummaryCards() {
     const pending = buildingRequests.filter(r => r.requestStatus === "PENDING").length;
     const approved = buildingRequests.filter(r => r.requestStatus === "APPROVED").length;
     const collected = buildingRequests.filter(r => r.requestStatus === "COLLECTED").length;
+    const lowStock = buildingRequests.filter(r => r.buildingLowStockAlert === true).length;
 
     setTextIfExists("pendingBuildingRequests", pending);
     setTextIfExists("approvedBuildingRequests", approved);
     setTextIfExists("collectedBuildingRequests", collected);
+    setTextIfExists("lowStockRequestCount", lowStock);
+
+    if (buildingRequests.length > 0) {
+        const latest = buildingRequests[0];
+        setTextIfExists("latestBuildingStock", formatNumber(latest.buildingCurrentFuel));
+    } else {
+        setTextIfExists("latestBuildingStock", "0.00");
+    }
 }
 
 function renderHistoryTable() {
     const tableBody = document.getElementById("buildingHistoryBody");
 
     if (!buildingRequests || buildingRequests.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="11">No generator diesel requests found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="16">No generator diesel requests found.</td></tr>`;
         return;
     }
 
@@ -82,11 +95,20 @@ function renderHistoryTable() {
             ? `<span class="collection-code-badge">${req.collectionCode}</span>`
             : "-";
 
+        const lowStockDisplay = req.buildingLowStockAlert
+            ? `<span class="status-badge status-rejected">LOW</span>`
+            : `<span class="status-badge status-approved">NORMAL</span>`;
+
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${valueOrDash(req.buildingName)}</td>
             <td>${valueOrDash(req.buildingThana)}</td>
-            <td>${valueOrDash(req.requestedLiter)} L</td>
+            <td>${formatNumber(req.requestedLiter)} L</td>
+            <td>${formatNumber(req.buildingDieselTankCapacity)} L</td>
+            <td>${formatNumber(req.buildingWeeklyAllocationLiter)} L</td>
+            <td>${formatNumber(req.buildingCurrentFuel)} L</td>
+            <td>${formatNumber(req.buildingEstimatedBackupHours)} hrs</td>
+            <td>${lowStockDisplay}</td>
             <td>${formatCost(req.estimatedCost)}</td>
             <td><span class="status-badge ${getStatusClass(req.requestStatus)}">${req.requestStatus}</span></td>
             <td>${valueOrDash(req.pumpName)}</td>
@@ -107,36 +129,91 @@ function getStatusClass(status) {
         "REJECTED": "status-rejected",
         "COLLECTED": "status-collected"
     };
+
     return map[status] || "";
 }
 
 function formatDateTime(value) {
-    if (!value) return "-";
-    return value.replace("T", " ").substring(0, 16);
+    if (!value) {
+        return "-";
+    }
+
+    return String(value).replace("T", " ").substring(0, 16);
 }
 
 function formatCost(value) {
-    if (value === null || value === undefined) return "-";
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
     return "৳ " + parseFloat(value).toFixed(2);
 }
 
+function formatNumber(value) {
+    if (value === null || value === undefined || value === "") {
+        return "0.00";
+    }
+
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return "0.00";
+    }
+
+    return numberValue.toFixed(2);
+}
+
 function valueOrDash(value) {
-    if (value === null || value === undefined || value === "") return "-";
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
     return value;
 }
 
 function setTextIfExists(id, value) {
     const el = document.getElementById(id);
-    if (el) el.innerText = value;
+
+    if (el) {
+        el.innerText = value;
+    }
 }
 
 function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");
+
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", function (event) {
-            event.preventDefault();
+        logoutBtn.addEventListener("click", function () {
             localStorage.clear();
-            window.location.href = "login.html";
         });
     }
+}
+
+function showMessage(message, className) {
+    const element = document.getElementById("buildingHistoryMessage");
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
+}
+
+function getErrorMessage(result) {
+    if (!result) {
+        return "Request failed.";
+    }
+
+    if (result.message) {
+        return result.message;
+    }
+
+    if (result.messages) {
+        return JSON.stringify(result.messages);
+    }
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return "Request failed.";
 }

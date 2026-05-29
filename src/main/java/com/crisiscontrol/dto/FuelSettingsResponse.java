@@ -22,5 +22,8 @@ public class FuelSettingsResponse {
     private BigDecimal emergencyVehicleLimit;
     private BigDecimal generatorDieselLimit;
 
+    private BigDecimal buildingGeneratorWeeklyDieselAllocation;
+    private BigDecimal hospitalGeneratorWeeklyDieselAllocation;
+
     private LocalDateTime lastUpdatedAt;
 }

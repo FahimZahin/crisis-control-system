@@ -1,7 +1,8 @@
 let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 let lastEditedInput = null;
+let adminHospitalWeeklyAllocation = 0;
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     if (!loggedInUser) {
         window.location.href = "login.html";
         return;
@@ -14,12 +15,32 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     setupLogout();
+    await loadAdminHospitalWeeklyAllocation();
     setupFormEvents();
     fillHospitalData();
     updateApprovalMode();
     updateHourlyConsumptionBox();
     generateCrisisReason();
 });
+
+async function loadAdminHospitalWeeklyAllocation() {
+    try {
+        const response = await fetch("http://localhost:8081/api/fuel-settings");
+        const settings = await response.json();
+
+        if (!response.ok) {
+            showMessage("Failed to load admin weekly allocation.", "error-text");
+            return;
+        }
+
+        adminHospitalWeeklyAllocation = cleanNumber(settings.hospitalGeneratorWeeklyDieselAllocation);
+
+        localStorage.setItem("hospitalGeneratorWeeklyDieselAllocation", adminHospitalWeeklyAllocation);
+
+    } catch (error) {
+        showMessage("Server connection failed while loading admin weekly allocation.", "error-text");
+    }
+}
 
 function setupFormEvents() {
     const form = document.getElementById("hospitalGeneratorRequestForm");
@@ -37,16 +58,21 @@ function setupFormEvents() {
 
     document.getElementById("outageSituation").addEventListener("change", generateCrisisReason);
     document.getElementById("contactNumber").addEventListener("input", generateCrisisReason);
+    document.getElementById("totalIcuUnits").addEventListener("input", generateCrisisReason);
+    document.getElementById("acPatientCapacity").addEventListener("input", generateCrisisReason);
+    document.getElementById("nonAcPatientCapacity").addEventListener("input", generateCrisisReason);
 
     document.getElementById("backupHoursNeeded").addEventListener("input", function () {
         lastEditedInput = "BACKUP_HOURS";
         calculateDieselFromBackupHours();
+        updateApprovalMode();
         generateCrisisReason();
     });
 
     document.getElementById("requiredDieselLiter").addEventListener("input", function () {
         lastEditedInput = "DIESEL_LITER";
         calculateBackupHoursFromDiesel();
+        updateApprovalMode();
         generateCrisisReason();
     });
 }
@@ -69,6 +95,7 @@ async function refreshHospitalProfile() {
         }
 
         mergeHospitalProfile(profile);
+        await loadAdminHospitalWeeklyAllocation();
 
         fillHospitalData();
         updateApprovalMode();
@@ -133,6 +160,10 @@ function fillHospitalData() {
     const dieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
     const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
     const availableDieselSpace = Math.max(0, dieselTankCapacity - currentDieselReserve);
+    const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
+    const dieselStatus = resolveDieselStatus(backupHours);
+    const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
+
     setTextIfExists(
         "availableDieselSpaceHint",
         dieselTankCapacity > 0
@@ -145,27 +176,31 @@ function fillHospitalData() {
     if (requiredDieselInput && dieselTankCapacity > 0) {
         requiredDieselInput.max = availableDieselSpace.toFixed(2);
     }
-    const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
-    const dieselStatus = resolveDieselStatus(backupHours);
-    const contactNumber = loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "";
 
     loggedInUser.hospitalEstimatedBackupHours = backupHours;
     loggedInUser.hospitalDieselStatus = dieselStatus;
     localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
 
-    document.getElementById("hospitalNameInfo").innerText = hospitalName;
-    document.getElementById("hospitalUnderThanaInfo").innerText = hospitalUnderThana;
-    document.getElementById("generatorCapacityInfo").innerText = generatorCapacity > 0 ? generatorCapacity.toFixed(2) : "-";
+    setTextIfExists("hospitalNameInfo", hospitalName);
+    setTextIfExists("hospitalUnderThanaInfo", hospitalUnderThana);
+    setTextIfExists("generatorCapacityInfo", generatorCapacity > 0 ? generatorCapacity.toFixed(2) : "-");
     setTextIfExists("dieselTankCapacityInfo", dieselTankCapacity > 0 ? dieselTankCapacity.toFixed(2) + " L" : "-");
     setTextIfExists("availableDieselSpaceInfo", dieselTankCapacity > 0 ? availableDieselSpace.toFixed(2) + " L" : "-");
-    document.getElementById("contactInfo").innerText = contactNumber || "-";
+    setTextIfExists("hospitalWeeklyAllocationSummary", formatNumber(adminHospitalWeeklyAllocation));
+    setTextIfExists("hospitalWeeklyAllocationInfo", formatNumber(adminHospitalWeeklyAllocation));
+    setInputValueIfExists("hospitalWeeklyAllocation", formatNumber(adminHospitalWeeklyAllocation));
+    setTextIfExists("contactInfo", contactNumber || "-");
 
-    document.getElementById("backupHoursSummary").innerText = backupHours.toFixed(2) + " hours";
-    document.getElementById("dieselStatusSummary").innerText = dieselStatus;
-    document.getElementById("currentDieselReserveSummary").innerText = currentDieselReserve.toFixed(2);
+    setTextIfExists("backupHoursSummary", backupHours.toFixed(2) + " hours");
+    setTextIfExists("dieselStatusSummary", dieselStatus);
+    setTextIfExists("currentDieselReserveSummary", currentDieselReserve.toFixed(2));
 
-    document.getElementById("contactNumber").value = contactNumber;
-    document.getElementById("urgencyLevel").value = dieselStatus;
+    setInputValueIfExists("contactNumber", contactNumber);
+    setInputValueIfExists("urgencyLevel", dieselStatus);
+
+    setInputValueIfExists("totalIcuUnits", getNumberOrZero(loggedInUser.totalIcuUnits));
+    setInputValueIfExists("acPatientCapacity", getNumberOrZero(loggedInUser.acPatientCapacity));
+    setInputValueIfExists("nonAcPatientCapacity", getNumberOrZero(loggedInUser.nonAcPatientCapacity));
 
     setTextIfExists("totalIcuUnitsInfo", getNumberOrZero(loggedInUser.totalIcuUnits));
     setTextIfExists("acPatientCapacityInfo", getNumberOrZero(loggedInUser.acPatientCapacity));
@@ -173,22 +208,24 @@ function fillHospitalData() {
 }
 
 function updateApprovalMode() {
-    const generatorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
-    const currentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
-    const backupHours = calculateBackupHours(generatorCapacity, currentDieselReserve);
-    const dieselStatus = resolveDieselStatus(backupHours);
-    const isCritical = backupHours < 6 && dieselStatus === "CRITICAL";
+    const requestedDiesel = cleanNumber(document.getElementById("requiredDieselLiter").value);
 
-    if (isCritical) {
-        document.getElementById("approvalModeSummary").innerText = "AUTO APPROVAL POSSIBLE";
+    if (requestedDiesel > 0 && adminHospitalWeeklyAllocation > 0 && requestedDiesel <= adminHospitalWeeklyAllocation) {
+        setTextIfExists("approvalModeSummary", "AUTO APPROVAL POSSIBLE");
         showMessage(
-            "Hospital is CRITICAL. Request may auto-approve if an open pump has enough DIESEL stock.",
+            "Request is within admin weekly allocation. It may auto-approve if an open pump has enough DIESEL stock.",
             "success-text"
         );
-    } else {
-        document.getElementById("approvalModeSummary").innerText = "ADMIN REVIEW";
+    } else if (requestedDiesel > adminHospitalWeeklyAllocation && adminHospitalWeeklyAllocation > 0) {
+        setTextIfExists("approvalModeSummary", "ADMIN REVIEW");
         showMessage(
-            "Hospital can request diesel, but it will wait for admin approval because current status is " + dieselStatus + ".",
+            "Request exceeds admin weekly allocation. Admin approval will be required.",
+            "error-text"
+        );
+    } else {
+        setTextIfExists("approvalModeSummary", "ENTER DIESEL AMOUNT");
+        showMessage(
+            "Enter diesel amount to check whether auto approval can apply.",
             "success-text"
         );
     }
@@ -270,6 +307,7 @@ function generateCrisisReason() {
     const situation = document.getElementById("outageSituation").value;
     const backupHoursNeeded = document.getElementById("backupHoursNeeded").value;
     const requiredDiesel = document.getElementById("requiredDieselLiter").value;
+    const requiredDieselNumber = cleanNumber(requiredDiesel);
 
     let message = hospitalName + " requests generator DIESEL support";
     message += " for hospital under " + hospitalUnderThana + " thana.";
@@ -278,14 +316,15 @@ function generateCrisisReason() {
     message += " Estimated diesel consumption: " + roundTwo(hourlyConsumption) + " liter(s)/hour.";
     message += " Current estimated backup: " + currentBackupHours.toFixed(2) + " hour(s).";
     message += " Current diesel status: " + dieselStatus + ".";
-    message += " Total ICU units: " + getNumberOrZero(loggedInUser.totalIcuUnits) + ".";
-    message += " AC patient capacity: " + getNumberOrZero(loggedInUser.acPatientCapacity) + ".";
-    message += " Non-AC patient capacity: " + getNumberOrZero(loggedInUser.nonAcPatientCapacity) + ".";
+    message += " Admin weekly allocation: " + formatNumber(adminHospitalWeeklyAllocation) + " liter(s).";
+    message += " Total ICU units: " + getNumberOrZero(document.getElementById("totalIcuUnits").value) + ".";
+    message += " AC patient capacity: " + getNumberOrZero(document.getElementById("acPatientCapacity").value) + ".";
+    message += " Non-AC patient capacity: " + getNumberOrZero(document.getElementById("nonAcPatientCapacity").value) + ".";
 
-    if (dieselStatus === "CRITICAL" && Number(currentBackupHours) < 6) {
-        message += " Approval mode: auto approval possible if an open pump has enough DIESEL stock.";
-    } else {
-        message += " Approval mode: admin review required because hospital is not currently CRITICAL.";
+    if (requiredDieselNumber > 0 && adminHospitalWeeklyAllocation > 0 && requiredDieselNumber <= adminHospitalWeeklyAllocation) {
+        message += " Weekly allocation rule: within admin weekly allocation, auto approval may apply if pump stock is available.";
+    } else if (requiredDieselNumber > adminHospitalWeeklyAllocation && adminHospitalWeeklyAllocation > 0) {
+        message += " Weekly allocation rule: exceeds admin weekly allocation, admin approval is required.";
     }
 
     if (situation) {
@@ -315,19 +354,20 @@ async function submitHospitalGeneratorRequest() {
     const availableDieselSpace = Math.max(0, dieselTankCapacity - currentReserve);
     const currentBackupHours = calculateBackupHours(generatorCapacity, currentReserve);
     const dieselStatus = resolveDieselStatus(currentBackupHours);
+    const requestedDiesel = cleanNumber(requiredDieselLiter);
 
     const data = {
         userId: Number(getLoggedInUserId()),
         affectedThana: loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila,
         hospitalName: loggedInUser.hospitalName,
         generatorCapacity: generatorCapacity,
-        requiredDieselLiter: Number(requiredDieselLiter),
+        requiredDieselLiter: requestedDiesel,
         urgencyLevel: dieselStatus,
         reason: document.getElementById("generatedReasonPreview").value.trim(),
         contactNumber: contactNumber,
-        totalIcuUnits: getNumberOrZero(loggedInUser.totalIcuUnits),
-        acPatientCapacity: getNumberOrZero(loggedInUser.acPatientCapacity),
-        nonAcPatientCapacity: getNumberOrZero(loggedInUser.nonAcPatientCapacity)
+        totalIcuUnits: getNumberOrZero(document.getElementById("totalIcuUnits").value),
+        acPatientCapacity: getNumberOrZero(document.getElementById("acPatientCapacity").value),
+        nonAcPatientCapacity: getNumberOrZero(document.getElementById("nonAcPatientCapacity").value)
     };
 
     if (!data.userId) {
@@ -347,6 +387,11 @@ async function submitHospitalGeneratorRequest() {
 
     if (!data.requiredDieselLiter || data.requiredDieselLiter <= 0) {
         showMessage("Please enter a valid required diesel liter.", "error-text");
+        return;
+    }
+
+    if (adminHospitalWeeklyAllocation <= 0) {
+        showMessage("Admin weekly allocation is not configured. Please contact admin.", "error-text");
         return;
     }
 
@@ -375,34 +420,34 @@ async function submitHospitalGeneratorRequest() {
         return;
     }
 
-    const approvalMode = dieselStatus === "CRITICAL" && Number(currentBackupHours) < 6
-        ? "Auto approval possible if an open pump has enough DIESEL stock"
-        : "Admin approval required";
+    const approvalMode = requestedDiesel <= adminHospitalWeeklyAllocation
+        ? "Within admin weekly allocation. Auto approval may apply if pump stock is available."
+        : "Exceeds admin weekly allocation. Admin approval is required.";
 
     const confirmationMessage =
-        "Confirm Generator Diesel Request\n\n" +
-        "Hospital: " + valueOrDash(loggedInUser.hospitalName) + "\n" +
-        "Hospital Under Thana: " + valueOrDash(loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila) + "\n" +
-        "Generator Capacity: " + generatorCapacity.toFixed(2) + "\n" +
-        "Current Diesel Reserve: " + currentReserve.toFixed(2) + " L\n" +
-        "Diesel Tank Capacity: " + dieselTankCapacity.toFixed(2) + " L\n" +
-        "Available Diesel Space: " + availableDieselSpace.toFixed(2) + " L\n" +
+        "Confirm Hospital Generator Diesel Request?\n\n" +
+        "Hospital: " + (loggedInUser.hospitalName || "-") + "\n" +
+        "Thana: " + (loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "-") + "\n" +
+        "Current Reserve: " + currentReserve.toFixed(2) + " L\n" +
+        "Available Tank Space: " + availableDieselSpace.toFixed(2) + " L\n" +
+        "Admin Weekly Allocation: " + formatNumber(adminHospitalWeeklyAllocation) + " L\n" +
+        "Requested Diesel: " + requestedDiesel.toFixed(2) + " L\n" +
         "Current Backup: " + currentBackupHours.toFixed(2) + " hours\n" +
         "Current Status: " + dieselStatus + "\n" +
-        "Total ICU Units: " + data.totalIcuUnits + "\n" +
-        "AC Patient Capacity: " + data.acPatientCapacity + "\n" +
-        "Non-AC Patient Capacity: " + data.nonAcPatientCapacity + "\n\n" +
-        "Outage Situation: " + formatEnum(outageSituation) + "\n" +
-        "Expected Backup Needed: " + valueOrDash(backupHoursNeeded) + " hours\n" +
-        "Requested Diesel: " + data.requiredDieselLiter + " L\n" +
-        "Contact: " + contactNumber + "\n\n" +
-        "Approval Mode: " + approvalMode + "\n\n" +
-        "Do you want to submit this request?";
+        "Approval Rule: " + approvalMode + "\n" +
+        "ICU Units: " + data.totalIcuUnits + "\n" +
+        "AC Patients: " + data.acPatientCapacity + "\n" +
+        "Non-AC Patients: " + data.nonAcPatientCapacity + "\n\n" +
+        "Submit request?";
 
-    const confirmed = confirm(confirmationMessage);
-
-    if (!confirmed) {
+    if (!confirm(confirmationMessage)) {
         return;
+    }
+
+    const submitBtn = document.getElementById("submitHospitalGeneratorRequestBtn");
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
     }
 
     try {
@@ -416,75 +461,56 @@ async function submitHospitalGeneratorRequest() {
 
         const result = await response.json();
 
-        if (response.ok) {
-            if (result.requestStatus === "APPROVED") {
-                alert(
-                    "Request submitted and auto-approved.\n\n" +
-                    "Collection Code: " + result.collectionCode + "\n" +
-                    "Assigned Pump: " + result.pumpName + "\n" +
-                    "Pump Address: " + result.pumpAddress
-                );
+        if (!response.ok) {
+            showMessage(getErrorMessage(result), "error-text");
 
-                showMessage(
-                    "Request submitted and auto-approved. Collection code: " + result.collectionCode,
-                    "success-text"
-                );
-            } else {
-                alert(
-                    "Request submitted successfully.\n\n" +
-                    "Status: " + result.requestStatus + "\n" +
-                    "Admin Note: " + (result.adminNote || "-")
-                );
-
-                showMessage(
-                    "Request submitted. Status: " + result.requestStatus + ". " + (result.adminNote || ""),
-                    "success-text"
-                );
+            if (submitBtn) {
+                submitBtn.disabled = false;
             }
 
-            document.getElementById("hospitalGeneratorRequestForm").reset();
-            lastEditedInput = null;
-            refreshHospitalProfile();
-        } else {
-            showMessage(getErrorMessage(result), "error-text");
+            return;
         }
+
+        loggedInUser.totalIcuUnits = data.totalIcuUnits;
+        loggedInUser.acPatientCapacity = data.acPatientCapacity;
+        loggedInUser.nonAcPatientCapacity = data.nonAcPatientCapacity;
+        localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+
+        showMessage(
+            "Hospital generator diesel request submitted successfully. Status: " + result.requestStatus + ".",
+            "success-text"
+        );
+
+        document.getElementById("hospitalGeneratorRequestForm").reset();
+        await loadAdminHospitalWeeklyAllocation();
+        fillHospitalData();
+        updateApprovalMode();
+        updateHourlyConsumptionBox();
+        generateCrisisReason();
 
     } catch (error) {
         showMessage("Server connection failed while submitting request.", "error-text");
     }
+
+    if (submitBtn) {
+        submitBtn.disabled = false;
+    }
+}
+
+function setupLogout() {
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    if (!logoutBtn) {
+        return;
+    }
+
+    logoutBtn.addEventListener("click", function () {
+        localStorage.clear();
+    });
 }
 
 function getLoggedInUserId() {
     return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
-}
-
-function getNumberOrZero(value) {
-    const number = Number(value);
-
-    if (Number.isNaN(number) || number < 0) {
-        return 0;
-    }
-
-    return number;
-}
-
-function cleanNumber(value) {
-    if (value === null || value === undefined || value === "-") {
-        return 0;
-    }
-
-    return Number(
-        String(value)
-            .replace("L", "")
-            .replace("hours", "")
-            .replace("liter(s)", "")
-            .replace("kVA", "")
-            .replace("KVA", "")
-            .replace("KW", "")
-            .replace("kw", "")
-            .replace(",", "")
-            .trim()
-    ) || 0;
 }
 
 function calculateBackupHours(generatorCapacity, dieselReserve) {
@@ -495,13 +521,7 @@ function calculateBackupHours(generatorCapacity, dieselReserve) {
         return 0;
     }
 
-    const hourlyConsumption = capacity * 0.25;
-
-    if (hourlyConsumption <= 0) {
-        return 0;
-    }
-
-    return reserve / hourlyConsumption;
+    return reserve / (capacity * 0.25);
 }
 
 function resolveDieselStatus(backupHours) {
@@ -515,11 +535,43 @@ function resolveDieselStatus(backupHours) {
         return "MIDDLE";
     }
 
-    return "RISK_FREE";
+    if (hours < 12) {
+        return "RISK_FREE";
+    }
+
+    return "ENOUGH";
+}
+
+function cleanNumber(value) {
+    if (value === null || value === undefined || value === "" || value === "-") {
+        return 0;
+    }
+
+    return Number(String(value).replace("L", "").replace("hours", "").replace("kVA", "").replace("KVA", "").trim()) || 0;
+}
+
+function getNumberOrZero(value) {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return 0;
+    }
+
+    return numberValue;
 }
 
 function roundTwo(value) {
     return Math.round(Number(value) * 100) / 100;
+}
+
+function formatNumber(value) {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return "0.00";
+    }
+
+    return numberValue.toFixed(2);
 }
 
 function formatEnum(value) {
@@ -527,15 +579,23 @@ function formatEnum(value) {
         return "-";
     }
 
-    return value.replaceAll("_", " ");
+    return String(value).replaceAll("_", " ");
 }
 
-function valueOrDash(value) {
-    if (value === null || value === undefined || value === "") {
-        return "-";
-    }
+function setTextIfExists(id, value) {
+    const element = document.getElementById(id);
 
-    return value;
+    if (element) {
+        element.innerText = value;
+    }
+}
+
+function setInputValueIfExists(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.value = value;
+    }
 }
 
 function showMessage(message, className) {
@@ -548,6 +608,10 @@ function showMessage(message, className) {
 }
 
 function getErrorMessage(result) {
+    if (!result) {
+        return "Request failed.";
+    }
+
     if (result.message) {
         return result.message;
     }
@@ -556,23 +620,9 @@ function getErrorMessage(result) {
         return JSON.stringify(result.messages);
     }
 
+    if (result.error) {
+        return result.error;
+    }
+
     return "Request failed.";
-}
-
-function setupLogout() {
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", function () {
-            localStorage.clear();
-        });
-    }
-}
-
-function setTextIfExists(id, value) {
-    const element = document.getElementById(id);
-
-    if (element) {
-        element.innerText = value;
-    }
 }

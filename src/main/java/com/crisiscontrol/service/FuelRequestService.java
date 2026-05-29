@@ -363,12 +363,18 @@ public class FuelRequestService {
             throw new RuntimeException("Only Hospital Authority can request generator diesel support");
         }
 
+        user.setTotalIcuUnits(request.getTotalIcuUnits());
+        user.setAcPatientCapacity(request.getAcPatientCapacity());
+        user.setNonAcPatientCapacity(request.getNonAcPatientCapacity());
+        user = userRepository.save(user);
+
         user = hospitalSupportCalculationService.recalculateAndSave(user);
 
         FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
-        BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+        BigDecimal requestedDiesel = safeAmount(request.getRequiredDieselLiter());
+        BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit());
 
         Double dieselTankCapacity = user.getHospitalDieselTankCapacity();
         Double currentDieselReserve = user.getHospitalCurrentDieselReserve();
@@ -387,7 +393,7 @@ public class FuelRequestService {
             throw new RuntimeException("Hospital diesel tank is already full. Diesel request is not allowed.");
         }
 
-        if (request.getRequiredDieselLiter().doubleValue() > availableDieselSpace) {
+        if (requestedDiesel.doubleValue() > availableDieselSpace) {
             throw new RuntimeException(
                     "Requested diesel cannot be greater than available diesel space. Available space: "
                             + Math.round(availableDieselSpace * 100.0) / 100.0
@@ -395,22 +401,73 @@ public class FuelRequestService {
             );
         }
 
-        PumpProfile assignedPump = findAvailablePumpForFuelOrNull(FuelType.DIESEL, request.getRequiredDieselLiter());
+        BigDecimal weeklyAllocation = getAdminWeeklyDieselAllocation(
+                FuelLimitType.HOSPITAL_GENERATOR_WEEKLY_DIESEL,
+                new BigDecimal("500.00")
+        );
+
+        BigDecimal usedThisWeek = calculateWeeklyUsedDiesel(
+                user.getId(),
+                FuelRequestSource.HOSPITAL_GENERATOR
+        );
+
+        BigDecimal remainingWeeklyAllocation = weeklyAllocation.subtract(usedThisWeek);
+
+        if (remainingWeeklyAllocation.compareTo(BigDecimal.ZERO) < 0) {
+            remainingWeeklyAllocation = BigDecimal.ZERO;
+        }
+
+        boolean withinWeeklyAllocation = requestedDiesel.compareTo(remainingWeeklyAllocation) <= 0;
+
+        PumpProfile assignedPump = withinWeeklyAllocation
+                ? findAvailablePumpForFuelOrNull(FuelType.DIESEL, requestedDiesel)
+                : null;
 
         FuelRequestStatus status = FuelRequestStatus.PENDING;
-        String adminNote = "Hospital diesel request received. Waiting for admin approval.";
+        String adminNote;
 
-        if ("CRITICAL".equals(user.getHospitalDieselStatus()) && assignedPump != null) {
+        if (withinWeeklyAllocation && assignedPump != null) {
             status = FuelRequestStatus.APPROVED;
-            adminNote = "Auto-approved: CRITICAL backup and pump has sufficient diesel.";
+            adminNote = "Auto-approved within admin-set hospital weekly diesel allocation. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
+        } else if (withinWeeklyAllocation) {
+            adminNote = "Within admin-set hospital weekly diesel allocation, but no open pump has enough diesel stock. Waiting for admin review/pump assignment. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
+        } else {
+            adminNote = "Admin approval required because request exceeds remaining hospital weekly diesel allocation. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Requested: "
+                    + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
         }
+
+        String hospitalPriorityLevel = resolveHospitalPriorityLevel(
+                user.getHospitalDieselStatus(),
+                user.getTotalIcuUnits(),
+                user.getAcPatientCapacity(),
+                user.getNonAcPatientCapacity()
+        );
 
         FuelRequest hospitalRequest = FuelRequest.builder()
                 .user(user)
                 .pumpProfile(status == FuelRequestStatus.APPROVED ? assignedPump : null)
                 .requestSource(FuelRequestSource.HOSPITAL_GENERATOR)
                 .fuelType(FuelType.DIESEL)
-                .requestedLiter(request.getRequiredDieselLiter())
+                .requestedLiter(requestedDiesel)
                 .fuelLevelStatus("HOSPITAL_" + valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalName(valueOrDefault(request.getHospitalName(), user.getHospitalName()))
                 .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
@@ -420,6 +477,10 @@ public class FuelRequestService {
                 .hospitalUrgencyLevel(valueOrDash(user.getHospitalDieselStatus()))
                 .hospitalReason(request.getReason())
                 .hospitalContactNumber(request.getContactNumber())
+                .hospitalTotalIcuUnits(user.getTotalIcuUnits())
+                .hospitalAcPatientCapacity(user.getAcPatientCapacity())
+                .hospitalNonAcPatientCapacity(user.getNonAcPatientCapacity())
+                .hospitalPriorityLevel(hospitalPriorityLevel)
                 .pricePerUnit(dieselPrice.getPricePerUnit())
                 .estimatedCost(estimatedCost)
                 .requestStatus(status)
@@ -437,6 +498,12 @@ public class FuelRequestService {
                         + savedRequest.getFuelType()
                         + ", Liter: "
                         + savedRequest.getRequestedLiter()
+                        + ", Weekly Allocation: "
+                        + weeklyAllocation
+                        + " L, Used This Week: "
+                        + usedThisWeek
+                        + " L, Auto Approved: "
+                        + (status == FuelRequestStatus.APPROVED)
                         + ", Current Status: "
                         + savedRequest.getRequestStatus()
         );
@@ -449,7 +516,7 @@ public class FuelRequestService {
                     "FUEL_REQUEST_AUTO_APPROVED",
                     "FUEL_REQUEST",
                     savedRequest.getId(),
-                    "Hospital diesel request auto-approved. Fuel: "
+                    "Hospital diesel request auto-approved within weekly allocation. Fuel: "
                             + savedRequest.getFuelType()
                             + ", Liter: "
                             + savedRequest.getRequestedLiter()
@@ -474,21 +541,111 @@ public class FuelRequestService {
         FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
-        BigDecimal estimatedCost = request.getRequiredDieselLiter().multiply(dieselPrice.getPricePerUnit());
+        BigDecimal tankCapacity = safeAmount(request.getBuildingDieselTankCapacity());
+        BigDecimal currentFuel = safeAmount(request.getBuildingCurrentFuel());
+        BigDecimal requestedDiesel = safeAmount(request.getRequiredDieselLiter());
 
-        String adminNote = "Building generator diesel request received. Building: "
-                + valueOrDash(user.getBuildingName())
-                + ", Thana: "
-                + valueOrDash(user.getBuildingUnderThana())
-                + ". Waiting for admin approval.";
+        if (tankCapacity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Building diesel tank capacity must be greater than 0");
+        }
+
+        if (currentFuel.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Current diesel stock cannot be negative");
+        }
+
+        if (currentFuel.compareTo(tankCapacity) > 0) {
+            throw new RuntimeException("Current diesel stock cannot be greater than tank capacity");
+        }
+
+        if (requestedDiesel.compareTo(BigDecimal.ONE) < 0) {
+            throw new RuntimeException("Required diesel liter must be at least 1");
+        }
+
+        BigDecimal availableTankSpace = tankCapacity.subtract(currentFuel);
+
+        if (availableTankSpace.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Building diesel tank is already full. Diesel request is not allowed.");
+        }
+
+        if (requestedDiesel.compareTo(availableTankSpace) > 0) {
+            throw new RuntimeException(
+                    "Requested diesel cannot be greater than available tank space. Available space: "
+                            + availableTankSpace.setScale(2, java.math.RoundingMode.HALF_UP)
+                            + " L"
+            );
+        }
+
+        BigDecimal weeklyAllocation = getAdminWeeklyDieselAllocation(
+                FuelLimitType.BUILDING_GENERATOR_WEEKLY_DIESEL,
+                new BigDecimal("100.00")
+        );
+
+        BigDecimal usedThisWeek = calculateWeeklyUsedDiesel(
+                user.getId(),
+                FuelRequestSource.BUILDING_GENERATOR
+        );
+
+        BigDecimal remainingWeeklyAllocation = weeklyAllocation.subtract(usedThisWeek);
+
+        if (remainingWeeklyAllocation.compareTo(BigDecimal.ZERO) < 0) {
+            remainingWeeklyAllocation = BigDecimal.ZERO;
+        }
+
+        boolean withinWeeklyAllocation = requestedDiesel.compareTo(remainingWeeklyAllocation) <= 0;
+
+        PumpProfile assignedPump = withinWeeklyAllocation
+                ? findAvailablePumpForFuelOrNull(FuelType.DIESEL, requestedDiesel)
+                : null;
+
+        FuelRequestStatus status = FuelRequestStatus.PENDING;
+        String adminNote;
+
+        if (withinWeeklyAllocation && assignedPump != null) {
+            status = FuelRequestStatus.APPROVED;
+            adminNote = "Auto-approved within admin-set building weekly diesel allocation. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
+        } else if (withinWeeklyAllocation) {
+            adminNote = "Within admin-set building weekly diesel allocation, but no open pump has enough diesel stock. Waiting for admin review/pump assignment. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
+        } else {
+            adminNote = "Admin approval required because request exceeds remaining building weekly diesel allocation. Weekly allocation: "
+                    + weeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Used this week: "
+                    + usedThisWeek.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Remaining before request: "
+                    + remainingWeeklyAllocation.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L, Requested: "
+                    + requestedDiesel.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " L.";
+        }
+
+        BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit());
+        BigDecimal estimatedBackupHours = calculateBuildingBackupHours(user.getGeneratorPower(), currentFuel);
+        Boolean lowStockAlert = resolveBuildingLowStockAlert(tankCapacity, currentFuel, estimatedBackupHours);
+
+        user.setBuildingDieselTankCapacity(tankCapacity.doubleValue());
+        user.setBuildingWeeklyAllocationLiter(weeklyAllocation.doubleValue());
+        user.setBuildingCurrentFuel(currentFuel.doubleValue());
+        user.setBuildingEstimatedBackupHours(estimatedBackupHours.doubleValue());
+        userRepository.save(user);
 
         FuelRequest buildingRequest = FuelRequest.builder()
                 .user(user)
-                .pumpProfile(null)
+                .pumpProfile(status == FuelRequestStatus.APPROVED ? assignedPump : null)
                 .requestSource(FuelRequestSource.BUILDING_GENERATOR)
                 .fuelType(FuelType.DIESEL)
-                .requestedLiter(request.getRequiredDieselLiter())
-                .fuelLevelStatus("BUILDING_GENERATOR")
+                .requestedLiter(requestedDiesel)
+                .fuelLevelStatus(Boolean.TRUE.equals(lowStockAlert) ? "BUILDING_LOW_STOCK" : "BUILDING_GENERATOR")
                 .buildingName(valueOrDefault(request.getBuildingName(), user.getBuildingName()))
                 .buildingHoldingNumber(user.getHoldingNumber())
                 .buildingAddress(user.getAddress())
@@ -500,9 +657,14 @@ public class FuelRequestService {
                 .buildingNumberOfFlats(user.getNumberOfFlats())
                 .buildingReason(request.getReason())
                 .buildingContactNumber(request.getContactNumber())
+                .buildingDieselTankCapacity(tankCapacity)
+                .buildingWeeklyAllocationLiter(weeklyAllocation)
+                .buildingCurrentFuel(currentFuel)
+                .buildingEstimatedBackupHours(estimatedBackupHours)
+                .buildingLowStockAlert(lowStockAlert)
                 .pricePerUnit(dieselPrice.getPricePerUnit())
                 .estimatedCost(estimatedCost)
-                .requestStatus(FuelRequestStatus.PENDING)
+                .requestStatus(status)
                 .adminNote(adminNote)
                 .build();
 
@@ -517,9 +679,34 @@ public class FuelRequestService {
                         + savedRequest.getFuelType()
                         + ", Liter: "
                         + savedRequest.getRequestedLiter()
+                        + ", Weekly Allocation: "
+                        + weeklyAllocation
+                        + " L, Used This Week: "
+                        + usedThisWeek
+                        + " L, Auto Approved: "
+                        + (status == FuelRequestStatus.APPROVED)
                         + ", Current Status: "
                         + savedRequest.getRequestStatus()
         );
+
+        if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
+            savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
+            savedRequest = fuelRequestRepository.save(savedRequest);
+
+            auditLogService.logSystem(
+                    "FUEL_REQUEST_AUTO_APPROVED",
+                    "FUEL_REQUEST",
+                    savedRequest.getId(),
+                    "Building generator diesel request auto-approved within weekly allocation. Fuel: "
+                            + savedRequest.getFuelType()
+                            + ", Liter: "
+                            + savedRequest.getRequestedLiter()
+                            + ", Pump: "
+                            + (savedRequest.getPumpProfile() == null ? "Not Assigned" : savedRequest.getPumpProfile().getPumpName())
+                            + ", Current Status: "
+                            + savedRequest.getRequestStatus()
+            );
+        }
 
         return mapToResponse(savedRequest);
     }
@@ -719,6 +906,10 @@ public class FuelRequestService {
             validateHospitalDieselSpaceBeforeCollection(fuelRequest);
         }
 
+        if (fuelRequest.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
+            validateBuildingDieselSpaceBeforeCollection(fuelRequest);
+        }
+
         BigDecimal updatedStock = pumpFuelStock.getCurrentStock().subtract(fuelRequest.getRequestedLiter());
         pumpFuelStock.setCurrentStock(updatedStock);
 
@@ -742,6 +933,10 @@ public class FuelRequestService {
 
         if (fuelRequest.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
             updateHospitalDieselReserveAfterCollection(fuelRequest);
+        }
+
+        if (fuelRequest.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
+            updateBuildingDieselStockAfterCollection(fuelRequest);
         }
 
         fuelRequest.setRequestStatus(FuelRequestStatus.COLLECTED);
@@ -989,6 +1184,191 @@ public class FuelRequestService {
         hospitalSupportCalculationService.recalculateAndSave(hospitalUser);
     }
 
+    private void validateBuildingDieselSpaceBeforeCollection(FuelRequest fuelRequest) {
+        User buildingUser = fuelRequest.getUser();
+
+        if (buildingUser == null) {
+            throw new RuntimeException("Building user information not found for this request");
+        }
+
+        Double tankCapacityDouble = buildingUser.getBuildingDieselTankCapacity();
+        Double currentFuelDouble = buildingUser.getBuildingCurrentFuel();
+
+        if (tankCapacityDouble == null || tankCapacityDouble <= 0) {
+            throw new RuntimeException("Building diesel tank capacity is not configured");
+        }
+
+        if (currentFuelDouble == null) {
+            currentFuelDouble = 0.0;
+        }
+
+        BigDecimal tankCapacity = BigDecimal.valueOf(tankCapacityDouble);
+        BigDecimal currentFuel = BigDecimal.valueOf(currentFuelDouble);
+        BigDecimal requestedDiesel = fuelRequest.getRequestedLiter();
+
+        BigDecimal availableSpace = tankCapacity.subtract(currentFuel);
+
+        if (availableSpace.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Building diesel tank is already full. Collection is not allowed.");
+        }
+
+        if (requestedDiesel.compareTo(availableSpace) > 0) {
+            throw new RuntimeException(
+                    "Collection cannot be completed. Requested diesel is greater than building available tank space. Available space: "
+                            + availableSpace.setScale(2, java.math.RoundingMode.HALF_UP)
+                            + " L"
+            );
+        }
+    }
+
+    private void updateBuildingDieselStockAfterCollection(FuelRequest fuelRequest) {
+        User buildingUser = fuelRequest.getUser();
+
+        if (buildingUser == null) {
+            throw new RuntimeException("Building user information not found for this request");
+        }
+
+        Double currentFuelDouble = buildingUser.getBuildingCurrentFuel();
+
+        if (currentFuelDouble == null) {
+            currentFuelDouble = 0.0;
+        }
+
+        Double tankCapacityDouble = buildingUser.getBuildingDieselTankCapacity();
+
+        if (tankCapacityDouble == null || tankCapacityDouble <= 0) {
+            throw new RuntimeException("Building diesel tank capacity is not configured");
+        }
+
+        BigDecimal currentFuel = BigDecimal.valueOf(currentFuelDouble);
+        BigDecimal tankCapacity = BigDecimal.valueOf(tankCapacityDouble);
+        BigDecimal updatedFuel = currentFuel.add(fuelRequest.getRequestedLiter());
+
+        if (updatedFuel.compareTo(tankCapacity) > 0) {
+            throw new RuntimeException(
+                    "Collection cannot be completed. Building diesel stock would exceed tank capacity. Available space: "
+                            + tankCapacity.subtract(currentFuel).max(BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP)
+                            + " L"
+            );
+        }
+
+        BigDecimal updatedBackupHours = calculateBuildingBackupHours(buildingUser.getGeneratorPower(), updatedFuel);
+        Boolean lowStockAlert = resolveBuildingLowStockAlert(tankCapacity, updatedFuel, updatedBackupHours);
+
+        buildingUser.setBuildingCurrentFuel(updatedFuel.doubleValue());
+        buildingUser.setBuildingEstimatedBackupHours(updatedBackupHours.doubleValue());
+        userRepository.save(buildingUser);
+
+        fuelRequest.setBuildingCurrentFuel(updatedFuel);
+        fuelRequest.setBuildingEstimatedBackupHours(updatedBackupHours);
+        fuelRequest.setBuildingLowStockAlert(lowStockAlert);
+    }
+
+    private BigDecimal calculateBuildingBackupHours(Double generatorPower, BigDecimal currentFuel) {
+        if (generatorPower == null || generatorPower <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        if (currentFuel == null || currentFuel.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal hourlyConsumption = BigDecimal.valueOf(generatorPower).multiply(BigDecimal.valueOf(0.25));
+
+        if (hourlyConsumption.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return currentFuel.divide(hourlyConsumption, 2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private Boolean resolveBuildingLowStockAlert(
+            BigDecimal tankCapacity,
+            BigDecimal currentFuel,
+            BigDecimal estimatedBackupHours
+    ) {
+        if (tankCapacity == null || tankCapacity.compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+
+        if (currentFuel == null || currentFuel.compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+
+        BigDecimal stockPercentage = currentFuel
+                .multiply(BigDecimal.valueOf(100))
+                .divide(tankCapacity, 2, java.math.RoundingMode.HALF_UP);
+
+        return stockPercentage.compareTo(BigDecimal.valueOf(20)) <= 0
+                || safeAmount(estimatedBackupHours).compareTo(BigDecimal.valueOf(6)) < 0;
+    }
+
+    private BigDecimal getAdminWeeklyDieselAllocation(FuelLimitType limitType, BigDecimal defaultLimit) {
+        FuelLimit fuelLimit = fuelLimitRepository.findByLimitType(limitType)
+                .orElseGet(() -> fuelLimitRepository.save(
+                        FuelLimit.builder()
+                                .limitType(limitType)
+                                .limitAmount(defaultLimit)
+                                .limitUnit("Liter/Week")
+                                .description("Admin-set weekly diesel allocation")
+                                .build()
+                ));
+
+        return safeAmount(fuelLimit.getLimitAmount());
+    }
+
+    private BigDecimal calculateWeeklyUsedDiesel(Long userId, FuelRequestSource requestSource) {
+        LocalDate today = LocalDate.now();
+        LocalDate weekStartDate = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        LocalDateTime weekStart = weekStartDate.atStartOfDay();
+        LocalDateTime weekEnd = weekStart.plusDays(7);
+
+        return fuelRequestRepository.findByUserIdAndRequestSourceOrderByCreatedAtDesc(userId, requestSource)
+                .stream()
+                .filter(request -> request.getRequestStatus() == FuelRequestStatus.APPROVED
+                        || request.getRequestStatus() == FuelRequestStatus.COLLECTED)
+                .filter(request -> request.getCreatedAt() != null)
+                .filter(request -> !request.getCreatedAt().isBefore(weekStart))
+                .filter(request -> request.getCreatedAt().isBefore(weekEnd))
+                .map(FuelRequest::getRequestedLiter)
+                .map(this::safeAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private String resolveHospitalPriorityLevel(
+            String dieselStatus,
+            Integer totalIcuUnits,
+            Integer acPatientCapacity,
+            Integer nonAcPatientCapacity
+    ) {
+        int icu = valueOrZero(totalIcuUnits);
+        int acPatients = valueOrZero(acPatientCapacity);
+        int nonAcPatients = valueOrZero(nonAcPatientCapacity);
+        int totalPatients = acPatients + nonAcPatients;
+
+        if ("CRITICAL".equalsIgnoreCase(valueOrDash(dieselStatus)) && icu > 0) {
+            return "CRITICAL_ICU_PRIORITY";
+        }
+
+        if ("CRITICAL".equalsIgnoreCase(valueOrDash(dieselStatus)) && totalPatients >= 50) {
+            return "CRITICAL_HIGH_PATIENT_PRIORITY";
+        }
+
+        if ("CRITICAL".equalsIgnoreCase(valueOrDash(dieselStatus))) {
+            return "CRITICAL_STANDARD_PRIORITY";
+        }
+
+        if (icu > 0 || totalPatients >= 50) {
+            return "PATIENT_SAFETY_PRIORITY";
+        }
+
+        return "STANDARD_PRIORITY";
+    }
+
+    private int valueOrZero(Integer value) {
+        return value == null ? 0 : value;
+    }
+
     private void updatePumpProfileTotalStock(PumpProfile pumpProfile) {
         List<PumpFuelStock> stocks = pumpFuelStockRepository.findByPumpProfileIdOrderByFuelTypeAsc(pumpProfile.getId());
 
@@ -1112,6 +1492,10 @@ public class FuelRequestService {
                 .hospitalCurrentDieselReserve(requestUser.getHospitalCurrentDieselReserve())
                 .hospitalEstimatedBackupHours(requestUser.getHospitalEstimatedBackupHours())
                 .hospitalDieselStatus(requestUser.getHospitalDieselStatus())
+                .hospitalTotalIcuUnits(fuelRequest.getHospitalTotalIcuUnits())
+                .hospitalAcPatientCapacity(fuelRequest.getHospitalAcPatientCapacity())
+                .hospitalNonAcPatientCapacity(fuelRequest.getHospitalNonAcPatientCapacity())
+                .hospitalPriorityLevel(valueOrDash(fuelRequest.getHospitalPriorityLevel()))
 
                 .buildingName(fuelRequest.getBuildingName())
                 .buildingHoldingNumber(fuelRequest.getBuildingHoldingNumber())
@@ -1121,6 +1505,11 @@ public class FuelRequestService {
                 .buildingNumberOfFlats(fuelRequest.getBuildingNumberOfFlats())
                 .buildingReason(fuelRequest.getBuildingReason())
                 .buildingContactNumber(fuelRequest.getBuildingContactNumber())
+                .buildingDieselTankCapacity(fuelRequest.getBuildingDieselTankCapacity())
+                .buildingWeeklyAllocationLiter(fuelRequest.getBuildingWeeklyAllocationLiter())
+                .buildingCurrentFuel(fuelRequest.getBuildingCurrentFuel())
+                .buildingEstimatedBackupHours(fuelRequest.getBuildingEstimatedBackupHours())
+                .buildingLowStockAlert(fuelRequest.getBuildingLowStockAlert())
 
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())

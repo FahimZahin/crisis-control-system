@@ -72,6 +72,12 @@ public class User {
     @Column(name = "building_under_thana")
     private String buildingUnderThana;
 
+    @Column(name = "building_diesel_tank_capacity")
+    private Double buildingDieselTankCapacity;
+
+    @Column(name = "building_weekly_allocation_liter")
+    private Double buildingWeeklyAllocationLiter;
+
     @Column(name = "building_current_fuel")
     private Double buildingCurrentFuel;
 

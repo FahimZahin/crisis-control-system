@@ -26,4 +26,12 @@ public class FuelLimitRequest {
     @NotNull(message = "Generator diesel limit is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Generator diesel limit must be greater than 0")
     private BigDecimal generatorDieselLimit;
+
+    @NotNull(message = "Building generator weekly diesel allocation is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Building generator weekly allocation must be greater than 0")
+    private BigDecimal buildingGeneratorWeeklyDieselAllocation;
+
+    @NotNull(message = "Hospital generator weekly diesel allocation is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Hospital generator weekly allocation must be greater than 0")
+    private BigDecimal hospitalGeneratorWeeklyDieselAllocation;
 }

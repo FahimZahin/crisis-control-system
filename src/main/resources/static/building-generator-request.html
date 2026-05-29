@@ -23,7 +23,7 @@
     <div class="role-dashboard-header">
         <div>
             <h1>Building Generator Diesel Support</h1>
-            <p>Request DIESEL for your apartment building generator. All requests require admin approval.</p>
+            <p>Request DIESEL for your apartment building generator. Requests within weekly allocation can be auto-approved.</p>
         </div>
         <span class="role-badge">BUILDING DIESEL</span>
     </div>
@@ -33,14 +33,17 @@
             <h3>Building Name</h3>
             <p id="buildingNameSummary">-</p>
         </div>
+
         <div class="summary-card">
             <h3>Generator Power</h3>
             <p id="generatorPowerSummary">-</p>
         </div>
+
         <div class="summary-card">
             <h3>Building Thana</h3>
             <p id="buildingThanaSummary">-</p>
         </div>
+
         <div class="summary-card">
             <h3>Number of Flats</h3>
             <p id="numberOfFlatsSummary">-</p>
@@ -48,24 +51,79 @@
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Building Information</h2>
+        <h2>Building Diesel Stock and Weekly Allocation</h2>
         <p id="buildingGeneratorRequestMessage"></p>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Tank Capacity</h3>
+                <p><span id="tankCapacitySummary">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Admin Weekly Allocation</h3>
+                <p><span id="weeklyAllocationSummary">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Current Stock</h3>
+                <p><span id="currentFuelSummary">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Estimated Backup</h3>
+                <p><span id="backupHoursSummary">0.00</span> hours</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Low-Stock Alert</h3>
+                <p id="lowStockAlertSummary">-</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Approval Rule</h3>
+                <p id="approvalRuleSummary">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Building Information</h2>
+
         <div class="info-grid">
             <div>
                 <label>Building Name</label>
                 <p id="buildingNameInfo">-</p>
             </div>
+
             <div>
                 <label>Holding Number</label>
                 <p id="holdingNumberInfo">-</p>
             </div>
+
             <div>
                 <label>Generator Power</label>
                 <p id="generatorPowerInfo">-</p>
             </div>
+
             <div>
                 <label>Number of Flats</label>
                 <p id="numberOfFlatsInfo">-</p>
+            </div>
+
+            <div>
+                <label>Building Under Thana</label>
+                <p id="buildingThanaInfo">-</p>
+            </div>
+
+            <div>
+                <label>Available Tank Space</label>
+                <p><span id="availableTankSpaceInfo">0.00</span> L</p>
+            </div>
+
+            <div>
+                <label>Admin Weekly Allocation</label>
+                <p><span id="adminWeeklyAllocationInfo">0.00</span> L</p>
             </div>
         </div>
     </div>
@@ -73,7 +131,7 @@
     <div class="role-dashboard-section">
         <h2>Create Generator Diesel Request</h2>
         <p class="muted-text">
-            All building generator diesel requests require admin approval. Enter how much diesel you need and the reason.
+            Weekly allocation is set by admin. If your request is within the remaining weekly allocation, it may be auto-approved. If it exceeds the weekly allocation, admin approval is required.
         </p>
 
         <form id="buildingGeneratorRequestForm" class="settings-form-grid">
@@ -89,8 +147,25 @@
             </div>
 
             <div>
+                <label>Building Diesel Tank Capacity (L)</label>
+                <input type="number" id="buildingDieselTankCapacity" min="1" step="0.01" required>
+            </div>
+
+            <div>
+                <label>Admin Weekly Diesel Allocation (L)</label>
+                <input type="number" id="buildingWeeklyAllocationLiter" min="1" step="0.01" readonly>
+                <small class="muted-text">This value is set by admin in Fuel Settings.</small>
+            </div>
+
+            <div>
+                <label>Current Diesel Stock (L)</label>
+                <input type="number" id="buildingCurrentFuel" min="0" step="0.01" required>
+            </div>
+
+            <div>
                 <label>Required Diesel Liter</label>
-                <input type="number" id="requiredDieselLiter" min="1" step="0.01" placeholder="Example: 30" required>
+                <input type="number" id="requiredDieselLiter" min="1" step="0.01" required>
+                <small id="requestLimitHint" class="muted-text"></small>
             </div>
 
             <div>
@@ -99,12 +174,12 @@
             </div>
 
             <div class="settings-full-row">
-                <label>Auto Generated Request Message</label>
-                <textarea id="generatedReasonPreview" readonly></textarea>
+                <label>Generated Request Reason</label>
+                <textarea id="generatedReasonPreview" rows="8" readonly></textarea>
             </div>
 
-            <button type="submit" class="btn primary full-width settings-full-row" id="submitBuildingGeneratorRequestBtn">
-                Submit Generator Diesel Request
+            <button type="submit" id="submitBuildingGeneratorRequestBtn" class="btn primary full-width settings-full-row">
+                Submit Building Generator Diesel Request
             </button>
         </form>
     </div>

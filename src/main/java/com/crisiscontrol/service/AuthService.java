@@ -58,6 +58,10 @@ public class AuthService {
                                 ? emptyToNull(resolvedThana)
                                 : emptyToNull(request.getBuildingUnderThana())
                 )
+                .buildingDieselTankCapacity(0.0)
+                .buildingWeeklyAllocationLiter(0.0)
+                .buildingCurrentFuel(0.0)
+                .buildingEstimatedBackupHours(0.0)
                 .thanaOrUpazila(emptyToNull(resolvedThana))
 
                 .pumpName(emptyToNull(request.getPumpName()))
@@ -503,6 +507,10 @@ public class AuthService {
                                 ? "-"
                                 : resolvedBuildingThana
                 )
+                .buildingDieselTankCapacity(user.getBuildingDieselTankCapacity())
+                .buildingWeeklyAllocationLiter(user.getBuildingWeeklyAllocationLiter())
+                .buildingCurrentFuel(user.getBuildingCurrentFuel())
+                .buildingEstimatedBackupHours(user.getBuildingEstimatedBackupHours())
                 .thanaOrUpazila(
                         isBlank(resolvedThana)
                                 ? "-"

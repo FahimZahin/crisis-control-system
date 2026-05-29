@@ -21,6 +21,14 @@ public class BuildingGeneratorFuelRequestCreateRequest {
     @NotBlank(message = "Generator power is required")
     private String buildingGeneratorPower;
 
+    @NotNull(message = "Building diesel tank capacity is required")
+    @DecimalMin(value = "1.00", message = "Building diesel tank capacity must be at least 1 liter")
+    private BigDecimal buildingDieselTankCapacity;
+
+    @NotNull(message = "Current diesel stock is required")
+    @DecimalMin(value = "0.00", message = "Current diesel stock cannot be negative")
+    private BigDecimal buildingCurrentFuel;
+
     @NotNull(message = "Required diesel liter is required")
     @DecimalMin(value = "1.00", message = "Required diesel liter must be at least 1")
     private BigDecimal requiredDieselLiter;

@@ -58,6 +58,10 @@ public class FuelRequestResponse {
     private Double hospitalCurrentDieselReserve;
     private Double hospitalEstimatedBackupHours;
     private String hospitalDieselStatus;
+    private Integer hospitalTotalIcuUnits;
+    private Integer hospitalAcPatientCapacity;
+    private Integer hospitalNonAcPatientCapacity;
+    private String hospitalPriorityLevel;
 
     private String buildingName;
     private String buildingHoldingNumber;
@@ -67,6 +71,11 @@ public class FuelRequestResponse {
     private Integer buildingNumberOfFlats;
     private String buildingReason;
     private String buildingContactNumber;
+    private BigDecimal buildingDieselTankCapacity;
+    private BigDecimal buildingWeeklyAllocationLiter;
+    private BigDecimal buildingCurrentFuel;
+    private BigDecimal buildingEstimatedBackupHours;
+    private Boolean buildingLowStockAlert;
 
     private Long pumpId;
     private String pumpName;

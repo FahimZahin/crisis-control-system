@@ -45,6 +45,8 @@ function fillFuelSettings(settings) {
     document.getElementById("carLimit").value = settings.carLimit;
     document.getElementById("emergencyVehicleLimit").value = settings.emergencyVehicleLimit;
     document.getElementById("generatorDieselLimit").value = settings.generatorDieselLimit;
+    document.getElementById("buildingGeneratorWeeklyDieselAllocation").value = settings.buildingGeneratorWeeklyDieselAllocation;
+    document.getElementById("hospitalGeneratorWeeklyDieselAllocation").value = settings.hospitalGeneratorWeeklyDieselAllocation;
 
     document.getElementById("petrolPricePreview").innerText = settings.petrolPrice;
     document.getElementById("octanePricePreview").innerText = settings.octanePrice;
@@ -55,6 +57,8 @@ function fillFuelSettings(settings) {
     document.getElementById("carLimitPreview").innerText = settings.carLimit;
     document.getElementById("emergencyVehicleLimitPreview").innerText = settings.emergencyVehicleLimit;
     document.getElementById("generatorDieselLimitPreview").innerText = settings.generatorDieselLimit;
+    document.getElementById("buildingGeneratorWeeklyDieselAllocationPreview").innerText = settings.buildingGeneratorWeeklyDieselAllocation;
+    document.getElementById("hospitalGeneratorWeeklyDieselAllocationPreview").innerText = settings.hospitalGeneratorWeeklyDieselAllocation;
 
     document.getElementById("lastUpdatedAt").innerText = formatDate(settings.lastUpdatedAt);
 }
@@ -95,7 +99,9 @@ async function updateFuelLimits() {
         bikeLimit: Number(document.getElementById("bikeLimit").value),
         carLimit: Number(document.getElementById("carLimit").value),
         emergencyVehicleLimit: Number(document.getElementById("emergencyVehicleLimit").value),
-        generatorDieselLimit: Number(document.getElementById("generatorDieselLimit").value)
+        generatorDieselLimit: Number(document.getElementById("generatorDieselLimit").value),
+        buildingGeneratorWeeklyDieselAllocation: Number(document.getElementById("buildingGeneratorWeeklyDieselAllocation").value),
+        hospitalGeneratorWeeklyDieselAllocation: Number(document.getElementById("hospitalGeneratorWeeklyDieselAllocation").value)
     };
 
     try {

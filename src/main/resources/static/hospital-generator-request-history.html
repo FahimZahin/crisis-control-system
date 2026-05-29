@@ -22,8 +22,8 @@
 
     <div class="role-dashboard-header">
         <div>
-            <h1>Generator Diesel Request History</h1>
-            <p>Track approval status, assigned pump, collection code, diesel reserve, and backup status.</p>
+            <h1>Hospital Generator Request History</h1>
+            <p>Track approval status, assigned pump, collection code, diesel reserve, backup status, ICU units, and patient priority.</p>
         </div>
         <span class="role-badge">REQUEST HISTORY</span>
     </div>
@@ -32,6 +32,21 @@
         <div class="summary-card">
             <h3>Total Requests</h3>
             <p id="totalHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pending</h3>
+            <p id="pendingHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved</h3>
+            <p id="approvedHospitalRequests">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Collected</h3>
+            <p id="collectedHospitalRequests">0</p>
         </div>
 
         <div class="summary-card">
@@ -48,6 +63,11 @@
             <h3>Diesel Status</h3>
             <p id="historyDieselStatus">-</p>
         </div>
+
+        <div class="summary-card">
+            <h3>Current Priority</h3>
+            <p id="historyPriorityLevel">-</p>
+        </div>
     </div>
 
     <div class="role-dashboard-section">
@@ -55,7 +75,7 @@
             <div>
                 <h2>My Generator Diesel Requests</h2>
                 <p class="muted-text">
-                    Press refresh after pump collection to see updated hospital diesel reserve and backup status.
+                    Press refresh after pump collection to see updated hospital diesel reserve, backup status, ICU/patient priority, and request history.
                 </p>
             </div>
 
@@ -74,19 +94,24 @@
                     <th>Thana</th>
                     <th>Generator</th>
                     <th>Urgency</th>
+                    <th>Priority</th>
+                    <th>ICU</th>
+                    <th>AC Patients</th>
+                    <th>Non-AC Patients</th>
                     <th>Diesel</th>
                     <th>Cost</th>
                     <th>Status</th>
                     <th>Pump</th>
                     <th>Collection Code</th>
-                    <th>Hospital Backup After Update</th>
+                    <th>Reserve / Backup</th>
                     <th>Admin Note</th>
+                    <th>Collected</th>
                 </tr>
                 </thead>
 
                 <tbody id="hospitalHistoryBody">
                 <tr>
-                    <td colspan="11">Loading request history...</td>
+                    <td colspan="16">Loading hospital generator request history...</td>
                 </tr>
                 </tbody>
             </table>

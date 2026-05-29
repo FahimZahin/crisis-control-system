@@ -114,6 +114,18 @@ public class FuelRequest {
     @Column(name = "hospital_contact_number")
     private String hospitalContactNumber;
 
+    @Column(name = "hospital_total_icu_units")
+    private Integer hospitalTotalIcuUnits;
+
+    @Column(name = "hospital_ac_patient_capacity")
+    private Integer hospitalAcPatientCapacity;
+
+    @Column(name = "hospital_non_ac_patient_capacity")
+    private Integer hospitalNonAcPatientCapacity;
+
+    @Column(name = "hospital_priority_level")
+    private String hospitalPriorityLevel;
+
     @Column(name = "price_per_unit", nullable = false, precision = 10, scale = 2)
     private BigDecimal pricePerUnit;
 
@@ -177,6 +189,21 @@ public class FuelRequest {
 
     @Column(name = "building_contact_number")
     private String buildingContactNumber;
+
+    @Column(name = "building_diesel_tank_capacity", precision = 12, scale = 2)
+    private BigDecimal buildingDieselTankCapacity;
+
+    @Column(name = "building_weekly_allocation_liter", precision = 12, scale = 2)
+    private BigDecimal buildingWeeklyAllocationLiter;
+
+    @Column(name = "building_current_fuel", precision = 12, scale = 2)
+    private BigDecimal buildingCurrentFuel;
+
+    @Column(name = "building_estimated_backup_hours", precision = 12, scale = 2)
+    private BigDecimal buildingEstimatedBackupHours;
+
+    @Column(name = "building_low_stock_alert")
+    private Boolean buildingLowStockAlert;
 
     @PrePersist
     public void beforeCreate() {

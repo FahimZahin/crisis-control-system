@@ -31,6 +31,10 @@ public class AuthResponse {
     private Integer numberOfFlats;
     private String generatorPower;
     private String buildingUnderThana;
+    private Double buildingDieselTankCapacity;
+    private Double buildingWeeklyAllocationLiter;
+    private Double buildingCurrentFuel;
+    private Double buildingEstimatedBackupHours;
 
     // Pump authority info
     private String pumpName;

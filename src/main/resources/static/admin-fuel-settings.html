@@ -21,8 +21,8 @@
 
     <div class="role-dashboard-header">
         <div>
-            <h1>Fuel Price and Limit Setup</h1>
-            <p>Admin can update fuel prices and crisis fuel limits from this page.</p>
+            <h1>Fuel Price and Weekly Allocation Setup</h1>
+            <p>Admin can update fuel prices, vehicle limits, and weekly generator diesel allocations.</p>
         </div>
         <span class="role-badge">ADMIN SETTINGS</span>
     </div>
@@ -52,7 +52,7 @@
     <div class="role-dashboard-section">
         <h2>Fuel Price Setup</h2>
         <p class="muted-text">
-            Set current fuel prices. These values will be used later for fuel request cost calculation.
+            Set current fuel prices. These values are used for fuel request cost calculation.
         </p>
 
         <form id="fuelPriceForm" class="settings-form-grid">
@@ -86,9 +86,9 @@
     </div>
 
     <div class="role-dashboard-section">
-        <h2>Fuel Limit Setup</h2>
+        <h2>Fuel Limit and Weekly Generator Allocation Setup</h2>
         <p class="muted-text">
-            Set crisis limits for normal vehicles, emergency vehicles, and generator diesel support.
+            Building and hospital generator users can receive diesel without admin approval only within the remaining weekly allocation. If they exceed it, admin approval is required.
         </p>
 
         <form id="fuelLimitForm" class="settings-form-grid">
@@ -113,8 +113,18 @@
                 <input type="number" id="generatorDieselLimit" step="0.01" min="1" required>
             </div>
 
+            <div>
+                <label>Building Generator Weekly Diesel Allocation (L)</label>
+                <input type="number" id="buildingGeneratorWeeklyDieselAllocation" step="0.01" min="1" required>
+            </div>
+
+            <div>
+                <label>Hospital Generator Weekly Diesel Allocation (L)</label>
+                <input type="number" id="hospitalGeneratorWeeklyDieselAllocation" step="0.01" min="1" required>
+            </div>
+
             <button type="submit" class="btn primary full-width settings-full-row">
-                Save Fuel Limits
+                Save Fuel Limits and Weekly Allocations
             </button>
         </form>
 
@@ -146,8 +156,18 @@
             </div>
 
             <div class="feature-preview-card">
-                <h3>Used By Future Modules</h3>
-                <p>Vehicle Owner fuel request, Pump Authority stock, and Emergency Vehicle request will use these settings.</p>
+                <h3>Building Weekly Diesel Allocation</h3>
+                <p>Maximum <strong id="buildingGeneratorWeeklyDieselAllocationPreview">-</strong> L per week without admin approval.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Hospital Weekly Diesel Allocation</h3>
+                <p>Maximum <strong id="hospitalGeneratorWeeklyDieselAllocationPreview">-</strong> L per week without admin approval.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Weekly Allocation Rule</h3>
+                <p>Within remaining weekly allocation = auto-approved. Exceeding allocation = admin approval required.</p>
             </div>
 
             <div class="feature-preview-card">
