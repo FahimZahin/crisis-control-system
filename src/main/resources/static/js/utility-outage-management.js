@@ -62,7 +62,7 @@ function setupEvents() {
 
     if (thanaName) {
         thanaName.addEventListener("change", function () {
-            checkRecentOutageWarning();
+            checkRecentOutageWarning(thanaName.value);
             generateEmergencyMessage();
         });
     }
@@ -415,8 +415,19 @@ function isRecentlyRestored(notice) {
 
 async function checkRecentOutageWarning(thanaName) {
     const warningBox = document.getElementById("areaWarningBox");
+    const warningText = document.getElementById("areaWarningText");
+    const warningAcknowledged = document.getElementById("warningAcknowledged");
 
-    if (!warningBox || !thanaName) {
+    if (!warningBox || !warningText) {
+        return;
+    }
+
+    if (!thanaName) {
+        warningBox.classList.add("hidden-section");
+        warningText.innerText = "";
+        if (warningAcknowledged) {
+            warningAcknowledged.checked = false;
+        }
         return;
     }
 
@@ -429,12 +440,31 @@ async function checkRecentOutageWarning(thanaName) {
 
         if (!response.ok || !Array.isArray(notices) || notices.length === 0) {
             warningBox.classList.add("hidden-section");
+            warningText.innerText = "";
+            if (warningAcknowledged) {
+                warningAcknowledged.checked = false;
+            }
             return;
         }
 
+        const latestNotice = notices[0];
+
+        warningText.innerText =
+            thanaName +
+            " had a recently restored outage notice. Creating another notice too quickly may confuse users. Please acknowledge before submitting.";
+
         warningBox.classList.remove("hidden-section");
+
+        if (warningAcknowledged) {
+            warningAcknowledged.checked = false;
+        }
+
     } catch (error) {
         warningBox.classList.add("hidden-section");
+        warningText.innerText = "";
+        if (warningAcknowledged) {
+            warningAcknowledged.checked = false;
+        }
     }
 }
 
