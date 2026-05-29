@@ -60,6 +60,7 @@ function loadUserInfo() {
     const buildingCurrentFuel = cleanNumber(loggedInUser.buildingCurrentFuel || localStorage.getItem("buildingCurrentFuel"));
     const buildingEstimatedBackupHours = calculateBuildingBackupHoursForDashboard(
         loggedInUser.generatorPower,
+        loggedInUser.numberOfFlats,
         buildingCurrentFuel
     );
     const buildingLowStockAlert = resolveBuildingLowStockAlertForDashboard(
@@ -532,21 +533,37 @@ function resolveDieselStatus(backupHours) {
     return "RISK_FREE";
 }
 
-function calculateBuildingBackupHoursForDashboard(generatorPower, currentFuel) {
-    const power = cleanNumber(generatorPower);
+function calculateBuildingBackupHoursForDashboard(generatorPower, numberOfFlats, currentFuel) {
+    const flats = cleanNumber(numberOfFlats);
     const fuel = cleanNumber(currentFuel);
+    const generator = cleanNumber(generatorPower);
 
-    if (power <= 0 || fuel <= 0) {
+    if (flats <= 0 || fuel <= 0) {
         return 0;
     }
 
-    const hourlyConsumption = power * 0.25;
+    const perFlatKw = ((2 * 20) + (2 * 75)) / 1000;
+    const requiredLoadKw = flats * perFlatKw;
 
-    if (hourlyConsumption <= 0) {
+    let safeGeneratorCapacityKw = 0;
+
+    if (generator > 0) {
+        safeGeneratorCapacityKw = generator * 0.80;
+    }
+
+    let effectiveLoadKw = requiredLoadKw;
+
+    if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+        effectiveLoadKw = safeGeneratorCapacityKw;
+    }
+
+    const hourlyDieselUse = effectiveLoadKw * 0.27;
+
+    if (hourlyDieselUse <= 0) {
         return 0;
     }
 
-    return fuel / hourlyConsumption;
+    return fuel / hourlyDieselUse;
 }
 
 function resolveBuildingLowStockAlertForDashboard(tankCapacity, currentFuel, backupHours) {

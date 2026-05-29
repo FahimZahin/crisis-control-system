@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Building Fuel Allocation | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="admin-dashboard.html">Admin Dashboard</a>
+        <a href="admin-weekly-allocation-requests.html">Allocation Requests</a>
+        <a href="registered-users.html">Users</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Building Fuel Allocation</h1>
+            <p>Automatically calculated from number of flats, generator capacity, and assumed 2 hours daily outage.</p>
+        </div>
+        <span class="role-badge">BUILDING ALLOCATION</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Buildings</h3>
+            <p id="totalBuildings">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Default Outage</h3>
+            <p>2 hours/day</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Weekly Outage</h3>
+            <p>14 hours/week</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Formula</h3>
+            <p>Load × Hours × 0.27</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Calculation Method</h2>
+
+        <p class="muted-text">
+            Per flat emergency load = 2 lights × 20 W + 2 fans × 75 W = 190 W = 0.19 kW.
+            Generator safe capacity = generator capacity × 0.8.
+            Weekly allocation = min(flat load, safe generator capacity) × 14 hours × 0.27 L/kWh.
+        </p>
+
+        <p id="buildingAllocationMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Building</th>
+                    <th>Manager</th>
+                    <th>Phone</th>
+                    <th>Flats</th>
+                    <th>Generator kVA</th>
+                    <th>Required Load kW</th>
+                    <th>Safe Generator kW</th>
+                    <th>Suggested Allocation</th>
+                    <th>Current Allocation</th>
+                    <th>Generator Warning</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="buildingAllocationBody">
+                <tr>
+                    <td colspan="12">Loading building allocations...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/admin-building-allocation.js"></script>
+
+</body>
+</html>

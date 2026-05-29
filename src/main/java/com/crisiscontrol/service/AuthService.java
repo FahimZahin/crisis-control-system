@@ -18,6 +18,15 @@ public class AuthService {
     private static final String ADMIN_SECRET_CODE = "CCS-ADMIN-2026";
     private static final double MAX_HOSPITAL_DIESEL_CAPACITY = 1000.0;
 
+    private static final double BUILDING_DAILY_OUTAGE_HOURS = 2.0;
+    private static final double BUILDING_WEEKLY_DAYS = 7.0;
+    private static final double BUILDING_LIGHT_WATT = 20.0;
+    private static final double BUILDING_FAN_WATT = 75.0;
+    private static final double BUILDING_LIGHTS_PER_FLAT = 2.0;
+    private static final double BUILDING_FANS_PER_FLAT = 2.0;
+    private static final double BUILDING_DIESEL_LITER_PER_KWH = 0.27;
+    private static final double BUILDING_GENERATOR_SAFE_LOAD_FACTOR = 0.80;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
@@ -59,7 +68,12 @@ public class AuthService {
                                 : emptyToNull(request.getBuildingUnderThana())
                 )
                 .buildingDieselTankCapacity(0.0)
-                .buildingWeeklyAllocationLiter(0.0)
+                .buildingWeeklyAllocationLiter(
+                        calculateBuildingWeeklyDieselAllocation(
+                                request.getNumberOfFlats(),
+                                parseGeneratorPower(request.getGeneratorPower())
+                        )
+                )
                 .buildingCurrentFuel(0.0)
                 .buildingEstimatedBackupHours(0.0)
                 .thanaOrUpazila(emptyToNull(resolvedThana))
@@ -597,6 +611,35 @@ public class AuthService {
         return null;
     }
 
+
+    private Double calculateBuildingWeeklyDieselAllocation(Integer numberOfFlats, Double generatorCapacityKva) {
+        if (numberOfFlats == null || numberOfFlats <= 0) {
+            return 0.0;
+        }
+
+        double perFlatWatt = (BUILDING_LIGHTS_PER_FLAT * BUILDING_LIGHT_WATT)
+                + (BUILDING_FANS_PER_FLAT * BUILDING_FAN_WATT);
+
+        double perFlatKw = perFlatWatt / 1000.0;
+        double requiredLoadKw = numberOfFlats * perFlatKw;
+
+        double safeGeneratorCapacityKw = 0.0;
+
+        if (generatorCapacityKva != null && generatorCapacityKva > 0) {
+            safeGeneratorCapacityKw = generatorCapacityKva * BUILDING_GENERATOR_SAFE_LOAD_FACTOR;
+        }
+
+        double effectiveLoadKw = requiredLoadKw;
+
+        if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+            effectiveLoadKw = safeGeneratorCapacityKw;
+        }
+
+        double weeklyOutageHours = BUILDING_DAILY_OUTAGE_HOURS * BUILDING_WEEKLY_DAYS;
+        double weeklyDieselLiter = effectiveLoadKw * weeklyOutageHours * BUILDING_DIESEL_LITER_PER_KWH;
+
+        return Math.ceil(weeklyDieselLiter);
+    }
     private Double parseGeneratorPower(String value) {
         if (value == null || value.trim().isEmpty()) {
             return 0.0;

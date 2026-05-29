@@ -25,7 +25,7 @@ public class FuelLimit {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "limit_type", nullable = false)
+    @Column(name = "limit_type", nullable = false, length = 1000)
     private FuelLimitType limitType;
 
     @Column(name = "limit_amount", nullable = false, precision = 10, scale = 2)

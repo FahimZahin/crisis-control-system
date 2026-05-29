@@ -373,7 +373,8 @@ public class FuelRequestService {
         FuelPrice dieselPrice = fuelPriceRepository.findByFuelType(FuelType.DIESEL)
                 .orElseThrow(() -> new RuntimeException("Diesel price not set by admin"));
 
-        BigDecimal requestedDiesel = safeAmount(request.getRequiredDieselLiter());
+        BigDecimal requestedDiesel = safeAmount(request.getRequiredDieselLiter())
+                .setScale(2, java.math.RoundingMode.HALF_UP);
         BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit());
 
         Double dieselTankCapacity = user.getHospitalDieselTankCapacity();
@@ -401,10 +402,7 @@ public class FuelRequestService {
             );
         }
 
-        BigDecimal weeklyAllocation = getAdminWeeklyDieselAllocation(
-                FuelLimitType.HOSPITAL_GENERATOR_WEEKLY_DIESEL,
-                new BigDecimal("500.00")
-        );
+        BigDecimal weeklyAllocation = getBuildingWeeklyAllocation(user);
 
         BigDecimal usedThisWeek = calculateWeeklyUsedDiesel(
                 user.getId(),
@@ -630,7 +628,7 @@ public class FuelRequestService {
         }
 
         BigDecimal estimatedCost = requestedDiesel.multiply(dieselPrice.getPricePerUnit());
-        BigDecimal estimatedBackupHours = calculateBuildingBackupHours(user.getGeneratorPower(), currentFuel);
+        BigDecimal estimatedBackupHours = calculateBuildingBackupHours(user, currentFuel);
         Boolean lowStockAlert = resolveBuildingLowStockAlert(tankCapacity, currentFuel, estimatedBackupHours);
 
         user.setBuildingDieselTankCapacity(tankCapacity.doubleValue());
@@ -1252,7 +1250,7 @@ public class FuelRequestService {
             );
         }
 
-        BigDecimal updatedBackupHours = calculateBuildingBackupHours(buildingUser.getGeneratorPower(), updatedFuel);
+        BigDecimal updatedBackupHours = calculateBuildingBackupHours(buildingUser, updatedFuel);
         Boolean lowStockAlert = resolveBuildingLowStockAlert(tankCapacity, updatedFuel, updatedBackupHours);
 
         buildingUser.setBuildingCurrentFuel(updatedFuel.doubleValue());
@@ -1264,8 +1262,8 @@ public class FuelRequestService {
         fuelRequest.setBuildingLowStockAlert(lowStockAlert);
     }
 
-    private BigDecimal calculateBuildingBackupHours(Double generatorPower, BigDecimal currentFuel) {
-        if (generatorPower == null || generatorPower <= 0) {
+    private BigDecimal calculateBuildingBackupHours(User buildingUser, BigDecimal currentFuel) {
+        if (buildingUser == null) {
             return BigDecimal.ZERO;
         }
 
@@ -1273,13 +1271,39 @@ public class FuelRequestService {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal hourlyConsumption = BigDecimal.valueOf(generatorPower).multiply(BigDecimal.valueOf(0.25));
+        Integer numberOfFlats = buildingUser.getNumberOfFlats();
 
-        if (hourlyConsumption.compareTo(BigDecimal.ZERO) <= 0) {
+        if (numberOfFlats == null || numberOfFlats <= 0) {
             return BigDecimal.ZERO;
         }
 
-        return currentFuel.divide(hourlyConsumption, 2, java.math.RoundingMode.HALF_UP);
+        double perFlatWatt = (2.0 * 20.0) + (2.0 * 75.0);
+        double perFlatKw = perFlatWatt / 1000.0;
+        double requiredLoadKw = numberOfFlats * perFlatKw;
+
+        double safeGeneratorCapacityKw = 0.0;
+
+        if (buildingUser.getGeneratorPower() != null && buildingUser.getGeneratorPower() > 0) {
+            safeGeneratorCapacityKw = buildingUser.getGeneratorPower() * 0.80;
+        }
+
+        double effectiveLoadKw = requiredLoadKw;
+
+        if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+            effectiveLoadKw = safeGeneratorCapacityKw;
+        }
+
+        double hourlyDieselUse = effectiveLoadKw * 0.27;
+
+        if (hourlyDieselUse <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return currentFuel.divide(
+                BigDecimal.valueOf(hourlyDieselUse),
+                2,
+                java.math.RoundingMode.HALF_UP
+        );
     }
 
     private Boolean resolveBuildingLowStockAlert(
@@ -1684,6 +1708,45 @@ public class FuelRequestService {
         }
 
         return BigDecimal.ZERO;
+    }
+
+    private BigDecimal getBuildingWeeklyAllocation(User user) {
+        if (user.getBuildingWeeklyAllocationLiter() != null && user.getBuildingWeeklyAllocationLiter() > 0) {
+            return BigDecimal.valueOf(user.getBuildingWeeklyAllocationLiter());
+        }
+
+        BigDecimal calculatedAllocation = calculateBuildingWeeklyAllocationFromUser(user);
+        user.setBuildingWeeklyAllocationLiter(calculatedAllocation.doubleValue());
+        userRepository.save(user);
+
+        return calculatedAllocation;
+    }
+
+    private BigDecimal calculateBuildingWeeklyAllocationFromUser(User user) {
+        if (user.getNumberOfFlats() == null || user.getNumberOfFlats() <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        double perFlatWatt = (2.0 * 20.0) + (2.0 * 75.0);
+        double perFlatKw = perFlatWatt / 1000.0;
+        double requiredLoadKw = user.getNumberOfFlats() * perFlatKw;
+
+        double safeGeneratorCapacityKw = 0.0;
+
+        if (user.getGeneratorPower() != null && user.getGeneratorPower() > 0) {
+            safeGeneratorCapacityKw = user.getGeneratorPower() * 0.80;
+        }
+
+        double effectiveLoadKw = requiredLoadKw;
+
+        if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+            effectiveLoadKw = safeGeneratorCapacityKw;
+        }
+
+        double weeklyOutageHours = 2.0 * 7.0;
+        double weeklyDieselLiter = effectiveLoadKw * weeklyOutageHours * 0.27;
+
+        return BigDecimal.valueOf(Math.ceil(weeklyDieselLiter)).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private BigDecimal safeAmount(BigDecimal value) {

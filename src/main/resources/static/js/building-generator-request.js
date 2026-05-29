@@ -22,23 +22,31 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 async function loadAdminWeeklyAllocation() {
+    const userId = loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+
+    if (!userId) {
+        showMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
     try {
-        const response = await fetch("http://localhost:8081/api/fuel-settings");
-        const settings = await response.json();
+        const response = await fetch("http://localhost:8081/api/users/" + userId + "/building-allocation");
+        const allocation = await response.json();
 
         if (!response.ok) {
-            showMessage("Failed to load admin weekly allocation.", "error-text");
+            showMessage(getErrorMessage(allocation), "error-text");
             return;
         }
 
-        adminBuildingWeeklyAllocation = cleanNumber(settings.buildingGeneratorWeeklyDieselAllocation);
+        adminBuildingWeeklyAllocation = cleanNumber(allocation.currentWeeklyAllocationLiter);
 
         loggedInUser.buildingWeeklyAllocationLiter = adminBuildingWeeklyAllocation;
+        loggedInUser.buildingDieselTankCapacity = allocation.buildingDieselTankCapacity || loggedInUser.buildingDieselTankCapacity;
         localStorage.setItem("buildingWeeklyAllocationLiter", adminBuildingWeeklyAllocation);
         localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
 
     } catch (error) {
-        showMessage("Server connection failed while loading admin weekly allocation.", "error-text");
+        showMessage("Server connection failed while loading building allocation.", "error-text");
     }
 }
 
@@ -224,7 +232,9 @@ async function submitBuildingGeneratorRequest() {
     const tankCapacity = cleanNumber(document.getElementById("buildingDieselTankCapacity").value);
     const weeklyAllocation = cleanNumber(adminBuildingWeeklyAllocation);
     const currentFuel = cleanNumber(document.getElementById("buildingCurrentFuel").value);
-    const requiredDieselLiter = cleanNumber(document.getElementById("requiredDieselLiter").value);
+    const requiredDieselLiter = roundToTwoDecimals(
+        cleanNumber(document.getElementById("requiredDieselLiter").value)
+    );
     const contactNumber = getValue("contactNumber");
 
     if (!outageSituation) {
@@ -360,19 +370,36 @@ async function submitBuildingGeneratorRequest() {
 }
 
 function calculateBuildingBackupHours(currentFuel) {
-    const generatorPower = cleanNumber(loggedInUser.generatorPower);
+    const flats = cleanNumber(loggedInUser.numberOfFlats);
+    const fuel = cleanNumber(currentFuel);
+    const generator = cleanNumber(loggedInUser.generatorPower);
 
-    if (generatorPower <= 0 || currentFuel <= 0) {
+    if (flats <= 0 || fuel <= 0) {
         return 0;
     }
 
-    const hourlyConsumption = generatorPower * 0.25;
+    const perFlatKw = ((2 * 20) + (2 * 75)) / 1000;
+    const requiredLoadKw = flats * perFlatKw;
 
-    if (hourlyConsumption <= 0) {
+    let safeGeneratorCapacityKw = 0;
+
+    if (generator > 0) {
+        safeGeneratorCapacityKw = generator * 0.80;
+    }
+
+    let effectiveLoadKw = requiredLoadKw;
+
+    if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+        effectiveLoadKw = safeGeneratorCapacityKw;
+    }
+
+    const hourlyDieselUse = effectiveLoadKw * 0.27;
+
+    if (hourlyDieselUse <= 0) {
         return 0;
     }
 
-    return currentFuel / hourlyConsumption;
+    return fuel / hourlyDieselUse;
 }
 
 function resolveLowStockAlert(tankCapacity, currentFuel, backupHours) {
@@ -480,4 +507,8 @@ function formatNumber(value) {
     }
 
     return numberValue.toFixed(2);
+}
+
+function roundToTwoDecimals(value) {
+    return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }

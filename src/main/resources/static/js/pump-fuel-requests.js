@@ -121,9 +121,21 @@ async function loadAssignedRequests() {
 }
 
 function renderRequestFullInfo(request) {
+    if (request.requestSource === "BUILDING_GENERATOR") {
+        return `
+            <strong>BUILDING AUTHORITY</strong><br>
+            Building: ${valueOrDash(request.buildingName)}<br>
+            Holding: ${valueOrDash(request.buildingHoldingNumber)}<br>
+            Thana: ${valueOrDash(request.buildingThana)}<br>
+            Generator: ${valueOrDash(request.buildingGeneratorPower)}<br>
+            Current Stock: ${valueOrDash(request.buildingCurrentFuel)} L<br>
+            Weekly Allocation: ${valueOrDash(request.buildingWeeklyAllocationLiter)} L
+        `;
+    }
+
     if (request.requestSource === "HOSPITAL_GENERATOR") {
         return `
-            <strong>HOSPITAL GENERATOR</strong><br>
+            <strong>HOSPITAL AUTHORITY</strong><br>
             Hospital: ${valueOrDash(request.hospitalName)}<br>
             Thana: ${valueOrDash(request.affectedThana)}<br>
             Backup: ${valueOrDash(request.hospitalEstimatedBackupHours)} hrs<br>
@@ -144,12 +156,19 @@ function renderRequestFullInfo(request) {
         `;
     }
 
+    if (request.requestSource === "VEHICLE_OWNER") {
+        return `
+            <strong>NORMAL VEHICLE</strong><br>
+            ${valueOrDash(request.vehicleBrand)} ${valueOrDash(request.vehicleModel)}<br>
+            Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
+            Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
+            Remaining: ${valueOrDash(request.estimatedRemainingRangeKm)} km
+        `;
+    }
+
     return `
-        <strong>NORMAL VEHICLE</strong><br>
-        ${valueOrDash(request.vehicleBrand)} ${valueOrDash(request.vehicleModel)}<br>
-        Plate: ${valueOrDash(request.vehicleNumberPlate)}<br>
-        Odometer: ${valueOrDash(request.requestOdometerReading)} km<br>
-        Remaining: ${valueOrDash(request.estimatedRemainingRangeKm)} km
+        <strong>${valueOrDash(request.requestSource)}</strong><br>
+        Fuel request information unavailable.
     `;
 }
 
@@ -287,7 +306,7 @@ function renderVerificationActionPanel(request) {
     return `
         <div class="pump-verification-panel">
             <div>
-                <strong>Token</strong><br>
+                <strong>Collection Token</strong><br>
                 ${renderMatchButtons(requestId, "token")}
                 <small id="tokenStatus-${requestId}">${getVerificationLabel(requestId, "token")}</small>
             </div>
@@ -305,7 +324,11 @@ function renderVerificationActionPanel(request) {
                     <small id="odometerStatus-${requestId}">${getVerificationLabel(requestId, "odometer")}</small>
                 </div>
             ` : `
-                <small>Only collection token is required for this request type.</small>
+                <div style="margin-top: 8px;">
+                    <small>
+                        Only collection token is required for ${getRequestAuthorityLabel(request)} request.
+                    </small>
+                </div>
             `}
 
             <div style="margin-top: 10px;">
@@ -320,11 +343,35 @@ function renderVerificationActionPanel(request) {
 
             <div style="margin-top: 8px;">
                 <button class="btn primary tiny-btn" onclick="collectVerifiedRequest(${requestId})">
-                             Use Code & Collect
+                    Use Code & Collect
                 </button>
             </div>
         </div>
     `;
+}
+
+function getRequestAuthorityLabel(request) {
+    if (!request || !request.requestSource) {
+        return "this";
+    }
+
+    if (request.requestSource === "BUILDING_GENERATOR") {
+        return "building authority";
+    }
+
+    if (request.requestSource === "HOSPITAL_GENERATOR") {
+        return "hospital authority";
+    }
+
+    if (request.requestSource === "EMERGENCY") {
+        return "emergency authority";
+    }
+
+    if (request.requestSource === "VEHICLE_OWNER") {
+        return "vehicle owner";
+    }
+
+    return String(request.requestSource).replaceAll("_", " ").toLowerCase();
 }
 
 function renderMatchButtons(requestId, fieldName) {
@@ -480,10 +527,7 @@ function findRequestByCollectionCode(collectionCode) {
 }
 
 function isNormalVehicleRequest(request) {
-    return request.requestSource === "VEHICLE_OWNER"
-        || request.vehicleNumberPlate !== null
-        && request.vehicleNumberPlate !== undefined
-        && request.vehicleNumberPlate !== "";
+    return request && request.requestSource === "VEHICLE_OWNER";
 }
 
 function valueOrDash(value) {
