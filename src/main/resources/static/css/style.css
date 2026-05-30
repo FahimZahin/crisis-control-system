@@ -1717,3 +1717,50 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+.law-type-badge {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.law-type-refusal {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.law-type-overcharging {
+    background: #ffe5e5;
+    color: #b00020;
+    border: 1px solid #ff4d4d;
+}
+
+.law-type-payment {
+    background: #e8f0ff;
+    color: #0047ab;
+    border: 1px solid #4d88ff;
+}
+
+.law-type-stock {
+    background: #e8fff1;
+    color: #087f3f;
+    border: 1px solid #28a745;
+}
+
+.law-type-critical {
+    background: #f3e8ff;
+    color: #5a189a;
+    border: 1px solid #9d4edd;
+}
+
+.law-type-default {
+    background: #eeeeee;
+    color: #333333;
+    border: 1px solid #cccccc;
+}

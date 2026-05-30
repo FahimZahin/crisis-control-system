@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Thana Crisis Summary | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="government-dashboard.html">Government Dashboard</a>
+        <a href="reports-audit.html">Reports</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>All Thana-wise Crisis Summary</h1>
+            <p>Full national thana crisis list sorted by ongoing outages and diesel demand.</p>
+        </div>
+        <span class="role-badge">GOVERNMENT</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>All Thana Crisis Data</h2>
+            <button class="btn primary small-btn" id="refreshThanaSummaryBtn">Refresh</button>
+        </div>
+
+        <p id="thanaSummaryMessage"></p>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Thana</th>
+                    <th>Ongoing Outages</th>
+                    <th>Scheduled Outages</th>
+                    <th>Pending Requests</th>
+                    <th>Critical Hospitals</th>
+                    <th>Low-stock Buildings</th>
+                    <th>Low-stock Pumps</th>
+                    <th>Total Diesel Demand</th>
+                </tr>
+                </thead>
+                <tbody id="allThanaSummaryBody">
+                <tr><td colspan="8">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/thana-crisis-summary.js"></script>
+
+</body>
+</html>

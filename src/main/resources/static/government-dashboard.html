@@ -68,6 +68,77 @@
     </div>
 
     <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <h2>Thana-wise Crisis Summary</h2>
+            <a href="government-thana-crisis-summary.html" class="btn primary small-btn">See All</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Thana</th>
+                    <th>Ongoing Outages</th>
+                    <th>Scheduled Outages</th>
+                    <th>Pending Requests</th>
+                    <th>Critical Hospitals</th>
+                    <th>Low-stock Buildings</th>
+                    <th>Low-stock Pumps</th>
+                    <th>Total Diesel Demand</th>
+                </tr>
+                </thead>
+                <tbody id="governmentThanaSummaryBody">
+                <tr><td colspan="8">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Critical Hospitals</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Hospital</th>
+                    <th>Phone</th>
+                    <th>Thana</th>
+                    <th>Diesel Reserve</th>
+                    <th>Backup Hours</th>
+                    <th>Status</th>
+                    <th>ICU</th>
+                    <th>Patients</th>
+                </tr>
+                </thead>
+                <tbody id="governmentCriticalHospitalsBody">
+                <tr><td colspan="8">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Low-stock Buildings</h2>
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Building</th>
+                    <th>Phone</th>
+                    <th>Thana</th>
+                    <th>Current Fuel</th>
+                    <th>Tank Capacity</th>
+                    <th>Backup Hours</th>
+                    <th>Flats</th>
+                </tr>
+                </thead>
+                <tbody id="governmentLowStockBuildingsBody">
+                <tr><td colspan="7">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
         <h2>Critical / Pending Requests</h2>
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -133,6 +204,17 @@
     <div class="role-dashboard-section">
         <h2>Available Features Preview</h2>
         <div class="feature-preview-grid">
+            <a href="public-law-book.html" class="feature-preview-card active-feature">
+                <h3>Public Law Book</h3>
+                <p>View complaint rules, evidence requirements, verification process, penalties, and allowed admin actions.</p>
+            </a>
+
+            <a href="pump-complaint-monitoring.html" class="feature-preview-card active-feature">
+                <h3>Pump Complaint Monitoring</h3>
+                <p>Monitor all pump complaints nationally without taking direct action.</p>
+            </a>
+
+
             <div class="feature-preview-card"><h3>National Monitoring</h3><p>Monitor fuel requests, pump stock, and emergency priority.</p></div>
             <div class="feature-preview-card"><h3>Approve Critical Requests</h3><p>Approve hospital, emergency, and building diesel requests.</p></div>
             <div class="feature-preview-card"><h3>Pump Transparency</h3><p>View pump stock and sales reports.</p></div>

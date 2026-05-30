@@ -759,6 +759,9 @@ async function loadGovernmentAuthorityDashboard() {
         }
 
         fillAuthoritySummary("gov", data.summary);
+        renderThanaCrisisSummary("governmentThanaSummaryBody", data.thanaCrisisSummary, 5);
+        renderCriticalHospitals("governmentCriticalHospitalsBody", data.criticalHospitals);
+        renderLowStockBuildings("governmentLowStockBuildingsBody", data.lowStockBuildings);
         renderAuthorityRequests("governmentCriticalRequestsBody", data.criticalRequests);
         renderLowStockPumps("governmentLowStockPumpsBody", data.lowStockPumps);
         renderAuthorityOutages("governmentOutagesBody", data.recentOutages);
@@ -788,6 +791,9 @@ async function loadLocalAuthorityDashboard() {
         }
 
         fillAuthoritySummary("local", data.summary);
+        renderThanaCrisisSummary("localThanaSummaryBody", data.thanaCrisisSummary, 5);
+        renderCriticalHospitals("localCriticalHospitalsBody", data.criticalHospitals);
+        renderLowStockBuildings("localLowStockBuildingsBody", data.lowStockBuildings);
         renderLocalPumps(data.localPumps);
         renderAuthorityRequests("localCriticalRequestsBody", data.criticalRequests);
         renderAuthorityOutages("localOutagesBody", data.recentOutages);
@@ -849,6 +855,117 @@ function renderAuthorityRequests(tableId, requests) {
                 ${authorityValue(request.estimatedCost)} BDT
             </td>
             <td>${authorityValue(request.requestStatus)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderThanaCrisisSummary(tableId, rows, limit = null) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!rows || rows.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8">No thana crisis summary found.</td></tr>`;
+        return;
+    }
+
+    const sortedRows = rows.slice().sort(function (first, second) {
+        const firstOngoing = Number(first.ongoingOutages || 0);
+        const secondOngoing = Number(second.ongoingOutages || 0);
+
+        if (secondOngoing !== firstOngoing) {
+            return secondOngoing - firstOngoing;
+        }
+
+        const firstDemand = Number(first.totalDieselDemand || 0);
+        const secondDemand = Number(second.totalDieselDemand || 0);
+
+        return secondDemand - firstDemand;
+    });
+
+    const finalRows = limit ? sortedRows.slice(0, limit) : sortedRows;
+
+    tableBody.innerHTML = "";
+
+    finalRows.forEach(function (rowData) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td><strong>${authorityValue(rowData.thana)}</strong></td>
+            <td>${authorityValue(rowData.ongoingOutages)}</td>
+            <td>${authorityValue(rowData.scheduledOutages)}</td>
+            <td>${authorityValue(rowData.pendingRequests)}</td>
+            <td>${authorityValue(rowData.criticalHospitals)}</td>
+            <td>${authorityValue(rowData.lowStockBuildings)}</td>
+            <td>${authorityValue(rowData.lowStockPumps)}</td>
+            <td>${authorityValue(rowData.totalDieselDemand)} L</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderCriticalHospitals(tableId, hospitals) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!hospitals || hospitals.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8">No critical hospital found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    hospitals.forEach(function (hospital) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(hospital.hospitalName)}</td>
+            <td>${authorityValue(hospital.phoneNumber)}</td>
+            <td>${authorityValue(hospital.thana)}</td>
+            <td>${authorityValue(hospital.currentDieselReserve)} L</td>
+            <td>${authorityValue(hospital.backupHours)} hours</td>
+            <td>${authorityValue(hospital.dieselStatus)}</td>
+            <td>${authorityValue(hospital.icuUnits)}</td>
+            <td>${authorityValue(hospital.patientCapacity)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLowStockBuildings(tableId, buildings) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!buildings || buildings.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7">No low-stock building found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    buildings.forEach(function (building) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(building.buildingName)}</td>
+            <td>${authorityValue(building.phoneNumber)}</td>
+            <td>${authorityValue(building.thana)}</td>
+            <td>${authorityValue(building.currentFuel)} L</td>
+            <td>${authorityValue(building.tankCapacity)} L</td>
+            <td>${authorityValue(building.backupHours)} hours</td>
+            <td>${authorityValue(building.numberOfFlats)}</td>
         `;
 
         tableBody.appendChild(row);

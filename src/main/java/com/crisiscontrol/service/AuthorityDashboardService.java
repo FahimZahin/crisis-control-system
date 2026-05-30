@@ -1,6 +1,16 @@
 package com.crisiscontrol.service;
 
-import com.crisiscontrol.entity.*;
+import com.crisiscontrol.entity.FuelRequest;
+import com.crisiscontrol.entity.FuelRequestSource;
+import com.crisiscontrol.entity.FuelRequestStatus;
+import com.crisiscontrol.entity.FuelType;
+import com.crisiscontrol.entity.PowerOutageNotice;
+import com.crisiscontrol.entity.PowerOutageStatus;
+import com.crisiscontrol.entity.PumpFuelStock;
+import com.crisiscontrol.entity.PumpProfile;
+import com.crisiscontrol.entity.PumpStatus;
+import com.crisiscontrol.entity.Role;
+import com.crisiscontrol.entity.User;
 import com.crisiscontrol.repository.FuelRequestRepository;
 import com.crisiscontrol.repository.PowerOutageRepository;
 import com.crisiscontrol.repository.PumpFuelStockRepository;
@@ -38,9 +48,14 @@ public class AuthorityDashboardService {
         response.put("summary", buildSummary(users, pumps, stocks, fuelRequests, outages));
         response.put("roleSummary", buildRoleSummary(users));
         response.put("requestSummary", buildRequestSummary(fuelRequests));
+        response.put("outageSummary", buildOutageSummary(outages));
+        response.put("pumpSummary", buildPumpSummary(pumps, stocks));
         response.put("criticalRequests", buildCriticalRequestList(fuelRequests));
+        response.put("criticalHospitals", buildCriticalHospitalList(users));
+        response.put("lowStockBuildings", buildLowStockBuildingList(users));
         response.put("lowStockPumps", buildLowStockPumpList(stocks));
         response.put("recentOutages", buildOutageList(outages));
+        response.put("thanaCrisisSummary", buildThanaCrisisSummary(users, pumps, stocks, fuelRequests, outages));
 
         return response;
     }
@@ -54,7 +69,7 @@ public class AuthorityDashboardService {
         }
 
         String district = safe(localUser.getDistrict());
-        String thanaOrUpazila = safe(localUser.getThanaOrUpazila());
+        String thanaOrUpazila = normalizeThanaName(localUser.getThanaOrUpazila());
 
         List<User> localUsers = userRepository.findAll()
                 .stream()
@@ -74,7 +89,8 @@ public class AuthorityDashboardService {
 
         List<PowerOutageNotice> localOutages = powerOutageRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
-                .filter(outage -> matchesText(outage.getThanaName(), district, thanaOrUpazila))
+                .filter(outage -> sameText(normalizeThanaName(outage.getThanaName()), thanaOrUpazila)
+                        || matchesText(outage.getThanaName(), district, thanaOrUpazila))
                 .toList();
 
         List<PumpFuelStock> localStocks = pumpFuelStockRepository.findAll()
@@ -90,10 +106,15 @@ public class AuthorityDashboardService {
         response.put("thanaOrUpazila", valueOrDash(thanaOrUpazila));
         response.put("summary", buildSummary(localUsers, localPumps, localStocks, localFuelRequests, localOutages));
         response.put("requestSummary", buildRequestSummary(localFuelRequests));
+        response.put("outageSummary", buildOutageSummary(localOutages));
+        response.put("pumpSummary", buildPumpSummary(localPumps, localStocks));
         response.put("localPumps", buildPumpList(localPumps));
         response.put("criticalRequests", buildCriticalRequestList(localFuelRequests));
+        response.put("criticalHospitals", buildCriticalHospitalList(localUsers));
+        response.put("lowStockBuildings", buildLowStockBuildingList(localUsers));
         response.put("lowStockPumps", buildLowStockPumpList(localStocks));
         response.put("recentOutages", buildOutageList(localOutages));
+        response.put("thanaCrisisSummary", buildThanaCrisisSummary(localUsers, localPumps, localStocks, localFuelRequests, localOutages));
 
         return response;
     }
@@ -121,6 +142,9 @@ public class AuthorityDashboardService {
                 .filter(outage -> outage.getStatus() == PowerOutageStatus.ONGOING
                         || outage.getStatus() == PowerOutageStatus.SCHEDULED)
                 .count());
+        summary.put("criticalHospitals", buildCriticalHospitalList(users).size());
+        summary.put("lowStockBuildings", buildLowStockBuildingList(users).size());
+        summary.put("lowStockPumps", buildLowStockPumpList(stocks).size());
 
         return summary;
     }
@@ -151,6 +175,27 @@ public class AuthorityDashboardService {
         return requestSummary;
     }
 
+    private Map<String, Object> buildOutageSummary(List<PowerOutageNotice> outages) {
+        Map<String, Object> outageSummary = new LinkedHashMap<>();
+
+        outageSummary.put("ongoingOutages", countOutageStatus(outages, PowerOutageStatus.ONGOING));
+        outageSummary.put("scheduledOutages", countOutageStatus(outages, PowerOutageStatus.SCHEDULED));
+        outageSummary.put("restoredOutages", countOutageStatus(outages, PowerOutageStatus.RESTORED));
+        outageSummary.put("cancelledOutages", countOutageStatus(outages, PowerOutageStatus.CANCELLED));
+
+        return outageSummary;
+    }
+
+    private Map<String, Object> buildPumpSummary(List<PumpProfile> pumps, List<PumpFuelStock> stocks) {
+        Map<String, Object> pumpSummary = new LinkedHashMap<>();
+
+        pumpSummary.put("openPumps", pumps.stream().filter(pump -> pump.getPumpStatus() == PumpStatus.OPEN).count());
+        pumpSummary.put("closedPumps", pumps.stream().filter(pump -> pump.getPumpStatus() == PumpStatus.CLOSED).count());
+        pumpSummary.put("lowStockPumps", buildLowStockPumpList(stocks).size());
+
+        return pumpSummary;
+    }
+
     private List<Map<String, Object>> buildCriticalRequestList(List<FuelRequest> fuelRequests) {
         return fuelRequests.stream()
                 .filter(request -> request.getRequestStatus() == FuelRequestStatus.PENDING
@@ -164,14 +209,38 @@ public class AuthorityDashboardService {
                 .toList();
     }
 
+    private List<Map<String, Object>> buildCriticalHospitalList(List<User> users) {
+        return users.stream()
+                .filter(user -> user.getRole() == Role.HOSPITAL_AUTHORITY)
+                .filter(user -> {
+                    String status = safe(user.getHospitalDieselStatus());
+                    Double backup = user.getHospitalEstimatedBackupHours();
+
+                    return "CRITICAL".equalsIgnoreCase(status)
+                            || "MIDDLE".equalsIgnoreCase(status)
+                            || backup == null
+                            || backup < 8;
+                })
+                .sorted(Comparator.comparing(
+                        user -> user.getHospitalEstimatedBackupHours() == null ? 0.0 : user.getHospitalEstimatedBackupHours()
+                ))
+                .limit(10)
+                .map(this::mapCriticalHospital)
+                .toList();
+    }
+
+    private List<Map<String, Object>> buildLowStockBuildingList(List<User> users) {
+        return users.stream()
+                .filter(user -> user.getRole() == Role.BUILDING_MANAGER)
+                .filter(this::isBuildingLowStock)
+                .limit(10)
+                .map(this::mapLowStockBuilding)
+                .toList();
+    }
+
     private List<Map<String, Object>> buildLowStockPumpList(List<PumpFuelStock> stocks) {
         return stocks.stream()
-                .filter(stock -> stock.getFuelCapacity() != null
-                        && stock.getFuelCapacity().compareTo(BigDecimal.ZERO) > 0)
-                .filter(stock -> {
-                    BigDecimal twentyPercent = stock.getFuelCapacity().multiply(BigDecimal.valueOf(0.20));
-                    return stock.getCurrentStock().compareTo(twentyPercent) <= 0;
-                })
+                .filter(this::isLowStock)
                 .limit(10)
                 .map(this::mapPumpStock)
                 .toList();
@@ -189,6 +258,153 @@ public class AuthorityDashboardService {
                 .limit(10)
                 .map(this::mapPump)
                 .toList();
+    }
+
+    private List<Map<String, Object>> buildThanaCrisisSummary(
+            List<User> users,
+            List<PumpProfile> pumps,
+            List<PumpFuelStock> stocks,
+            List<FuelRequest> fuelRequests,
+            List<PowerOutageNotice> outages
+    ) {
+        Map<String, Map<String, Object>> thanaMap = new LinkedHashMap<>();
+
+        outages.forEach(outage -> {
+            String thana = normalizeThanaName(outage.getThanaName());
+
+            if (isInvalidThanaForSummary(thana)) {
+                return;
+            }
+
+            Map<String, Object> row = getOrCreateThanaRow(thanaMap, thana);
+
+            if (outage.getStatus() == PowerOutageStatus.ONGOING) {
+                row.put("ongoingOutages", ((Long) row.get("ongoingOutages")) + 1);
+            }
+
+            if (outage.getStatus() == PowerOutageStatus.SCHEDULED) {
+                row.put("scheduledOutages", ((Long) row.get("scheduledOutages")) + 1);
+            }
+        });
+
+        users.stream()
+                .filter(user -> user.getRole() == Role.HOSPITAL_AUTHORITY)
+                .filter(this::isHospitalCritical)
+                .forEach(user -> {
+                    String thana = normalizeThanaName(firstValid(user.getHospitalUnderThana(), user.getThanaOrUpazila()));
+
+                    if (isInvalidThanaForSummary(thana)) {
+                        return;
+                    }
+
+                    Map<String, Object> row = getOrCreateThanaRow(thanaMap, thana);
+                    row.put("criticalHospitals", ((Long) row.get("criticalHospitals")) + 1);
+                });
+
+        users.stream()
+                .filter(user -> user.getRole() == Role.BUILDING_MANAGER)
+                .filter(this::isBuildingLowStock)
+                .forEach(user -> {
+                    String thana = normalizeThanaName(firstValid(user.getBuildingUnderThana(), user.getThanaOrUpazila()));
+
+                    if (isInvalidThanaForSummary(thana)) {
+                        return;
+                    }
+
+                    Map<String, Object> row = getOrCreateThanaRow(thanaMap, thana);
+                    row.put("lowStockBuildings", ((Long) row.get("lowStockBuildings")) + 1);
+                });
+
+        fuelRequests.forEach(request -> {
+            String thana = normalizeThanaName(resolveFuelRequestThana(request));
+
+            if (isInvalidThanaForSummary(thana)) {
+                return;
+            }
+
+            Map<String, Object> row = getOrCreateThanaRow(thanaMap, thana);
+
+            if (request.getRequestStatus() == FuelRequestStatus.PENDING) {
+                row.put("pendingRequests", ((Long) row.get("pendingRequests")) + 1);
+            }
+
+            if (request.getFuelType() == FuelType.DIESEL && request.getRequestedLiter() != null) {
+                BigDecimal currentDemand = (BigDecimal) row.get("totalDieselDemand");
+
+                row.put(
+                        "totalDieselDemand",
+                        currentDemand.add(request.getRequestedLiter()).setScale(2, RoundingMode.HALF_UP)
+                );
+            }
+        });
+
+        stocks.forEach(stock -> {
+            if (!isLowStock(stock)) {
+                return;
+            }
+
+            PumpProfile pump = stock.getPumpProfile();
+
+            if (pump == null) {
+                return;
+            }
+
+            String thana = normalizeThanaName(resolvePumpThana(pump));
+
+            if (isInvalidThanaForSummary(thana)) {
+                return;
+            }
+
+            Map<String, Object> row = getOrCreateThanaRow(thanaMap, thana);
+            row.put("lowStockPumps", ((Long) row.get("lowStockPumps")) + 1);
+        });
+
+        return thanaMap.values()
+                .stream()
+                .sorted((first, second) -> {
+                    Long firstOngoing = (Long) first.get("ongoingOutages");
+                    Long secondOngoing = (Long) second.get("ongoingOutages");
+
+                    int ongoingCompare = Long.compare(secondOngoing, firstOngoing);
+
+                    if (ongoingCompare != 0) {
+                        return ongoingCompare;
+                    }
+
+                    BigDecimal firstDemand = (BigDecimal) first.get("totalDieselDemand");
+                    BigDecimal secondDemand = (BigDecimal) second.get("totalDieselDemand");
+
+                    int demandCompare = secondDemand.compareTo(firstDemand);
+
+                    if (demandCompare != 0) {
+                        return demandCompare;
+                    }
+
+                    Long firstScheduled = (Long) first.get("scheduledOutages");
+                    Long secondScheduled = (Long) second.get("scheduledOutages");
+
+                    return Long.compare(secondScheduled, firstScheduled);
+                })
+                .toList();
+    }
+
+    private Map<String, Object> getOrCreateThanaRow(Map<String, Map<String, Object>> thanaMap, String thana) {
+        String key = normalizeThanaName(thana);
+
+        if (!thanaMap.containsKey(key)) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("thana", key);
+            row.put("ongoingOutages", 0L);
+            row.put("scheduledOutages", 0L);
+            row.put("pendingRequests", 0L);
+            row.put("criticalHospitals", 0L);
+            row.put("lowStockBuildings", 0L);
+            row.put("lowStockPumps", 0L);
+            row.put("totalDieselDemand", BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+            thanaMap.put(key, row);
+        }
+
+        return thanaMap.get(key);
     }
 
     private Map<String, Object> mapFuelRequest(FuelRequest request) {
@@ -216,10 +432,10 @@ public class AuthorityDashboardService {
             map.put("area", valueOrDash(user == null ? null : user.getAddress()));
         } else if (request.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
             map.put("details", "Hospital: " + valueOrDash(request.getHospitalName()));
-            map.put("area", valueOrDash(request.getAffectedThana()));
+            map.put("area", valueOrDash(normalizeThanaName(request.getAffectedThana())));
         } else if (request.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
             map.put("details", "Building: " + valueOrDash(request.getBuildingName()));
-            map.put("area", valueOrDash(request.getBuildingThana()));
+            map.put("area", valueOrDash(normalizeThanaName(request.getBuildingThana())));
         } else if (request.getRequestSource() == FuelRequestSource.EMERGENCY) {
             map.put("details", "Emergency vehicle request");
             map.put("area", user == null ? "-" : valueOrDash(user.getAssignedArea()));
@@ -227,6 +443,35 @@ public class AuthorityDashboardService {
             map.put("details", "-");
             map.put("area", "-");
         }
+
+        return map;
+    }
+
+    private Map<String, Object> mapCriticalHospital(User user) {
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        map.put("hospitalName", valueOrDash(user.getHospitalName()));
+        map.put("phoneNumber", valueOrDash(user.getPhoneNumber()));
+        map.put("thana", valueOrDash(normalizeThanaName(firstValid(user.getHospitalUnderThana(), user.getThanaOrUpazila()))));
+        map.put("currentDieselReserve", roundDouble(user.getHospitalCurrentDieselReserve()));
+        map.put("backupHours", roundDouble(user.getHospitalEstimatedBackupHours()));
+        map.put("dieselStatus", valueOrDash(user.getHospitalDieselStatus()));
+        map.put("icuUnits", user.getTotalIcuUnits() == null ? 0 : user.getTotalIcuUnits());
+        map.put("patientCapacity", safeInt(user.getAcPatientCapacity()) + safeInt(user.getNonAcPatientCapacity()));
+
+        return map;
+    }
+
+    private Map<String, Object> mapLowStockBuilding(User user) {
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        map.put("buildingName", valueOrDash(user.getBuildingName()));
+        map.put("phoneNumber", valueOrDash(user.getPhoneNumber()));
+        map.put("thana", valueOrDash(normalizeThanaName(firstValid(user.getBuildingUnderThana(), user.getThanaOrUpazila()))));
+        map.put("currentFuel", roundDouble(user.getBuildingCurrentFuel()));
+        map.put("tankCapacity", roundDouble(user.getBuildingDieselTankCapacity()));
+        map.put("backupHours", roundDouble(user.getBuildingEstimatedBackupHours()));
+        map.put("numberOfFlats", user.getNumberOfFlats() == null ? 0 : user.getNumberOfFlats());
 
         return map;
     }
@@ -266,7 +511,7 @@ public class AuthorityDashboardService {
         map.put("id", outage.getId());
         map.put("provider", outage.getProvider());
         map.put("cityCorporation", outage.getCityCorporation());
-        map.put("thanaName", outage.getThanaName());
+        map.put("thanaName", normalizeThanaName(outage.getThanaName()));
         map.put("outageType", outage.getOutageType());
         map.put("cause", outage.getCause());
         map.put("status", outage.getStatus());
@@ -276,14 +521,52 @@ public class AuthorityDashboardService {
         return map;
     }
 
+    private boolean isHospitalCritical(User user) {
+        String status = safe(user.getHospitalDieselStatus());
+        Double backup = user.getHospitalEstimatedBackupHours();
+
+        return "CRITICAL".equalsIgnoreCase(status)
+                || backup == null
+                || backup < 6;
+    }
+
+    private boolean isBuildingLowStock(User user) {
+        double currentFuel = safeDouble(user.getBuildingCurrentFuel());
+        double tankCapacity = safeDouble(user.getBuildingDieselTankCapacity());
+        double backupHours = safeDouble(user.getBuildingEstimatedBackupHours());
+
+        if (tankCapacity <= 0 || currentFuel <= 0) {
+            return true;
+        }
+
+        double percentage = (currentFuel * 100.0) / tankCapacity;
+
+        return percentage <= 20.0 || backupHours < 6.0;
+    }
+
+    private boolean isLowStock(PumpFuelStock stock) {
+        if (stock == null || stock.getFuelCapacity() == null || stock.getCurrentStock() == null) {
+            return false;
+        }
+
+        if (stock.getFuelCapacity().compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+
+        BigDecimal twentyPercent = stock.getFuelCapacity().multiply(BigDecimal.valueOf(0.20));
+
+        return stock.getCurrentStock().compareTo(twentyPercent) <= 0;
+    }
+
     private boolean matchesFuelRequestArea(FuelRequest request, String district, String thanaOrUpazila) {
         if (request.getUser() != null && matchesArea(request.getUser(), district, thanaOrUpazila)) {
             return true;
         }
 
-        return matchesText(request.getAffectedThana(), district, thanaOrUpazila)
+        String normalizedRequestThana = normalizeThanaName(resolveFuelRequestThana(request));
+
+        return sameText(normalizedRequestThana, thanaOrUpazila)
                 || matchesText(request.getHospitalAddress(), district, thanaOrUpazila)
-                || matchesText(request.getBuildingThana(), district, thanaOrUpazila)
                 || matchesText(request.getBuildingAddress(), district, thanaOrUpazila);
     }
 
@@ -292,11 +575,14 @@ public class AuthorityDashboardService {
             return false;
         }
 
-        return matchesText(user.getAddress(), district, thanaOrUpazila)
+        String userThana = normalizeThanaName(firstValid(
+                user.getThanaOrUpazila(),
+                firstValid(user.getBuildingUnderThana(), user.getHospitalUnderThana())
+        ));
+
+        return sameText(userThana, thanaOrUpazila)
+                || matchesText(user.getAddress(), district, thanaOrUpazila)
                 || matchesText(user.getDistrict(), district, thanaOrUpazila)
-                || matchesText(user.getThanaOrUpazila(), district, thanaOrUpazila)
-                || matchesText(user.getBuildingUnderThana(), district, thanaOrUpazila)
-                || matchesText(user.getHospitalUnderThana(), district, thanaOrUpazila)
                 || matchesText(user.getServiceArea(), district, thanaOrUpazila)
                 || matchesText(user.getAssignedArea(), district, thanaOrUpazila)
                 || matchesText(user.getPumpAddress(), district, thanaOrUpazila);
@@ -313,6 +599,56 @@ public class AuthorityDashboardService {
 
         return (!normalizedDistrict.isBlank() && normalizedValue.contains(normalizedDistrict))
                 || (!normalizedThana.isBlank() && normalizedValue.contains(normalizedThana));
+    }
+
+    private String resolveFuelRequestThana(FuelRequest request) {
+        if (request == null) {
+            return "-";
+        }
+
+        if (request.getRequestSource() == FuelRequestSource.HOSPITAL_GENERATOR) {
+            return firstValid(
+                    request.getAffectedThana(),
+                    request.getUser() == null ? null : firstValid(
+                            request.getUser().getHospitalUnderThana(),
+                            request.getUser().getThanaOrUpazila()
+                    )
+            );
+        }
+
+        if (request.getRequestSource() == FuelRequestSource.BUILDING_GENERATOR) {
+            return firstValid(
+                    request.getBuildingThana(),
+                    request.getUser() == null ? null : firstValid(
+                            request.getUser().getBuildingUnderThana(),
+                            request.getUser().getThanaOrUpazila()
+                    )
+            );
+        }
+
+        if (request.getUser() != null) {
+            return firstValid(
+                    request.getUser().getThanaOrUpazila(),
+                    firstValid(
+                            request.getUser().getBuildingUnderThana(),
+                            request.getUser().getHospitalUnderThana()
+                    )
+            );
+        }
+
+        return "-";
+    }
+
+    private String resolvePumpThana(PumpProfile pump) {
+        if (pump == null) {
+            return "-";
+        }
+
+        if (pump.getUser() != null) {
+            return normalizeThanaName(pump.getUser().getThanaOrUpazila());
+        }
+
+        return "-";
     }
 
     private long countRole(List<User> users, Role role) {
@@ -333,6 +669,12 @@ public class AuthorityDashboardService {
                 .count();
     }
 
+    private long countOutageStatus(List<PowerOutageNotice> outages, PowerOutageStatus status) {
+        return outages.stream()
+                .filter(outage -> outage.getStatus() == status)
+                .count();
+    }
+
     private BigDecimal calculateTotalStock(List<PumpFuelStock> stocks) {
         return stocks.stream()
                 .map(PumpFuelStock::getCurrentStock)
@@ -343,7 +685,7 @@ public class AuthorityDashboardService {
 
     private BigDecimal calculateStockPercentage(BigDecimal currentStock, BigDecimal capacity) {
         if (currentStock == null || capacity == null || capacity.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
 
         return currentStock
@@ -351,15 +693,154 @@ public class AuthorityDashboardService {
                 .divide(capacity, 2, RoundingMode.HALF_UP);
     }
 
+    private boolean isInvalidThanaForSummary(String value) {
+        if (value == null || value.isBlank() || "-".equals(value.trim())) {
+            return true;
+        }
+
+        String normalized = value.trim().toLowerCase();
+
+        return normalized.contains(",")
+                || normalized.contains("road")
+                || normalized.contains("street")
+                || normalized.contains("house")
+                || normalized.contains("holding")
+                || normalized.contains("dhaka-")
+                || normalized.matches(".*\\d{3,}.*");
+    }
+
+    private String normalizeThanaName(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+
+        String normalized = value.trim()
+                .replaceAll("\\s+", " ")
+                .replace("_", " ")
+                .toLowerCase();
+
+        normalized = normalized.replace("–", "-").replace("—", "-");
+
+        if (normalized.equals("gulsan") || normalized.equals("gulshan")) {
+            return "Gulshan";
+        }
+
+        if (normalized.equals("sher e bangla nagar")
+                || normalized.equals("sher-e-bangla nagar")
+                || normalized.equals("sher-e bangla nagar")
+                || normalized.equals("sher e-bangla nagar")
+                || normalized.equals("shere bangla nagar")
+                || normalized.equals("sher bangla nagar")) {
+            return "Sher-e-Bangla Nagar";
+        }
+
+        if (normalized.equals("sabuj bagh") || normalized.equals("sabujbagh")) {
+            return "Sabujbagh";
+        }
+
+        if (normalized.equals("cantonment")) {
+            return "Cantonment";
+        }
+
+        if (normalized.equals("ramna")) {
+            return "Ramna";
+        }
+
+        if (normalized.equals("kafrul")) {
+            return "Kafrul";
+        }
+
+        if (normalized.equals("paltan")) {
+            return "Paltan";
+        }
+
+        if (normalized.equals("sutrapur")) {
+            return "Sutrapur";
+        }
+
+        if (normalized.equals("hazaribagh")) {
+            return "Hazaribagh";
+        }
+
+        if (normalized.equals("shahbagh")) {
+            return "Shahbagh";
+        }
+
+        if (normalized.equals("dhanmondi")) {
+            return "Dhanmondi";
+        }
+
+        return toTitleCase(normalized);
+    }
+
+    private String toTitleCase(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+
+        String[] words = value.trim().split("\\s+");
+        StringBuilder result = new StringBuilder();
+
+        for (String word : words) {
+            if (word.isBlank()) {
+                continue;
+            }
+
+            if (!result.isEmpty()) {
+                result.append(" ");
+            }
+
+            result.append(word.substring(0, 1).toUpperCase());
+
+            if (word.length() > 1) {
+                result.append(word.substring(1).toLowerCase());
+            }
+        }
+
+        return result.toString();
+    }
+
+    private boolean sameText(String first, String second) {
+        if (first == null || second == null) {
+            return false;
+        }
+
+        return first.trim().equalsIgnoreCase(second.trim());
+    }
+
+    private String firstValid(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+
+        return "-";
+    }
+
     private String safe(String value) {
         return value == null ? "" : value.trim();
     }
 
     private String valueOrDash(String value) {
-        if (value == null || value.isBlank()) {
-            return "-";
+        return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private int safeInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private double safeDouble(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private double roundDouble(Double value) {
+        if (value == null) {
+            return 0.0;
         }
 
-        return value;
+        return Math.round(value * 100.0) / 100.0;
     }
 }
