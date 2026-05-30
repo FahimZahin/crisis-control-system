@@ -51,6 +51,34 @@ public class PumpComplaint {
     @Column(name = "admin_note", columnDefinition = "TEXT")
     private String adminNote;
 
+    @ManyToOne
+    @JoinColumn(name = "verified_by_local_authority_id")
+    private User verifiedByLocalAuthority;
+
+    @Column(name = "local_verification_decision")
+    private String localVerificationDecision;
+
+    @Column(name = "local_recommendation", columnDefinition = "TEXT")
+    private String localRecommendation;
+
+    @Column(name = "local_verified_at")
+    private LocalDateTime localVerifiedAt;
+
+    @Column(name = "admin_action_decision")
+    private String adminActionDecision;
+
+    @Column(name = "admin_action_note", columnDefinition = "TEXT")
+    private String adminActionNote;
+
+    @Column(name = "admin_action_at")
+    private LocalDateTime adminActionAt;
+
+    @Column(name = "applied_rule_code")
+    private String appliedRuleCode;
+
+    @Column(name = "applied_admin_action")
+    private String appliedAdminAction;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

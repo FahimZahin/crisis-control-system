@@ -37,4 +37,16 @@ public class PumpComplaintResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private Long verifiedByLocalAuthorityId;
+    private String verifiedByLocalAuthorityName;
+    private String localVerificationDecision;
+    private String localRecommendation;
+    private LocalDateTime localVerifiedAt;
+
+    private String adminActionDecision;
+    private String adminActionNote;
+    private LocalDateTime adminActionAt;
+    private String appliedRuleCode;
+    private String appliedAdminAction;
 }

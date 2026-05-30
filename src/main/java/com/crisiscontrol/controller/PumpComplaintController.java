@@ -6,6 +6,8 @@ import com.crisiscontrol.service.PumpComplaintService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.crisiscontrol.dto.PumpComplaintVerificationRequest;
+import com.crisiscontrol.dto.PumpComplaintAdminActionRequest;
 
 import java.util.List;
 
@@ -64,5 +66,24 @@ public class PumpComplaintController {
             @PathVariable Long userId
     ) {
         return ResponseEntity.ok(pumpComplaintService.getComplaintsForLocalAuthority(userId));
+    }
+    @PutMapping("/{complaintId}/local-verification")
+    public ResponseEntity<PumpComplaintResponse> verifyComplaintByLocalAuthority(
+            @PathVariable Long complaintId,
+            @RequestBody PumpComplaintVerificationRequest request
+    ) {
+        return ResponseEntity.ok(
+                pumpComplaintService.verifyComplaintByLocalAuthority(complaintId, request)
+        );
+    }
+
+    @PutMapping("/{complaintId}/admin-action")
+    public ResponseEntity<PumpComplaintResponse> takeAdminAction(
+            @PathVariable Long complaintId,
+            @RequestBody PumpComplaintAdminActionRequest request
+    ) {
+        return ResponseEntity.ok(
+                pumpComplaintService.takeAdminAction(complaintId, request)
+        );
     }
 }
