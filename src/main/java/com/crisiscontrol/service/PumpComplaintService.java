@@ -26,8 +26,8 @@ public class PumpComplaintService {
         User complainant = userRepository.findById(request.getComplainantUserId())
                 .orElseThrow(() -> new RuntimeException("Complainant user not found"));
 
-        if (complainant.getRole() != Role.VEHICLE_OWNER) {
-            throw new RuntimeException("Only vehicle owner can submit pump complaint");
+        if (!canSubmitPumpComplaint(complainant.getRole())) {
+            throw new RuntimeException("Only vehicle owner, building manager, or hospital authority can submit pump complaint");
         }
 
         PumpProfile pumpProfile = pumpProfileRepository.findById(request.getPumpProfileId())
@@ -339,5 +339,10 @@ public class PumpComplaintService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+    private boolean canSubmitPumpComplaint(Role role) {
+        return role == Role.VEHICLE_OWNER
+                || role == Role.BUILDING_MANAGER
+                || role == Role.HOSPITAL_AUTHORITY;
     }
 }

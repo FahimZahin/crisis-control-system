@@ -35,6 +35,13 @@ public class PumpComplaintController {
         return ResponseEntity.ok(pumpComplaintService.getComplaintsByVehicleOwner(userId));
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<PumpComplaintResponse>> getComplaintsByUser(
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(pumpComplaintService.getComplaintsByVehicleOwner(userId));
+    }
+
     @GetMapping("/pump-owner/{userId}")
     public ResponseEntity<List<PumpComplaintResponse>> getComplaintsForPumpOwner(
             @PathVariable Long userId
