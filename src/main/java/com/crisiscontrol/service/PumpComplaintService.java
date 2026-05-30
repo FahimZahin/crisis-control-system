@@ -27,6 +27,7 @@ public class PumpComplaintService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final PumpEnforcementActionRepository pumpEnforcementActionRepository;
+    private final GovernmentPenaltyLedgerService governmentPenaltyLedgerService;
 
     public PumpComplaintResponse createComplaint(PumpComplaintRequest request) {
         validateCreateRequest(request);
@@ -508,10 +509,9 @@ public class PumpComplaintService {
                 .adminNote(cleanOptional(request.getAdminNote()))
                 .build();
 
-        pumpEnforcementActionRepository.save(enforcementAction);
+        PumpEnforcementAction savedEnforcementAction = pumpEnforcementActionRepository.save(enforcementAction);
+        governmentPenaltyLedgerService.createLedgerForEnforcementAction(savedEnforcementAction);
 
-        // Current PumpStatus only has OPEN/CLOSED, so temporary/permanent deactivation both close pump now.
-        // Later you can add deactivation expiry date if you want automatic reopen.
         if (
                 rule.allowedAdminAction().contains("DEACTIVATION")
                         || rule.allowedAdminAction().contains("PERMANENT")
