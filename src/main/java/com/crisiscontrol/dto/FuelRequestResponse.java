@@ -104,4 +104,9 @@ public class FuelRequestResponse {
     private LocalDateTime collectedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private BigDecimal governmentRecoveryAmountBdt;
+    private BigDecimal pumpKeptAmountBdt;
+    private BigDecimal remainingPenaltyDebtAfterCollection;
+    private Boolean penaltyRecoveryApplied;
 }

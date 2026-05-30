@@ -18,58 +18,66 @@
 </nav>
 
 <div class="role-dashboard-page">
+
     <div class="role-dashboard-header">
         <div>
             <h1>Pump Penalty Account</h1>
-            <p>View penalty debt, early operation amount, and government recovery balance.</p>
+            <p>View penalty debt, previous fuel-sale earnings, government recovery, and operation status.</p>
         </div>
         <span class="role-badge">PUMP PENALTY</span>
     </div>
 
-    <div class="dashboard-stats">
-        <div class="stat-card">
+    <div class="role-summary-grid">
+        <div class="summary-card">
             <h3>Total Fuel Sales Earning</h3>
-            <p id="totalFuelSalesEarning">0.00 BDT</p>
+            <p><span id="totalFuelSalesEarning">0.00 BDT</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Government Recovered</h3>
-            <p id="totalGovernmentRecovered">0.00 BDT</p>
+            <p><span id="totalGovernmentRecovered">0.00 BDT</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Pump Current Balance</h3>
-            <p id="pumpCurrentBalance">0.00 BDT</p>
+            <p><span id="pumpCurrentBalance">0.00 BDT</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Outstanding Penalty Debt</h3>
-            <p id="pumpOutstandingDebt">0.00 BDT</p>
+            <p><span id="pumpOutstandingDebt">0.00 BDT</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Net Position</h3>
-            <p id="pumpNetPosition">0.00 BDT</p>
+            <p><span id="pumpNetPosition">0.00 BDT</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Operation Status</h3>
-            <p id="pumpOperationStatus">NORMAL</p>
+            <p><span id="pumpOperationStatus">NORMAL</span></p>
         </div>
 
-        <div class="stat-card">
+        <div class="summary-card">
             <h3>Earning Rule</h3>
-            <p id="pumpEarningRule">Pump keeps earnings</p>
+            <p><span id="pumpEarningRule">Pump keeps earnings</span></p>
         </div>
     </div>
 
     <div class="role-dashboard-section">
         <div class="card-title-row">
-            <h2>My Penalty Ledgers</h2>
+            <div>
+                <h2>My Penalty Ledgers</h2>
+                <p class="muted-text">
+                    If your pump is penalized, you can start operation today. Previous earnings will be used first,
+                    then remaining debt will be recovered from future earnings.
+                </p>
+            </div>
+
             <button class="btn primary small-btn" id="refreshPenaltyBtn">Refresh</button>
         </div>
 
-        <p id="penaltyMessage"></p>
+        <div id="penaltyMessage"></div>
 
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -87,12 +95,16 @@
                     <th>Action</th>
                 </tr>
                 </thead>
+
                 <tbody id="pumpPenaltyBody">
-                <tr><td colspan="10">Loading...</td></tr>
+                <tr>
+                    <td colspan="10">Loading...</td>
+                </tr>
                 </tbody>
             </table>
         </div>
     </div>
+
 </div>
 
 <script src="js/api-client.js"></script>

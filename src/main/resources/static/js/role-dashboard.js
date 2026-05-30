@@ -297,6 +297,8 @@ function mergeHospitalProfile(profile) {
     localStorage.setItem("buildingEstimatedBackupHours", loggedInUser.buildingEstimatedBackupHours || "");
 }
 
+
+
 async function loadPumpForDashboard() {
     const userId = getLoggedInUserId();
 
@@ -306,7 +308,7 @@ async function loadPumpForDashboard() {
     }
 
     try {
-        let response = await fetch("http://localhost:8081/api/pumps/user/" + userId);
+        let response = await fetch("http://localhost:8081/api/pumps/user/" + userId + "?time=" + Date.now());
         let pump = await response.json();
 
         if (!response.ok) {
@@ -317,21 +319,47 @@ async function loadPumpForDashboard() {
             pump = await response.json();
         }
 
-        if (response.ok) {
-            fillPumpDashboard(pump);
-            loadPumpTransparencyToday(pump.id);
-            setupPumpTransparencyRefresh(pump.id);
-            showDashboardPumpMessage("Pump profile loaded from database.", "success-text");
-        } else {
+        if (!response.ok) {
             showDashboardPumpMessage(getErrorMessage(pump), "error-text");
+            return;
         }
+
+        const penaltySummary = await loadPumpPenaltySummaryForDashboard(userId);
+
+        fillPumpDashboard(pump, penaltySummary);
+        loadPumpTransparencyToday(pump.id);
+        setupPumpTransparencyRefresh(pump.id);
+
+        showDashboardPumpMessage("Pump profile loaded from database.", "success-text");
 
     } catch (error) {
         showDashboardPumpMessage("Server connection failed while loading pump profile.", "error-text");
     }
 }
 
-function fillPumpDashboard(pump) {
+async function loadPumpPenaltySummaryForDashboard(userId) {
+    try {
+        const response = await fetch(
+            "http://localhost:8081/api/government-penalty-ledger/pump-authority/"
+            + userId
+            + "/account-summary?time="
+            + Date.now()
+        );
+
+        const summary = await response.json();
+
+        if (!response.ok) {
+            return null;
+        }
+
+        return summary;
+
+    } catch (error) {
+        return null;
+    }
+}
+
+function fillPumpDashboard(pump, penaltySummary) {
     setTextIfExists("pumpDashboardName", valueOrDash(pump.pumpName));
     setTextIfExists("pumpDashboardFuelTypes", valueOrDash(pump.fuelTypes));
     setTextIfExists("pumpDashboardCapacity", valueOrDash(pump.totalFuelCapacity));
@@ -339,9 +367,15 @@ function fillPumpDashboard(pump) {
 
     setTextIfExists("pumpDashboardLicense", valueOrDash(pump.businessLicenseNumber));
     setTextIfExists("pumpDashboardAddress", valueOrDash(pump.pumpAddress));
-    setTextIfExists("pumpDashboardStatus", valueOrDash(pump.pumpStatus));
+    setTextIfExists("pumpDashboardStatus", resolvePumpDashboardStatus(pump, penaltySummary));
     setTextIfExists("pumpDashboardAvailable", valueOrDash(pump.totalAvailableStock));
     setTextIfExists("pumpDashboardOpen24", pump.open24Hours ? "Yes" : "No");
+
+    const statusElement = document.getElementById("pumpDashboardStatus");
+
+    if (statusElement) {
+        stylePumpDashboardStatus(statusElement, resolvePumpDashboardStatus(pump, penaltySummary));
+    }
 
     if (pump.open24Hours) {
         setTextIfExists("pumpDashboardTime", "Open 24 Hours");
@@ -350,6 +384,67 @@ function fillPumpDashboard(pump) {
     }
 
     renderPumpFuelStockTable(pump.fuelStocks);
+}
+
+function resolvePumpDashboardStatus(pump, penaltySummary) {
+    const rawStatus = pump && pump.pumpStatus ? String(pump.pumpStatus) : "-";
+
+    if (!penaltySummary) {
+        return formatPumpStatus(rawStatus);
+    }
+
+    const outstandingDebt = Number(penaltySummary.totalOutstandingDebt || 0);
+    const operationStatus = String(penaltySummary.operationStatus || "");
+
+    if (
+        outstandingDebt > 0 &&
+        (
+            rawStatus === "OPEN_WITH_DEBT" ||
+            operationStatus === "OPEN WITH DEBT" ||
+            operationStatus === "PENDING PENALTY"
+        )
+    ) {
+        return "OPEN ON DEBT";
+    }
+
+    if (rawStatus === "PENALTY_LOCKED") {
+        return "PENALTY LOCKED";
+    }
+
+    if (rawStatus === "OPEN_WITH_DEBT") {
+        return "OPEN ON DEBT";
+    }
+
+    return formatPumpStatus(rawStatus);
+}
+
+function formatPumpStatus(status) {
+    if (!status) {
+        return "-";
+    }
+
+    return String(status).replaceAll("_", " ");
+}
+
+function stylePumpDashboardStatus(element, statusText) {
+    element.className = "";
+
+    if (statusText === "OPEN ON DEBT") {
+        element.className = "error-text";
+        return;
+    }
+
+    if (statusText === "PENALTY LOCKED") {
+        element.className = "error-text";
+        return;
+    }
+
+    if (statusText === "OPEN") {
+        element.className = "success-text";
+        return;
+    }
+
+    element.className = "";
 }
 
 async function loadPumpTransparencyToday(pumpId) {

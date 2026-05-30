@@ -23,8 +23,13 @@ async function checkPumpOperationLock() {
             return;
         }
 
-        if (pump.pumpStatus === "CLOSED") {
+        if (pump.pumpStatus === "PENALTY_LOCKED") {
             lockPumpAuthorityOperations();
+            return;
+        }
+
+        if (pump.pumpStatus === "OPEN_WITH_DEBT") {
+            showOpenWithDebtNotice();
         }
 
     } catch (error) {
@@ -37,7 +42,6 @@ function lockPumpAuthorityOperations() {
 
     cards.forEach(function (card) {
         const href = card.getAttribute("href") || "";
-
         const isPenaltyCard = href.includes("pump-penalty-account.html");
 
         if (isPenaltyCard) {
@@ -58,28 +62,49 @@ function lockPumpAuthorityOperations() {
         if (!existingNotice) {
             const notice = document.createElement("p");
             notice.className = "pump-lock-notice error-text";
-            notice.innerText = "Locked until penalty recovery starts or penalty is cleared.";
+            notice.innerText = "Locked until penalty recovery starts.";
             card.appendChild(notice);
         }
     });
 
+    insertPumpNotice(
+        "Pump Operations Locked",
+        "Your pump is penalty locked due to an admin enforcement action. Only Pump Penalty Account is available until you start recovery.",
+        "error-text"
+    );
+}
+
+function showOpenWithDebtNotice() {
+    insertPumpNotice(
+        "Pump Open With Debt",
+        "Your pump can operate now, but all earnings will go to government until penalty debt is fully recovered.",
+        "success-text"
+    );
+}
+
+function insertPumpNotice(title, message, className) {
     const dashboardSections = document.querySelectorAll(".role-dashboard-section");
 
-    if (dashboardSections.length > 0) {
-        const alertBox = document.createElement("div");
-        alertBox.className = "role-dashboard-section";
-        alertBox.innerHTML = `
-            <h2 class="error-text">Pump Operations Locked</h2>
-            <p>
-                Your pump is currently deactivated due to an admin enforcement action.
-                You cannot manage stock, collect fuel, verify codes, or perform pump operations
-                until you handle the penalty account.
-            </p>
-            <a href="pump-penalty-account.html" class="btn primary">Go to Pump Penalty Account</a>
-        `;
-
-        dashboardSections[0].parentNode.insertBefore(alertBox, dashboardSections[0]);
+    if (dashboardSections.length === 0) {
+        return;
     }
+
+    const existing = document.getElementById("pumpPenaltyStatusNotice");
+
+    if (existing) {
+        return;
+    }
+
+    const alertBox = document.createElement("div");
+    alertBox.id = "pumpPenaltyStatusNotice";
+    alertBox.className = "role-dashboard-section";
+    alertBox.innerHTML = `
+        <h2 class="${className}">${title}</h2>
+        <p>${message}</p>
+        <a href="pump-penalty-account.html" class="btn primary">Go to Pump Penalty Account</a>
+    `;
+
+    dashboardSections[0].parentNode.insertBefore(alertBox, dashboardSections[0]);
 }
 
 function getPumpLockLoggedInUserId() {

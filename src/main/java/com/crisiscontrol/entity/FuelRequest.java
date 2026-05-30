@@ -160,6 +160,18 @@ public class FuelRequest {
     @Column(name = "payment_recorded_at")
     private LocalDateTime paymentRecordedAt;
 
+    @Column(name = "government_recovery_amount_bdt", precision = 12, scale = 2)
+    private BigDecimal governmentRecoveryAmountBdt;
+
+    @Column(name = "pump_kept_amount_bdt", precision = 12, scale = 2)
+    private BigDecimal pumpKeptAmountBdt;
+
+    @Column(name = "remaining_penalty_debt_after_collection", precision = 12, scale = 2)
+    private BigDecimal remainingPenaltyDebtAfterCollection;
+
+    @Column(name = "penalty_recovery_applied")
+    private Boolean penaltyRecoveryApplied;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

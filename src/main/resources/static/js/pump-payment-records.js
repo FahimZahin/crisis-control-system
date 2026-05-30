@@ -159,7 +159,7 @@ function renderPaymentRecords(records) {
     if (!records || records.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="10">No payment records found for the selected date and method.</td>
+                <td colspan="13">No payment records found for the selected date and method.</td>
             </tr>
         `;
         return;
@@ -178,9 +178,12 @@ function renderPaymentRecords(records) {
             <td>${valueOrDash(record.fuelType)}</td>
             <td>${formatNumber(record.requestedLiter)} L</td>
             <td>${formatNumber(record.paidAmountBdt)} BDT</td>
+            <td>${formatNumber(record.governmentRecoveryAmountBdt || 0)} BDT</td>
+            <td>${formatNumber(record.pumpKeptAmountBdt || 0)} BDT</td>
+            <td>${formatNumber(record.remainingPenaltyDebtAfterCollection || 0)} BDT</td>
             <td>${valueOrDash(record.paymentMethod)}</td>
             <td>${valueOrDash(record.bkashTransactionId)}</td>
-            <td>${formatDate(record.collectedAt)}</td>
+            <td>${formatDate(record.collectedAt)}</td>  
         `;
 
         tableBody.appendChild(row);

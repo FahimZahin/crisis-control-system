@@ -56,6 +56,7 @@ public class FuelRequestService {
     private final EmergencyVehicleRepository emergencyVehicleRepository;
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
     private final AuditLogService auditLogService;
+    private final GovernmentPenaltyLedgerService governmentPenaltyLedgerService;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -914,8 +915,11 @@ public class FuelRequestService {
 
         PumpProfile pumpProfile = fuelRequest.getPumpProfile();
 
-        if (pumpProfile.getPumpStatus() != PumpStatus.OPEN) {
-            throw new RuntimeException("Pump is currently closed");
+        if (
+                pumpProfile.getPumpStatus() != PumpStatus.OPEN
+                        && pumpProfile.getPumpStatus() != PumpStatus.OPEN_WITH_DEBT
+        ) {
+            throw new RuntimeException("Pump is not allowed to collect fuel. Current status: " + pumpProfile.getPumpStatus());
         }
 
         PumpFuelStock pumpFuelStock = pumpFuelStockRepository
@@ -967,6 +971,17 @@ public class FuelRequestService {
             updateBuildingDieselStockAfterCollection(fuelRequest);
         }
 
+        Map<String, Object> penaltyRecovery = governmentPenaltyLedgerService.redirectPumpEarningAfterFuelCollection(
+                pumpProfile,
+                paidAmount,
+                "Fuel collection payment redirected after collection code: " + normalizedCode
+        );
+
+        BigDecimal governmentRecoveryAmount = (BigDecimal) penaltyRecovery.get("governmentRecoveryAmount");
+        BigDecimal pumpKeptAmount = (BigDecimal) penaltyRecovery.get("pumpKeptAmount");
+        BigDecimal remainingPenaltyDebt = (BigDecimal) penaltyRecovery.get("remainingPenaltyDebt");
+        Boolean penaltyRecoveryApplied = (Boolean) penaltyRecovery.get("penaltyRecoveryApplied");
+
         fuelRequest.setRequestStatus(FuelRequestStatus.COLLECTED);
         fuelRequest.setCollectedAt(LocalDateTime.now());
         fuelRequest.setPaymentMethod(paymentMethod);
@@ -974,7 +989,23 @@ public class FuelRequestService {
         fuelRequest.setCashAmountBdt("CASH".equals(paymentMethod) ? paidAmount : BigDecimal.ZERO);
         fuelRequest.setBkashTransactionId(bkashTransactionId);
         fuelRequest.setPaymentRecordedAt(LocalDateTime.now());
-        fuelRequest.setAdminNote("Fuel collected successfully from assigned pump. Payment method: " + paymentMethod + ".");
+
+        fuelRequest.setGovernmentRecoveryAmountBdt(governmentRecoveryAmount);
+        fuelRequest.setPumpKeptAmountBdt(pumpKeptAmount);
+        fuelRequest.setRemainingPenaltyDebtAfterCollection(remainingPenaltyDebt);
+        fuelRequest.setPenaltyRecoveryApplied(Boolean.TRUE.equals(penaltyRecoveryApplied));
+
+        fuelRequest.setAdminNote(
+                "Fuel collected successfully from assigned pump. Payment method: "
+                        + paymentMethod
+                        + ". Government recovery: "
+                        + governmentRecoveryAmount
+                        + " BDT. Pump kept: "
+                        + pumpKeptAmount
+                        + " BDT. Remaining penalty debt: "
+                        + remainingPenaltyDebt
+                        + " BDT."
+        );
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
 
@@ -1568,6 +1599,10 @@ public class FuelRequestService {
                 .pumpId(pumpProfile == null ? null : pumpProfile.getId())
                 .pumpName(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpName())
                 .pumpAddress(pumpProfile == null ? "Not Assigned" : pumpProfile.getPumpAddress())
+                .governmentRecoveryAmountBdt(fuelRequest.getGovernmentRecoveryAmountBdt())
+                .pumpKeptAmountBdt(fuelRequest.getPumpKeptAmountBdt())
+                .remainingPenaltyDebtAfterCollection(fuelRequest.getRemainingPenaltyDebtAfterCollection())
+                .penaltyRecoveryApplied(fuelRequest.getPenaltyRecoveryApplied())
 
                 .fuelType(fuelRequest.getFuelType())
                 .requestedLiter(fuelRequest.getRequestedLiter())

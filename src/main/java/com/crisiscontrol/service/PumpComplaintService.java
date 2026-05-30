@@ -516,7 +516,7 @@ public class PumpComplaintService {
                 rule.allowedAdminAction().contains("DEACTIVATION")
                         || rule.allowedAdminAction().contains("PERMANENT")
         ) {
-            pumpProfile.setPumpStatus(PumpStatus.CLOSED);
+            pumpProfile.setPumpStatus(PumpStatus.PENALTY_LOCKED);
             pumpProfileRepository.save(pumpProfile);
         }
 

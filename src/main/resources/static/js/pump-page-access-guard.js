@@ -11,16 +11,12 @@ document.addEventListener("DOMContentLoaded", function () {
 async function guardPumpOperationalPage() {
     const currentPage = window.location.pathname.split("/").pop();
 
-    const allowedWhenClosed = [
+    const allowedWhenPenaltyLocked = [
         "pump-authority-dashboard.html",
         "pump-penalty-account.html",
         "public-law-book.html",
         "profile.html"
     ];
-
-    if (allowedWhenClosed.includes(currentPage)) {
-        return;
-    }
 
     const userId = getPumpGuardLoggedInUserId();
 
@@ -36,8 +32,8 @@ async function guardPumpOperationalPage() {
             return;
         }
 
-        if (pump.pumpStatus === "CLOSED") {
-            alert("Your pump is deactivated. Only Pump Penalty Account is available until penalty recovery starts or penalty is cleared.");
+        if (pump.pumpStatus === "PENALTY_LOCKED" && !allowedWhenPenaltyLocked.includes(currentPage)) {
+            alert("Your pump is penalty locked. Only Pump Penalty Account is available until you start penalty recovery.");
             window.location.href = "pump-penalty-account.html";
         }
 
