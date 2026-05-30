@@ -1,54 +1,48 @@
-const CCS_DESCO_THANAS = [
-    "Uttara East",
-    "Uttara West",
-    "Dakshinkhan",
-    "Uttarkhan",
-    "Khilkhet",
-    "Turag",
-    "Gulshan",
-    "Banani",
+const CCS_DHAKA_THANAS = [
+    "Adabor",
     "Badda",
-    "Baridhara",
-    "Mirpur",
-    "Pallabi",
-    "Rupnagar",
-    "Shah Ali",
-    "Kafrul",
-    "Darus Salam",
-    "Agargaon",
-    "Sher-e-Bangla Nagar",
-    "Cantonment"
-];
-
-const CCS_DPDC_THANAS = [
-    "Ramna",
-    "Shahbagh",
-    "Dhanmondi",
-    "Kalabagan",
-    "New Market",
-    "Hazaribagh",
-    "Lalbagh",
-    "Chawkbazar",
-    "Kotwali",
-    "Sutrapur",
-    "Wari",
-    "Gendaria",
     "Bangshal",
-    "Motijheel",
-    "Paltan",
-    "Shyampur",
-    "Kadamtali",
-    "Jatrabari",
+    "Bimanbandar",
+    "Cantonment",
+    "Chalkbazar",
+    "Dakshinkhan",
+    "Darus Salam",
     "Demra",
+    "Dhanmondi",
+    "Gendaria",
+    "Gulshan",
+    "Hazaribagh",
+    "Jatrabari",
+    "Kadamtali",
+    "Kafrul",
+    "Kalabagan",
     "Kamrangirchar",
     "Khilgaon",
+    "Khilkhet",
+    "Kotwali",
+    "Lalbagh",
+    "Mirpur",
+    "Mohammadpur",
+    "Motijheel",
+    "Mugda",
+    "New Market",
+    "Pallabi",
+    "Paltan",
+    "Ramna",
+    "Rampura",
     "Sabujbagh",
-    "Mugda"
-];
-
-const CCS_ALL_DHAKA_THANAS = [
-    ...CCS_DESCO_THANAS,
-    ...CCS_DPDC_THANAS
+    "Shah Ali",
+    "Shahbagh",
+    "Sher-e-Bangla Nagar",
+    "Shyampur",
+    "Sutrapur",
+    "Tejgaon",
+    "Tejgaon Industrial Area",
+    "Turag",
+    "Uttara East",
+    "Uttara West",
+    "Vatara",
+    "Wari"
 ];
 
 function populateDhakaThanaSelect(selectId, selectedValue) {
@@ -58,80 +52,61 @@ function populateDhakaThanaSelect(selectId, selectedValue) {
         return;
     }
 
-    const normalizedSelected = normalizeCcsThanaName(selectedValue);
+    const selected = normalizeCcsDhakaThana(selectedValue || select.value || "");
 
     select.innerHTML = `<option value="">Select thana</option>`;
 
-    const descoGroup = document.createElement("optgroup");
-    descoGroup.label = "DESCO / Dhaka North City Corporation";
-
-    CCS_DESCO_THANAS.forEach(function (thana) {
+    CCS_DHAKA_THANAS.forEach(function (thana) {
         const option = document.createElement("option");
         option.value = thana;
-        option.innerText = thana;
+        option.textContent = thana;
 
-        if (normalizeCcsThanaName(thana) === normalizedSelected) {
+        if (selected && normalizeCcsDhakaThana(thana) === selected) {
             option.selected = true;
         }
 
-        descoGroup.appendChild(option);
+        select.appendChild(option);
     });
-
-    const dpdcGroup = document.createElement("optgroup");
-    dpdcGroup.label = "DPDC / Dhaka South City Corporation";
-
-    CCS_DPDC_THANAS.forEach(function (thana) {
-        const option = document.createElement("option");
-        option.value = thana;
-        option.innerText = thana;
-
-        if (normalizeCcsThanaName(thana) === normalizedSelected) {
-            option.selected = true;
-        }
-
-        dpdcGroup.appendChild(option);
-    });
-
-    select.appendChild(descoGroup);
-    select.appendChild(dpdcGroup);
 }
 
-function normalizeCcsThanaName(value) {
+function isValidCcsDhakaThana(value) {
+    const normalized = normalizeCcsDhakaThana(value);
+
+    return CCS_DHAKA_THANAS.some(function (thana) {
+        return normalizeCcsDhakaThana(thana) === normalized;
+    });
+}
+
+function normalizeCcsDhakaThana(value) {
     if (!value) {
         return "";
     }
 
-    let normalized = value
-        .toString()
-        .toLowerCase()
-        .replaceAll(" ", "")
-        .replaceAll("-", "")
-        .replaceAll("_", "")
-        .trim();
+    let normalized = String(value)
+        .trim()
+        .replaceAll("_", " ")
+        .replaceAll("–", "-")
+        .replaceAll("—", "-")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
 
-    const aliasMap = {
-        "gulsan": "gulshan",
-        "gulshan": "gulshan",
-        "shahbag": "shahbagh",
-        "shahbagh": "shahbagh",
-        "sherbanglanagar": "sher e bangla nagar",
-        "sherebanglanagar": "sher e bangla nagar",
-        "sher-e-banglanagar": "sher e bangla nagar",
-        "sher-e-bangla-nagar": "sher e bangla nagar",
-        "newmarket": "newmarket",
-        "darussalam": "darussalam",
-        "uttaraeast": "uttaraeast",
-        "uttarawest": "uttarawest",
-        "shahali": "shahali"
-    };
+    if (normalized === "gulsan") {
+        normalized = "gulshan";
+    }
 
-    return aliasMap[normalized] || normalized;
-}
+    if (
+        normalized === "sher e bangla nagar" ||
+        normalized === "sher-e bangla nagar" ||
+        normalized === "sher e-bangla nagar" ||
+        normalized === "shere bangla nagar" ||
+        normalized === "sher bangla nagar"
+    ) {
+        normalized = "sher-e-bangla nagar";
+    }
 
-function isValidCcsDhakaThana(value) {
-    const normalizedValue = normalizeCcsThanaName(value);
+    if (normalized === "sabuj bagh") {
+        normalized = "sabujbagh";
+    }
 
-    return CCS_ALL_DHAKA_THANAS.some(function (thana) {
-        return normalizeCcsThanaName(thana) === normalizedValue;
-    });
+    return normalized;
 }

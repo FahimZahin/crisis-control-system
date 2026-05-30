@@ -20,6 +20,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof populateDhakaThanaSelect === "function") {
         populateDhakaThanaSelect("hospitalUnderThana", "");
         populateDhakaThanaSelect("buildingUnderThana", "");
+        populateDhakaThanaSelect("pumpUnderThana", "");
+        populateDhakaThanaSelect("thanaOrUpazila", "");
     }
 
     setupLiveValidation();
@@ -125,6 +127,7 @@ function setupLiveValidation() {
         "pumpName",
         "businessLicenseNumber",
         "pumpAddress",
+        "pumpUnderThana",
         "fuelCapacity",
         "currentStock",
         "openingTime",
@@ -288,6 +291,7 @@ function validateSingleField(id) {
         if (id === "pumpName") return validateRequired("pumpName", data.pumpName, "Pump name is required.");
         if (id === "businessLicenseNumber") return validateRequired("businessLicenseNumber", data.businessLicenseNumber, "Business license number is required.");
         if (id === "pumpAddress") return validateRequired("pumpAddress", data.pumpAddress, "Pump address is required.");
+        if (id === "pumpUnderThana") return validateRequired("pumpUnderThana", data.thanaOrUpazila, "Pump thana is required.");
         if (id === "fuelCapacity") return validatePositiveNumber("fuelCapacity", data.fuelCapacity, "Fuel capacity must be greater than 0.");
 
         if (id === "currentStock") {
@@ -544,6 +548,7 @@ function buildRegistrationData(selectedRole) {
         data.pumpName = getValue("pumpName");
         data.businessLicenseNumber = getValue("businessLicenseNumber");
         data.pumpAddress = getValue("pumpAddress");
+        data.thanaOrUpazila = getValue("pumpUnderThana");
         data.fuelCapacity = getNumberValue("fuelCapacity");
         data.fuelTypes = getSelectedFuelTypes();
         data.currentStock = getNumberValue("currentStock");
@@ -647,6 +652,7 @@ function validateFrontendData(data, showGlobalMessage) {
         if (!validateRequired("pumpName", data.pumpName, "Pump name is required.")) isValid = false;
         if (!validateRequired("businessLicenseNumber", data.businessLicenseNumber, "Business license number is required.")) isValid = false;
         if (!validateRequired("pumpAddress", data.pumpAddress, "Pump address is required.")) isValid = false;
+        if (!validateRequired("pumpUnderThana", data.thanaOrUpazila, "Pump thana is required.")) isValid = false;
         if (!validatePositiveNumber("fuelCapacity", data.fuelCapacity, "Fuel capacity must be greater than 0.")) isValid = false;
 
         if (!data.fuelTypes) {
@@ -741,6 +747,36 @@ function validateFrontendData(data, showGlobalMessage) {
         if (!validateRequired("localOfficeAddress", data.officeAddress, "Office address is required.")) isValid = false;
     }
 
+
+    if (
+        data.role === "BUILDING_MANAGER" &&
+        data.buildingUnderThana &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.buildingUnderThana)
+    ) {
+        setFieldError("buildingUnderThana", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
+
+    if (
+        data.role === "PUMP_AUTHORITY" &&
+        data.thanaOrUpazila &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.thanaOrUpazila)
+    ) {
+        setFieldError("pumpUnderThana", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
+
+    if (
+        data.role === "LOCAL_AUTHORITY" &&
+        data.thanaOrUpazila &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.thanaOrUpazila)
+    ) {
+        setFieldError("thanaOrUpazila", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
     if (data.role === "ADMIN") {
         if (!validateRequired("adminCode", data.adminCode, "Admin secret code is required.")) isValid = false;
     }

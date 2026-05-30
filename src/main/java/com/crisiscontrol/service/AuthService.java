@@ -271,6 +271,9 @@ public class AuthService {
         if (isBlank(request.getPumpAddress())) {
             throw new RuntimeException("Pump address is required for pump authority");
         }
+        if (isBlank(request.getThanaOrUpazila())) {
+            throw new RuntimeException("Pump thana is required for pump authority");
+        }
 
         if (request.getFuelCapacity() == null || request.getFuelCapacity() <= 0) {
             throw new RuntimeException("Valid fuel capacity is required for pump authority");
