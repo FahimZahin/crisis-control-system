@@ -91,7 +91,7 @@ public class PumpComplaintService {
 
         return pumpComplaintRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpProfile.getId())
                 .stream()
-                .map(this::mapToResponse)
+                .map(this::mapToPumpOwnerResponse)
                 .toList();
     }
 
@@ -611,6 +611,48 @@ public class PumpComplaintService {
         }
 
         throw new RuntimeException("No fixed law-book rule found for complaint type: " + complaintType);
+    }
+    private PumpComplaintResponse mapToPumpOwnerResponse(PumpComplaint complaint) {
+        PumpProfile pumpProfile = complaint.getPumpProfile();
+        User pumpOwner = pumpProfile == null ? null : pumpProfile.getUser();
+
+        return PumpComplaintResponse.builder()
+                .id(complaint.getId())
+
+                // Hide complainant identity from pump authority
+                .complainantUserId(null)
+                .complainantName("Hidden for privacy")
+                .complainantPhone("Hidden")
+
+                .pumpProfileId(pumpProfile == null ? null : pumpProfile.getId())
+                .pumpName(pumpProfile == null ? "-" : pumpProfile.getPumpName())
+                .pumpOwnerName(pumpOwner == null ? "-" : pumpOwner.getFullName())
+                .pumpPhone(pumpOwner == null ? "-" : pumpOwner.getPhoneNumber())
+                .pumpAddress(pumpProfile == null ? "-" : pumpProfile.getPumpAddress())
+                .pumpThana(complaint.getPumpThana())
+
+                .complaintType(complaint.getComplaintType())
+                .complaintTitle(complaint.getComplaintTitle())
+                .complaintDescription(complaint.getComplaintDescription())
+                .evidenceNote(complaint.getEvidenceNote())
+
+                .status(complaint.getStatus())
+
+                .localAuthorityNote(complaint.getLocalAuthorityNote())
+                .localRecommendation(complaint.getLocalRecommendation())
+                .localVerificationDecision(complaint.getLocalVerificationDecision())
+                .localVerifiedAt(complaint.getLocalVerifiedAt())
+
+                .adminNote(complaint.getAdminNote())
+                .adminActionDecision(complaint.getAdminActionDecision())
+                .adminActionNote(complaint.getAdminActionNote())
+                .adminActionAt(complaint.getAdminActionAt())
+                .appliedRuleCode(complaint.getAppliedRuleCode())
+                .appliedAdminAction(complaint.getAppliedAdminAction())
+
+                .createdAt(complaint.getCreatedAt())
+                .updatedAt(complaint.getUpdatedAt())
+                .build();
     }
 
 }

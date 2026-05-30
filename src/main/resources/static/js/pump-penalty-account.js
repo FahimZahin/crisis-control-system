@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 async function loadPumpPenaltyLedgers() {
+    await loadPumpCurrentAccountSummary();
+
     const body = document.getElementById("pumpPenaltyBody");
 
     if (body) {
@@ -43,6 +45,59 @@ async function loadPumpPenaltyLedgers() {
     }
 }
 
+async function loadPumpCurrentAccountSummary() {
+    try {
+        const response = await fetch(
+            "http://localhost:8081/api/government-penalty-ledger/pump-authority/"
+            + getLoggedInUserId()
+            + "/account-summary?time="
+            + Date.now()
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            showMessage(getErrorMessage(result), "error-text");
+            return;
+        }
+
+        fillPumpCurrentAccountSummary(result);
+
+    } catch (error) {
+        showMessage("Server connection failed while loading pump current account summary.", "error-text");
+    }
+}
+
+function fillPumpCurrentAccountSummary(summary) {
+    setText("totalFuelSalesEarning", formatMoney(summary.totalFuelSalesEarning) + " BDT");
+    setText("totalGovernmentRecovered", formatMoney(summary.totalGovernmentRecovered) + " BDT");
+    setText("pumpCurrentBalance", formatMoney(summary.pumpCurrentBalance) + " BDT");
+    setText("pumpOutstandingDebt", formatMoney(summary.totalOutstandingDebt) + " BDT");
+    setText("pumpNetPosition", formatMoney(summary.netPosition) + " BDT");
+    setText("pumpOperationStatus", safeText(summary.operationStatus));
+    setText("pumpEarningRule", safeText(summary.earningRule));
+
+    colorMoneyText("pumpCurrentBalance", Number(summary.pumpCurrentBalance || 0));
+    colorMoneyText("pumpNetPosition", Number(summary.netPosition || 0));
+    colorMoneyText("pumpOutstandingDebt", Number(summary.totalOutstandingDebt || 0) * -1);
+}
+
+function colorMoneyText(id, value) {
+    const element = document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    if (value < 0) {
+        element.style.color = "red";
+    } else if (value > 0) {
+        element.style.color = "green";
+    } else {
+        element.style.color = "";
+    }
+}
+
 function renderPenaltyLedgers(ledgers) {
     const body = document.getElementById("pumpPenaltyBody");
 
@@ -58,7 +113,6 @@ function renderPenaltyLedgers(ledgers) {
 
     body.innerHTML = "";
 
-    updatePumpCurrentAccount(ledgers);
 
     ledgers.forEach(function (ledger) {
         const row = document.createElement("tr");

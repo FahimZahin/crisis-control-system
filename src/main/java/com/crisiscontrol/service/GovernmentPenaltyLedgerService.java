@@ -11,6 +11,7 @@ import com.crisiscontrol.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.crisiscontrol.repository.FuelRequestRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ public class GovernmentPenaltyLedgerService {
     private final PumpProfileRepository pumpProfileRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final FuelRequestRepository fuelRequestRepository;
 
     public GovernmentPenaltyLedger createLedgerForEnforcementAction(PumpEnforcementAction action) {
         if (action == null || action.getId() == null) {
@@ -161,14 +163,38 @@ public class GovernmentPenaltyLedgerService {
             throw new RuntimeException("Pump operation already allowed");
         }
 
-        BigDecimal debtAmount = safeMoney(ledger.getEarlyOperationAmount());
+        BigDecimal requiredStartAmount = safeMoney(ledger.getEarlyOperationAmount());
+
+        BigDecimal totalFuelSalesEarning = calculateTotalFuelSalesEarning(pumpProfile);
+        BigDecimal totalGovernmentRecoveredBefore = calculateTotalGovernmentRecovered(pumpProfile);
+
+        BigDecimal availablePumpBalance = totalFuelSalesEarning.subtract(totalGovernmentRecoveredBefore)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        if (availablePumpBalance.compareTo(BigDecimal.ZERO) < 0) {
+            availablePumpBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal immediateGovernmentPayment = availablePumpBalance.min(requiredStartAmount)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal remainingOutstanding = requiredStartAmount.subtract(immediateGovernmentPayment)
+                .setScale(2, RoundingMode.HALF_UP);
 
         ledger.setOperationAllowed(true);
         ledger.setOperationStartedAt(LocalDateTime.now());
-        ledger.setStatus(GovernmentPenaltyStatus.DEBT_RECOVERY);
-        ledger.setTotalDebtAmount(debtAmount);
-        ledger.setOutstandingAmount(debtAmount);
-        ledger.setPumpNegativeBalance(debtAmount.negate().setScale(2, RoundingMode.HALF_UP));
+        ledger.setTotalDebtAmount(requiredStartAmount);
+        ledger.setPaidAmount(immediateGovernmentPayment);
+        ledger.setOutstandingAmount(remainingOutstanding);
+
+        if (remainingOutstanding.compareTo(BigDecimal.ZERO) <= 0) {
+            ledger.setStatus(GovernmentPenaltyStatus.PAID);
+            ledger.setPaidAt(LocalDateTime.now());
+            ledger.setPumpNegativeBalance(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        } else {
+            ledger.setStatus(GovernmentPenaltyStatus.DEBT_RECOVERY);
+            ledger.setPumpNegativeBalance(remainingOutstanding.negate().setScale(2, RoundingMode.HALF_UP));
+        }
 
         GovernmentPenaltyLedger savedLedger = ledgerRepository.save(ledger);
 
@@ -178,11 +204,15 @@ public class GovernmentPenaltyLedgerService {
         createTransaction(
                 savedLedger,
                 GovernmentPenaltyTransactionType.EARLY_OPERATION_DEBT_CREATED,
-                debtAmount,
+                requiredStartAmount,
+                immediateGovernmentPayment,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                "Pump operation started early. Pump balance became negative: -"
-                        + debtAmount
+                "Pump operation started early. Required amount: "
+                        + requiredStartAmount
+                        + " BDT. Previous pump earning used immediately: "
+                        + immediateGovernmentPayment
+                        + " BDT. Remaining outstanding debt: "
+                        + remainingOutstanding
                         + " BDT. "
                         + cleanOptional(request.getNote())
         );
@@ -192,7 +222,11 @@ public class GovernmentPenaltyLedgerService {
                 "PUMP_OPERATION_STARTED_WITH_PENALTY_DEBT",
                 "GOVERNMENT_PENALTY_LEDGER",
                 savedLedger.getId(),
-                "Pump started operation with negative penalty balance: -" + debtAmount + " BDT"
+                "Pump started operation. Previous earning used: "
+                        + immediateGovernmentPayment
+                        + " BDT, Remaining penalty debt: "
+                        + remainingOutstanding
+                        + " BDT"
         );
 
         return mapToResponse(savedLedger);
@@ -344,5 +378,94 @@ public class GovernmentPenaltyLedgerService {
 
     private String cleanOptional(String value) {
         return value == null ? "" : value.trim();
+    }
+    public Map<String, Object> getPumpPenaltyAccountSummary(Long pumpAuthorityUserId) {
+        User pumpUser = userRepository.findById(pumpAuthorityUserId)
+                .orElseThrow(() -> new RuntimeException("Pump authority user not found"));
+
+        if (pumpUser.getRole() != Role.PUMP_AUTHORITY) {
+            throw new RuntimeException("Only pump authority can view pump penalty account summary");
+        }
+
+        PumpProfile pumpProfile = pumpProfileRepository.findByUserId(pumpUser.getId())
+                .orElseThrow(() -> new RuntimeException("Pump profile not found"));
+
+        BigDecimal totalFuelSalesEarning = calculateTotalFuelSalesEarning(pumpProfile);
+        BigDecimal totalGovernmentRecovered = calculateTotalGovernmentRecovered(pumpProfile);
+        BigDecimal totalOutstandingDebt = calculateTotalOutstandingDebt(pumpProfile);
+        BigDecimal pumpCurrentBalance = totalFuelSalesEarning.subtract(totalGovernmentRecovered)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal netPosition = pumpCurrentBalance.subtract(totalOutstandingDebt)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        boolean hasDebtRecovery = ledgerRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpProfile.getId())
+                .stream()
+                .anyMatch(ledger -> ledger.getStatus() == GovernmentPenaltyStatus.DEBT_RECOVERY);
+
+        boolean hasPendingPenalty = ledgerRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpProfile.getId())
+                .stream()
+                .anyMatch(ledger -> ledger.getStatus() == GovernmentPenaltyStatus.PENDING);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("pumpProfileId", pumpProfile.getId());
+        response.put("pumpName", pumpProfile.getPumpName());
+        response.put("totalFuelSalesEarning", totalFuelSalesEarning);
+        response.put("totalGovernmentRecovered", totalGovernmentRecovered);
+        response.put("totalOutstandingDebt", totalOutstandingDebt);
+        response.put("pumpCurrentBalance", pumpCurrentBalance);
+        response.put("netPosition", netPosition);
+        response.put("hasDebtRecovery", hasDebtRecovery);
+        response.put("hasPendingPenalty", hasPendingPenalty);
+
+        if (hasDebtRecovery) {
+            response.put("operationStatus", "OPEN WITH DEBT");
+            response.put("earningRule", "Earnings go to government until penalty debt is fully recovered");
+        } else if (hasPendingPenalty) {
+            response.put("operationStatus", "PENDING PENALTY");
+            response.put("earningRule", "Previous earning will be used first when operation starts");
+        } else {
+            response.put("operationStatus", "NORMAL");
+            response.put("earningRule", "Pump keeps earnings");
+        }
+
+        return response;
+    }
+
+    private BigDecimal calculateTotalFuelSalesEarning(PumpProfile pumpProfile) {
+        if (pumpProfile == null || pumpProfile.getId() == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return fuelRequestRepository.findByPumpProfileId(pumpProfile.getId())
+                .stream()
+                .filter(request -> request.getRequestStatus() == FuelRequestStatus.COLLECTED)
+                .map(request -> safeMoney(request.getPaidAmountBdt()))
+                .reduce(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateTotalGovernmentRecovered(PumpProfile pumpProfile) {
+        if (pumpProfile == null || pumpProfile.getId() == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return ledgerRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpProfile.getId())
+                .stream()
+                .map(ledger -> safeMoney(ledger.getPaidAmount()))
+                .reduce(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateTotalOutstandingDebt(PumpProfile pumpProfile) {
+        if (pumpProfile == null || pumpProfile.getId() == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return ledgerRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpProfile.getId())
+                .stream()
+                .map(ledger -> safeMoney(ledger.getOutstandingAmount()))
+                .reduce(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

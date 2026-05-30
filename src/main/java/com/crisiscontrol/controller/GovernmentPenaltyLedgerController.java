@@ -50,4 +50,13 @@ public class GovernmentPenaltyLedgerController {
     ) {
         return ResponseEntity.ok(governmentPenaltyLedgerService.recordPumpEarning(ledgerId, request));
     }
+
+    @GetMapping("/pump-authority/{pumpAuthorityUserId}/account-summary")
+    public ResponseEntity<Map<String, Object>> getPumpPenaltyAccountSummary(
+            @PathVariable Long pumpAuthorityUserId
+    ) {
+        return ResponseEntity.ok(
+                governmentPenaltyLedgerService.getPumpPenaltyAccountSummary(pumpAuthorityUserId)
+        );
+    }
 }

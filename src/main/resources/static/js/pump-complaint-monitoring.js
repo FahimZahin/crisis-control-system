@@ -131,10 +131,7 @@ function renderComplaints(complaints) {
                 <small>${safeText(complaint.pumpAddress)}</small>
             </td>
             <td>${safeText(complaint.pumpThana)}</td>
-            <td>
-                ${safeText(complaint.complainantName)}<br>
-                <small>${safeText(complaint.complainantPhone)}</small>
-            </td>
+            <td>${renderComplainantInfo(complaint)}</td>
             <td><span class="law-type-badge ${getComplaintTypeClass(complaint.complaintType)}">${formatEnum(complaint.complaintType)}</span></td>
             <td>${safeText(complaint.complaintTitle)}</td>
             <td>${formatEnum(complaint.status)}</td>
@@ -558,4 +555,15 @@ async function sendAdminAction(complaintId, decision, adminNote) {
     } catch (error) {
         showMessage("Server connection failed while taking admin action.", "error-text");
     }
+}
+
+function renderComplainantInfo(complaint) {
+    if (loggedInUser.role === "PUMP_AUTHORITY") {
+        return `<span class="muted-text">Hidden for privacy</span>`;
+    }
+
+    return `
+        ${safeText(complaint.complainantName)}<br>
+        <small>${safeText(complaint.complainantPhone)}</small>
+    `;
 }
