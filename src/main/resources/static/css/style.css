@@ -1832,3 +1832,30 @@ footer {
     background: #fff3cd;
     color: #856404;
 }
+
+.scroll-button-box {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 9999;
+}
+
+.scroll-floating-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: none;
+    background: #0b1f3a;
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+
+.scroll-floating-btn:hover {
+    background: #00a8ff;
+}
