@@ -40,6 +40,11 @@
         "pump-penalty-account.html": ["PUMP_AUTHORITY"],
         "route-token-history.html": ["VEHICLE_OWNER"],
         "pump-route-tokens.html": ["PUMP_AUTHORITY"],
+        "route-token-report.html": [
+            "ADMIN",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY"
+        ],
 
         "emergency-vehicle-dashboard.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-vehicle-setup.html": ["EMERGENCY_VEHICLE_AUTHORITY"],

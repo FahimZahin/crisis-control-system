@@ -26,6 +26,12 @@ public interface RouteFuelTokenRepository extends JpaRepository<RouteFuelToken, 
             RouteFuelTokenStatus status
     );
 
+    List<RouteFuelToken> findAllByOrderByCreatedAtDesc();
+
+    List<RouteFuelToken> findByStatusOrderByCreatedAtDesc(RouteFuelTokenStatus status);
+
+    long countByStatus(RouteFuelTokenStatus status);
+
     List<RouteFuelToken> findByPumpProfileIdAndFuelTypeAndStatusOrderByCreatedAtDesc(
             Long pumpProfileId,
             FuelType fuelType,

@@ -391,6 +391,59 @@ public class RouteFuelTokenService {
         }
     }
 
+    public List<RouteFuelTokenResponse> getAllTokens() {
+        expireOldTokens();
+
+        return routeFuelTokenRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<RouteFuelTokenResponse> getTokensByStatus(RouteFuelTokenStatus status) {
+        expireOldTokens();
+
+        return routeFuelTokenRepository.findByStatusOrderByCreatedAtDesc(status)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public java.util.Map<String, Object> getRouteTokenSummary() {
+        expireOldTokens();
+
+        List<RouteFuelToken> tokens = routeFuelTokenRepository.findAllByOrderByCreatedAtDesc();
+
+        BigDecimal totalReservedLiter = BigDecimal.ZERO;
+        BigDecimal totalCollectedLiter = BigDecimal.ZERO;
+        BigDecimal totalEstimatedCost = BigDecimal.ZERO;
+        BigDecimal totalCollectedAmount = BigDecimal.ZERO;
+
+        for (RouteFuelToken token : tokens) {
+            totalReservedLiter = totalReservedLiter.add(safeMoney(token.getReservedLiter()));
+            totalEstimatedCost = totalEstimatedCost.add(safeMoney(token.getEstimatedCost()));
+
+            if (token.getStatus() == RouteFuelTokenStatus.USED) {
+                totalCollectedLiter = totalCollectedLiter.add(safeMoney(token.getReservedLiter()));
+                totalCollectedAmount = totalCollectedAmount.add(safeMoney(token.getPaidAmountBdt()));
+            }
+        }
+
+        java.util.Map<String, Object> summary = new java.util.LinkedHashMap<>();
+        summary.put("totalTokens", tokens.size());
+        summary.put("activeTokens", routeFuelTokenRepository.countByStatus(RouteFuelTokenStatus.ACTIVE));
+        summary.put("usedTokens", routeFuelTokenRepository.countByStatus(RouteFuelTokenStatus.USED));
+        summary.put("expiredTokens", routeFuelTokenRepository.countByStatus(RouteFuelTokenStatus.EXPIRED));
+        summary.put("cancelledTokens", routeFuelTokenRepository.countByStatus(RouteFuelTokenStatus.CANCELLED));
+        summary.put("totalReservedLiter", totalReservedLiter.setScale(2, RoundingMode.HALF_UP));
+        summary.put("totalCollectedLiter", totalCollectedLiter.setScale(2, RoundingMode.HALF_UP));
+        summary.put("totalEstimatedCost", totalEstimatedCost.setScale(2, RoundingMode.HALF_UP));
+        summary.put("totalCollectedAmount", totalCollectedAmount.setScale(2, RoundingMode.HALF_UP));
+        summary.put("generatedAt", LocalDateTime.now());
+
+        return summary;
+    }
+
     private boolean isPumpOperational(PumpProfile pump) {
         return pump != null
                 && (

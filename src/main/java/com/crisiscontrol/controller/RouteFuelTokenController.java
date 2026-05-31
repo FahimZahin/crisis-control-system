@@ -7,6 +7,9 @@ import com.crisiscontrol.service.RouteFuelTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.crisiscontrol.entity.RouteFuelTokenStatus;
+
+import java.util.Map;
 
 import java.util.List;
 
@@ -49,5 +52,21 @@ public class RouteFuelTokenController {
     public ResponseEntity<String> expireOldTokens() {
         routeFuelTokenService.expireOldTokens();
         return ResponseEntity.ok("Old route fuel tokens expired successfully");
+    }
+    @GetMapping("/summary")
+    public ResponseEntity<Map<String, Object>> getRouteTokenSummary() {
+        return ResponseEntity.ok(routeFuelTokenService.getRouteTokenSummary());
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<RouteFuelTokenResponse>> getAllTokens() {
+        return ResponseEntity.ok(routeFuelTokenService.getAllTokens());
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<RouteFuelTokenResponse>> getTokensByStatus(
+            @PathVariable RouteFuelTokenStatus status
+    ) {
+        return ResponseEntity.ok(routeFuelTokenService.getTokensByStatus(status));
     }
 }
