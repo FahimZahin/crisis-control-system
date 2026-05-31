@@ -4,6 +4,7 @@ import com.crisiscontrol.entity.FuelType;
 import com.crisiscontrol.entity.RouteFuelToken;
 import com.crisiscontrol.entity.RouteFuelTokenStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,10 @@ public interface RouteFuelTokenRepository extends JpaRepository<RouteFuelToken, 
 
     List<RouteFuelToken> findByPumpProfileIdAndStatusOrderByCreatedAtDesc(
             Long pumpProfileId,
+            RouteFuelTokenStatus status
+    );
+    Optional<RouteFuelToken> findFirstByVehicleIdAndStatusOrderByUsedAtDesc(
+            Long vehicleId,
             RouteFuelTokenStatus status
     );
 

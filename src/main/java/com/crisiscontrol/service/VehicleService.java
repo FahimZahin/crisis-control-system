@@ -13,6 +13,9 @@ import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.crisiscontrol.entity.RouteFuelToken;
+import com.crisiscontrol.entity.RouteFuelTokenStatus;
+import com.crisiscontrol.repository.RouteFuelTokenRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,6 +29,7 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final FuelRequestRepository fuelRequestRepository;
+    private final RouteFuelTokenRepository routeFuelTokenRepository;
 
     public VehicleResponse createVehicle(VehicleRequest request) {
 
@@ -198,10 +202,36 @@ public class VehicleService {
                         FuelRequestStatus.COLLECTED
                 );
 
-        String lastFuelPumpName = latestCollectedFuelRequest
-                .map(FuelRequest::getPumpProfile)
-                .map(pumpProfile -> pumpProfile == null ? "Not collected yet" : pumpProfile.getPumpName())
-                .orElse("Not collected yet");
+        Optional<RouteFuelToken> latestUsedRouteToken =
+                routeFuelTokenRepository.findFirstByVehicleIdAndStatusOrderByUsedAtDesc(
+                        vehicle.getId(),
+                        RouteFuelTokenStatus.USED
+                );
+
+        String lastFuelPumpName = "Not collected yet";
+
+        if (latestCollectedFuelRequest.isPresent()) {
+            FuelRequest latestFuelRequest = latestCollectedFuelRequest.get();
+
+            if (latestFuelRequest.getPumpProfile() != null) {
+                lastFuelPumpName = latestFuelRequest.getPumpProfile().getPumpName();
+            }
+        }
+
+        if (latestUsedRouteToken.isPresent()) {
+            RouteFuelToken latestRouteToken = latestUsedRouteToken.get();
+
+            boolean routeTokenIsNewer = latestCollectedFuelRequest.isEmpty()
+                    || latestCollectedFuelRequest.get().getCollectedAt() == null
+                    || (
+                    latestRouteToken.getUsedAt() != null
+                            && latestRouteToken.getUsedAt().isAfter(latestCollectedFuelRequest.get().getCollectedAt())
+            );
+
+            if (routeTokenIsNewer && latestRouteToken.getPumpProfile() != null) {
+                lastFuelPumpName = latestRouteToken.getPumpProfile().getPumpName();
+            }
+        }
 
         BigDecimal fuelAfterLastInsertionLiter = vehicle.getCurrentFuelLiter() == null
                 ? BigDecimal.ZERO

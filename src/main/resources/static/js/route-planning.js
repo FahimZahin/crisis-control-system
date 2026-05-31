@@ -1,6 +1,7 @@
 const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 let routeVehicles = [];
 let supportedCities = [];
+let latestRoutePlan = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     if (!loggedInUser) {
@@ -204,8 +205,9 @@ async function planRoute() {
             return;
         }
 
+        latestRoutePlan = result;
         renderRoutePlan(result);
-        showMessage("Route plan generated successfully.", "success-text");
+        showMessage("Smart route plan generated successfully.", "success-text");
 
     } catch (error) {
         showMessage("Server connection failed while planning route.", "error-text");
@@ -238,13 +240,13 @@ function renderSuggestedPumps(pumps) {
     }
 
     if (!pumps.length) {
-        body.innerHTML = `<tr><td colspan="7">No matching operational pump found for this fuel type.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8">No matching operational pump found for this fuel type.</td></tr>`;
         return;
     }
 
     body.innerHTML = "";
 
-    pumps.forEach(function (pump) {
+    pumps.forEach(function (pump, index) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
@@ -261,10 +263,103 @@ function renderSuggestedPumps(pumps) {
                 <strong>${safeText(pump.recommendationLevel)}</strong><br>
                 <small>${safeText(pump.recommendationReason)}</small>
             </td>
+            <td>
+                <button class="btn primary small-btn" onclick="createRouteToken(${index})">
+                    Generate Token
+                </button>
+            </td>
         `;
 
         body.appendChild(row);
     });
+}
+
+async function createRouteToken(index) {
+    if (!latestRoutePlan || !latestRoutePlan.suggestedPumps || !latestRoutePlan.suggestedPumps[index]) {
+        showMessage("Route plan or selected pump not found.", "error-text");
+        return;
+    }
+
+    const pump = latestRoutePlan.suggestedPumps[index];
+
+    let reservedLiter = Number(latestRoutePlan.shortageFuelLiter || 0);
+
+    if (reservedLiter <= 0) {
+        reservedLiter = Number(latestRoutePlan.requiredFuelLiter || 0);
+    }
+
+    if (reservedLiter <= 0) {
+        showMessage("No fuel reservation is required for this route.", "error-text");
+        return;
+    }
+
+    const estimatedCost = reservedLiter * 125;
+
+    const confirmed = confirm(
+        "Generate route fuel token?\n\n" +
+        "Pump: " + pump.pumpName + "\n" +
+        "Fuel Type: " + latestRoutePlan.fuelType + "\n" +
+        "Reserved Liter: " + reservedLiter.toFixed(2) + " L\n" +
+        "Estimated Cost: " + estimatedCost.toFixed(2) + " BDT\n\n" +
+        "This token will be pump-specific, vehicle-specific, and valid for 2 hours."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const data = {
+        userId: Number(getLoggedInUserId()),
+        vehicleId: Number(latestRoutePlan.vehicleId),
+        pumpId: Number(pump.pumpId),
+        sourceCity: latestRoutePlan.sourceCity,
+        destinationCity: latestRoutePlan.destinationCity,
+        stopCity: pump.routeMatchNote || "",
+        distanceFromSourceKm: latestRoutePlan.routeDistanceKm,
+        reservedLiter: reservedLiter,
+        estimatedCost: estimatedCost,
+        currentOdometerAtPlanning: 0,
+        expectedOdometerAtStop: 0
+    };
+
+    try {
+        const response = await fetch("http://localhost:8081/api/route-fuel-tokens", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            showMessage(getErrorMessage(result), "error-text");
+            return;
+        }
+
+        showRouteTokenSuccess(result);
+
+    } catch (error) {
+        showMessage("Server connection failed while creating route fuel token.", "error-text");
+    }
+}
+
+function showRouteTokenSuccess(token) {
+    const message =
+        "Route fuel token created successfully.\n\n" +
+        "Token: " + token.tokenCode + "\n" +
+        "Pump: " + token.pumpName + "\n" +
+        "Reserved Fuel: " + formatNumber(token.reservedLiter) + " L\n" +
+        "Valid Until: " + formatDateTime(token.validUntil) + "\n\n" +
+        "Show this token to the assigned pump authority.";
+
+    alert(message);
+
+    showMessage(
+        "Token created: " + token.tokenCode + ". Show it at " + token.pumpName + ".",
+        "success-text"
+    );
 }
 
 function setupLogout() {
@@ -337,6 +432,14 @@ function formatEnum(value) {
     }
 
     return String(value).replaceAll("_", " ");
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value).replace("T", " ").substring(0, 16);
 }
 
 function safeText(value) {
