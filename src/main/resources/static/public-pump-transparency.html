@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Pump Transparency | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="route-planning.html" id="routePlanningNavLink">Route Planning</a>
+        <a href="public-law-book.html">Public Law Book</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Public Pump Transparency</h1>
+            <p>View pump fuel availability, usable stock after route reservations, low-stock alerts, and today’s collection transparency.</p>
+        </div>
+        <span class="role-badge">PUMP TRANSPARENCY</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Pumps</h3>
+            <p id="publicTotalPumps">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Open Pumps</h3>
+            <p id="publicOpenPumps">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Low Stock Pumps</h3>
+            <p id="publicLowStockPumps">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Total Usable Fuel</h3>
+            <p><span id="publicTotalUsableFuel">0.00</span> L</p>
+        </div>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Reserved Route Fuel</h3>
+            <p><span id="publicRouteReservedFuel">0.00</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Today Fuel Sold</h3>
+            <p><span id="publicTodayFuelSold">0.00</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Today Cash</h3>
+            <p><span id="publicTodayCash">0.00</span> BDT</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Today bKash</h3>
+            <p><span id="publicTodayBkash">0.00</span> BDT</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Pump Availability</h2>
+                <p class="muted-text">
+                    Usable stock means current stock minus active route-token reservations.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshPublicPumpBtn">Refresh</button>
+        </div>
+
+        <p id="publicPumpMessage"></p>
+
+        <div class="filter-row">
+            <input type="text" id="pumpSearchInput" placeholder="Search pump, address, thana, fuel type">
+            <select id="pumpStatusFilter">
+                <option value="ALL">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="OPEN_WITH_DEBT">Open On Debt</option>
+                <option value="CLOSED">Closed</option>
+                <option value="PENALTY_LOCKED">Penalty Locked</option>
+            </select>
+            <select id="pumpFuelTypeFilter">
+                <option value="ALL">All Fuel Types</option>
+                <option value="PETROL">Petrol</option>
+                <option value="OCTANE">Octane</option>
+                <option value="DIESEL">Diesel</option>
+                <option value="CNG">CNG</option>
+            </select>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Pump</th>
+                    <th>Address / Thana</th>
+                    <th>Status</th>
+                    <th>Fuel Types</th>
+                    <th>Current Stock</th>
+                    <th>Reserved</th>
+                    <th>Usable Stock</th>
+                    <th>Today Sold</th>
+                    <th>Today Collection</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="publicPumpBody">
+                <tr><td colspan="10">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section" id="pumpDetailsSection" style="display:none;">
+        <div class="card-title-row">
+            <div>
+                <h2 id="selectedPumpTitle">Pump Details</h2>
+                <p class="muted-text" id="selectedPumpSubtitle">Fuel stock breakdown by fuel type.</p>
+            </div>
+
+            <button class="btn secondary small-btn" id="closePumpDetailsBtn">Close</button>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Total Capacity</h3>
+                <p><span id="detailsCapacity">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Current Stock</h3>
+                <p><span id="detailsCurrentStock">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Reserved</h3>
+                <p><span id="detailsReservedStock">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Usable Stock</h3>
+                <p><span id="detailsUsableStock">0.00</span> L</p>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Fuel Type</th>
+                    <th>Capacity</th>
+                    <th>Current Stock</th>
+                    <th>Route Reserved</th>
+                    <th>Usable Stock</th>
+                    <th>Empty Space</th>
+                    <th>Stock %</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+
+                <tbody id="pumpDetailsStockBody">
+                <tr><td colspan="8">Select a pump to view details.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/public-pump-transparency.js"></script>
+<script src="js/scroll-buttons.js"></script>
+
+</body>
+</html>

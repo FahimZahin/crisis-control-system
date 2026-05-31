@@ -46,6 +46,15 @@
             "LOCAL_AUTHORITY"
         ],
 
+        "public-pump-transparency.html": [
+            "ADMIN",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY",
+            "VEHICLE_OWNER",
+            "EMERGENCY_VEHICLE_AUTHORITY",
+            "PUMP_AUTHORITY"
+        ],
+
         "emergency-vehicle-dashboard.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-vehicle-setup.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-fuel-request.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
