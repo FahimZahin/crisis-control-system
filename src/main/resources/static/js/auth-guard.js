@@ -30,6 +30,7 @@
         "profile-setup.html": ["VEHICLE_OWNER"],
         "fuel-request.html": ["VEHICLE_OWNER"],
         "fuel-request-history.html": ["VEHICLE_OWNER"],
+        "route-planning.html": ["VEHICLE_OWNER"],
 
         "pump-authority-dashboard.html": ["PUMP_AUTHORITY"],
         "pump-stock-management.html": ["PUMP_AUTHORITY"],
