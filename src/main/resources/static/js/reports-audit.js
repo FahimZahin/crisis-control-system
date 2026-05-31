@@ -16,11 +16,26 @@ function setupReportsEvents() {
 
     const refreshBtn = document.getElementById("refreshReportsBtn");
     const logoutBtn = document.getElementById("logoutBtn");
+    const refreshAnalyticsBtn = document.getElementById("refreshAnalyticsBtn");
+    const refreshTopDemandBtn = document.getElementById("refreshTopDemandBtn");
+    const refreshPenaltyCasesBtn = document.getElementById("refreshPenaltyCasesBtn");
 
     if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
             loadReportsDashboard();
         });
+    }
+
+    if (refreshAnalyticsBtn) {
+        refreshAnalyticsBtn.addEventListener("click", loadAdvancedAnalytics);
+    }
+
+    if (refreshTopDemandBtn) {
+        refreshTopDemandBtn.addEventListener("click", loadTopDemandAreas);
+    }
+
+    if (refreshPenaltyCasesBtn) {
+        refreshPenaltyCasesBtn.addEventListener("click", loadPenaltyCases);
     }
 
     if (logoutBtn) {
@@ -154,6 +169,7 @@ async function loadReportsDashboard() {
     await loadUserSummary();
     await loadFuelAuditLogs();
     await loadUtilityAuditLogs();
+    await loadAdvancedAnalytics();
 
     showReportsMessage("Reports loaded successfully.", "success-text");
 }
@@ -475,4 +491,143 @@ function getErrorMessage(result) {
     }
 
     return "Request failed.";
+}
+
+async function loadAdvancedAnalytics() {
+    await loadAdvancedAnalyticsSummary();
+    await loadTopDemandAreas();
+    await loadPenaltyCases();
+}
+
+async function loadAdvancedAnalyticsSummary() {
+    try {
+        const response = await fetch("http://localhost:8081/api/analytics-reports/summary?time=" + Date.now());
+        const data = await safeReadJson(response);
+
+        if (!response.ok) {
+            showReportsMessage(getErrorMessage(data), "error-text");
+            return;
+        }
+
+        setText("analyticsTotalComplaints", data.totalComplaints);
+        setText("analyticsVerifiedTrue", data.verifiedTrueComplaints);
+        setText("analyticsAdminActionTaken", data.adminActionTakenComplaints);
+        setText("analyticsActiveDebtCases", data.activeDebtCases);
+
+        setText("analyticsPenaltyReceivable", formatNumber(data.totalPenaltyReceivable));
+        setText("analyticsPenaltyCollected", formatNumber(data.totalPenaltyCollected));
+        setText("analyticsPenaltyOutstanding", formatNumber(data.totalPenaltyOutstanding));
+        setText("analyticsPaidPenaltyCases", data.paidPenaltyCases);
+
+        setText("analyticsHospitalCritical", data.hospitalCriticalRequests);
+        setText("analyticsBuildingLowStock", data.buildingLowStockRequests);
+        setText("analyticsOngoingOutageAreas", data.ongoingOutageAreas);
+        setText("analyticsGeneratedAt", formatDateTime(data.generatedAt));
+
+    } catch (error) {
+        showReportsMessage("Server connection failed while loading advanced analytics summary.", "error-text");
+    }
+}
+
+async function loadTopDemandAreas() {
+    const tableBodyId = "analyticsTopDemandAreasBody";
+
+    try {
+        setTableLoading(tableBodyId, "Loading top demand areas...");
+
+        const response = await fetch("http://localhost:8081/api/analytics-reports/top-demand-areas?limit=5&time=" + Date.now());
+        const rows = await safeReadJson(response);
+
+        if (!response.ok) {
+            setTableError(tableBodyId, getErrorMessage(rows));
+            return;
+        }
+
+        renderTopDemandAreas(Array.isArray(rows) ? rows : []);
+
+    } catch (error) {
+        setTableError(tableBodyId, "Server connection failed while loading top demand areas.");
+    }
+}
+
+function renderTopDemandAreas(rows) {
+    const body = document.getElementById("analyticsTopDemandAreasBody");
+
+    if (!body) {
+        return;
+    }
+
+    if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="5">No fuel demand data found.</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = "";
+
+    rows.forEach(function (row) {
+        const tableRow = document.createElement("tr");
+
+        tableRow.innerHTML = `
+            <td>${valueOrDash(row.area)}</td>
+            <td>${valueOrDash(row.requestCount)}</td>
+            <td>${formatNumber(row.totalRequestedLiter)} L</td>
+            <td>${formatNumber(row.totalEstimatedCost)} BDT</td>
+            <td>${valueOrDash(row.collectedRequests)}</td>
+        `;
+
+        body.appendChild(tableRow);
+    });
+}
+
+async function loadPenaltyCases() {
+    const tableBodyId = "analyticsPenaltyCasesBody";
+
+    try {
+        setTableLoading(tableBodyId, "Loading penalty cases...");
+
+        const response = await fetch("http://localhost:8081/api/analytics-reports/recent-penalty-cases?limit=10&time=" + Date.now());
+        const rows = await safeReadJson(response);
+
+        if (!response.ok) {
+            setTableError(tableBodyId, getErrorMessage(rows));
+            return;
+        }
+
+        renderPenaltyCases(Array.isArray(rows) ? rows : []);
+
+    } catch (error) {
+        setTableError(tableBodyId, "Server connection failed while loading penalty cases.");
+    }
+}
+
+function renderPenaltyCases(rows) {
+    const body = document.getElementById("analyticsPenaltyCasesBody");
+
+    if (!body) {
+        return;
+    }
+
+    if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="8">No penalty case found.</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = "";
+
+    rows.forEach(function (row) {
+        const tableRow = document.createElement("tr");
+
+        tableRow.innerHTML = `
+            <td>${valueOrDash(row.id)}</td>
+            <td>${valueOrDash(row.pumpName)}</td>
+            <td>${valueOrDash(row.ruleCode)}</td>
+            <td>${formatNumber(row.totalDebtAmount)} BDT</td>
+            <td>${formatNumber(row.paidAmount)} BDT</td>
+            <td>${formatNumber(row.outstandingAmount)} BDT</td>
+            <td>${valueOrDash(row.status)}</td>
+            <td>${row.operationAllowed ? "Allowed" : "Not allowed"}</td>
+        `;
+
+        body.appendChild(tableRow);
+    });
 }

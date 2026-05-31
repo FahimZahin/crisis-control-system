@@ -201,6 +201,37 @@ public class ReportController {
         return ResponseEntity.ok(summary);
     }
 
+    @GetMapping("/power-outage-details")
+    public ResponseEntity<List<Map<String, Object>>> getPowerOutageDetails(
+            @RequestParam(defaultValue = "outages-all") String type
+    ) {
+        List<PowerOutageNotice> notices = powerOutageRepository.findAllByOrderByCreatedAtDesc();
+
+        String normalizedType = type == null ? "outages-all" : type.trim().toLowerCase();
+
+        List<PowerOutageNotice> filteredNotices = notices;
+
+        if ("outages-ongoing".equals(normalizedType)) {
+            filteredNotices = notices.stream()
+                    .filter(notice -> notice.getStatus() == PowerOutageStatus.ONGOING)
+                    .toList();
+        } else if ("outages-scheduled".equals(normalizedType)) {
+            filteredNotices = notices.stream()
+                    .filter(notice -> notice.getStatus() == PowerOutageStatus.SCHEDULED)
+                    .toList();
+        } else if ("outages-restored".equals(normalizedType)) {
+            filteredNotices = notices.stream()
+                    .filter(notice -> notice.getStatus() == PowerOutageStatus.RESTORED)
+                    .toList();
+        }
+
+        return ResponseEntity.ok(
+                filteredNotices.stream()
+                        .map(this::mapPowerOutage)
+                        .toList()
+        );
+    }
+
     @GetMapping("/user-summary")
     public ResponseEntity<Map<String, Object>> getUserSummary() {
         List<User> users = userRepository.findAll();

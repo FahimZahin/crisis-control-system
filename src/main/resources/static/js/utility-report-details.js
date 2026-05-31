@@ -16,6 +16,7 @@ function setupLogout() {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", function () {
             localStorage.clear();
+            window.location.href = "login.html";
         });
     }
 }
@@ -49,35 +50,36 @@ async function loadDetailsPage() {
 
 async function loadOutageDetails(type) {
     updateTitleByType(type);
+    setLoadingTable();
 
     try {
-        const response = await fetch("http://localhost:8081/api/power-outages?time=" + Date.now());
+        const response = await fetch(
+            "http://localhost:8081/api/reports/power-outage-details?type="
+            + encodeURIComponent(type)
+            + "&time="
+            + Date.now()
+        );
+
         const outages = await response.json();
 
         if (!response.ok) {
             showMessage(getErrorMessage(outages), "error-text");
+            renderOutageTable([]);
             return;
         }
 
-        let filtered = outages;
-
-        if (type === "outages-ongoing") {
-            filtered = outages.filter(item => item.status === "ONGOING");
-        } else if (type === "outages-scheduled") {
-            filtered = outages.filter(item => item.status === "SCHEDULED");
-        } else if (type === "outages-restored") {
-            filtered = outages.filter(item => item.status === "RESTORED");
-        }
-
-        renderOutageTable(filtered);
+        renderOutageTable(Array.isArray(outages) ? outages : []);
+        showMessage("Power outage details loaded successfully.", "success-text");
 
     } catch (error) {
         showMessage("Server connection failed while loading outage details.", "error-text");
+        renderOutageTable([]);
     }
 }
 
 async function loadUserDetails(type) {
     updateTitleByType(type);
+    setLoadingTable();
 
     try {
         const response = await fetch("http://localhost:8081/api/admin/users?time=" + Date.now());
@@ -85,26 +87,30 @@ async function loadUserDetails(type) {
 
         if (!response.ok) {
             showMessage(getErrorMessage(users), "error-text");
+            renderUserTable([]);
             return;
         }
 
-        let filtered = users;
+        let filtered = Array.isArray(users) ? users : [];
 
         if (type === "users-active") {
-            filtered = users.filter(user => user.status === "ACTIVE");
+            filtered = filtered.filter(user => user.status === "ACTIVE");
         } else if (type === "users-inactive") {
-            filtered = users.filter(user => user.status === "INACTIVE");
+            filtered = filtered.filter(user => user.status === "INACTIVE");
         }
 
         renderUserTable(filtered);
+        showMessage("User details loaded successfully.", "success-text");
 
     } catch (error) {
         showMessage("Server connection failed while loading user details.", "error-text");
+        renderUserTable([]);
     }
 }
 
 async function loadLowStockPumpDetails() {
     updateTitleByType("low-stock-pumps");
+    setLoadingTable();
 
     try {
         const response = await fetch("http://localhost:8081/api/reports/pump-stock-details?time=" + Date.now());
@@ -112,15 +118,20 @@ async function loadLowStockPumpDetails() {
 
         if (!response.ok) {
             showMessage(getErrorMessage(stocks), "error-text");
+            renderPumpStockTable([]);
             return;
         }
 
-        const lowStocks = stocks.filter(stock => stock.lowStock === true);
+        const lowStocks = Array.isArray(stocks)
+            ? stocks.filter(stock => stock.lowStock === true)
+            : [];
 
         renderPumpStockTable(lowStocks);
+        showMessage("Low stock pump details loaded successfully.", "success-text");
 
     } catch (error) {
         showMessage("Server connection failed while loading low stock pump details.", "error-text");
+        renderPumpStockTable([]);
     }
 }
 
@@ -131,17 +142,18 @@ function renderOutageTable(outages) {
             <th>Provider</th>
             <th>City Corporation</th>
             <th>Thana</th>
-            <th>Type</th>
+            <th>Outage Type</th>
             <th>Cause</th>
             <th>Status</th>
             <th>Expected Restore</th>
+            <th>Created At</th>
         </tr>
     `);
 
     const body = document.getElementById("detailsTableBody");
 
     if (!outages || outages.length === 0) {
-        body.innerHTML = `<tr><td colspan="8">No outage record found.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="9">No outage record found.</td></tr>`;
         return;
     }
 
@@ -153,13 +165,14 @@ function renderOutageTable(outages) {
 
         row.innerHTML = `
             <td>${valueOrDash(outage.id)}</td>
-            <td>${formatEnumText(outage.provider)}</td>
-            <td>${formatEnumText(outage.cityCorporation)}</td>
+            <td>${renderProviderBadge(outage.provider)}</td>
+            <td>${renderCityCorporationBadge(outage.cityCorporation)}</td>
             <td>${valueOrDash(outage.thanaName)}</td>
-            <td>${valueOrDash(outage.outageType)}</td>
+            <td>${formatEnumText(outage.outageType)}</td>
             <td>${valueOrDash(outage.cause)}</td>
-            <td>${valueOrDash(outage.status)}</td>
+            <td>${formatEnumText(outage.status)}</td>
             <td>${formatDateTime(outage.expectedRestorationDateTime)}</td>
+            <td>${formatDateTime(outage.createdAt)}</td>
         `;
 
         body.appendChild(row);
@@ -192,13 +205,13 @@ function renderUserTable(users) {
         row.className = getUserRoleRowClass(user.role);
 
         row.innerHTML = `
-        <td>${valueOrDash(user.id)}</td>
-        <td>${valueOrDash(user.fullName)}</td>
-        <td>${valueOrDash(user.phoneNumber)}</td>
-        <td>${formatEnumText(user.role)}</td>
-        <td>${formatEnumText(user.status)}</td>
-        <td>${valueOrDash(user.address)}</td>
-    `;
+            <td>${valueOrDash(user.id)}</td>
+            <td>${valueOrDash(user.fullName)}</td>
+            <td>${valueOrDash(user.phoneNumber)}</td>
+            <td>${renderRoleBadge(user.role)}</td>
+            <td>${formatEnumText(user.status)}</td>
+            <td>${valueOrDash(user.address)}</td>
+        `;
 
         body.appendChild(row);
     });
@@ -260,8 +273,26 @@ function updateTitleByType(type) {
     subtitle.innerText = "Detailed records for " + (titles[type] || "selected report") + ".";
 }
 
+function setLoadingTable() {
+    setTableHead(`
+        <tr>
+            <th>Loading</th>
+        </tr>
+    `);
+
+    const body = document.getElementById("detailsTableBody");
+
+    if (body) {
+        body.innerHTML = `<tr><td>Loading...</td></tr>`;
+    }
+}
+
 function setTableHead(html) {
-    document.getElementById("detailsTableHead").innerHTML = html;
+    const head = document.getElementById("detailsTableHead");
+
+    if (head) {
+        head.innerHTML = html;
+    }
 }
 
 function showMessage(message, className) {
@@ -290,12 +321,20 @@ function valueOrDash(value) {
 }
 
 function getErrorMessage(result) {
+    if (!result) {
+        return "Request failed.";
+    }
+
     if (result.message) {
         return result.message;
     }
 
     if (result.messages) {
         return JSON.stringify(result.messages);
+    }
+
+    if (result.error) {
+        return result.error;
     }
 
     return "Request failed.";

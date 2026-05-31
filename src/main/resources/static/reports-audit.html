@@ -144,6 +144,33 @@
     </div>
 
 
+    <!-- UTILITY REPORT SECTION -->
+    <div class="role-dashboard-section">
+        <h2>Utility Reports</h2>
+
+        <div class="role-summary-grid">
+            <a href="utility-report-details.html?type=outages-all" class="summary-card report-link-card">
+                <h3>Total Power Outage Notices</h3>
+                <p id="reportTotalOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-ongoing" class="summary-card report-link-card">
+                <h3>Ongoing Outages</h3>
+                <p id="reportOngoingOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-scheduled" class="summary-card report-link-card">
+                <h3>Scheduled Outages</h3>
+                <p id="reportScheduledOutages">0</p>
+            </a>
+
+            <a href="utility-report-details.html?type=outages-restored" class="summary-card report-link-card">
+                <h3>Restored Outages</h3>
+                <p id="reportRestoredOutages">0</p>
+            </a>
+        </div>
+    </div>
+
     <div class="role-dashboard-section">
         <div class="card-title-row">
             <div>
@@ -184,32 +211,6 @@
     </div>
 
 
-    <!-- UTILITY REPORT SECTION -->
-    <div class="role-dashboard-section">
-        <h2>Utility Reports</h2>
-
-        <div class="role-summary-grid">
-            <a href="utility-report-details.html?type=outages-all" class="summary-card report-link-card">
-                <h3>Total Power Outage Notices</h3>
-                <p id="reportTotalOutages">0</p>
-            </a>
-
-            <a href="utility-report-details.html?type=outages-ongoing" class="summary-card report-link-card">
-                <h3>Ongoing Outages</h3>
-                <p id="reportOngoingOutages">0</p>
-            </a>
-
-            <a href="utility-report-details.html?type=outages-scheduled" class="summary-card report-link-card">
-                <h3>Scheduled Outages</h3>
-                <p id="reportScheduledOutages">0</p>
-            </a>
-
-            <a href="utility-report-details.html?type=outages-restored" class="summary-card report-link-card">
-                <h3>Restored Outages</h3>
-                <p id="reportRestoredOutages">0</p>
-            </a>
-        </div>
-    </div>
 
     <div class="role-dashboard-section">
         <div class="card-title-row">
@@ -264,6 +265,145 @@
             </a>
         </div>
     </div>
+
+
+    <!-- ADVANCED ANALYTICS SECTION -->
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Advanced Crisis Analytics</h2>
+                <p class="muted-text">
+                    Combined view of pump complaints, government penalty recovery, hospital critical requests,
+                    building low-stock requests, and top fuel demand areas.
+                </p>
+            </div>
+            <button class="btn primary small-btn" id="refreshAnalyticsBtn">Refresh Analytics</button>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Total Pump Complaints</h3>
+                <p id="analyticsTotalComplaints">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Verified True Complaints</h3>
+                <p id="analyticsVerifiedTrue">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Admin Action Taken</h3>
+                <p id="analyticsAdminActionTaken">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Active Debt Cases</h3>
+                <p id="analyticsActiveDebtCases">0</p>
+            </div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Penalty Receivable</h3>
+                <p><span id="analyticsPenaltyReceivable">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Penalty Collected</h3>
+                <p><span id="analyticsPenaltyCollected">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Penalty Outstanding</h3>
+                <p><span id="analyticsPenaltyOutstanding">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Paid Penalty Cases</h3>
+                <p id="analyticsPaidPenaltyCases">0</p>
+            </div>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <h3>Hospital Critical Requests</h3>
+                <p id="analyticsHospitalCritical">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Building Low Stock Requests</h3>
+                <p id="analyticsBuildingLowStock">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Ongoing Outage Areas</h3>
+                <p id="analyticsOngoingOutageAreas">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Generated Report</h3>
+                <p id="analyticsGeneratedAt">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Top Fuel Demand Areas</h2>
+                <p class="muted-text">Top 5 areas by total requested fuel liters.</p>
+            </div>
+            <button class="btn primary small-btn" id="refreshTopDemandBtn">Refresh</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Area / Thana</th>
+                    <th>Requests</th>
+                    <th>Total Liter</th>
+                    <th>Total Estimated Cost</th>
+                    <th>Collected Requests</th>
+                </tr>
+                </thead>
+                <tbody id="analyticsTopDemandAreasBody">
+                <tr><td colspan="5">Loading top demand areas...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Recent Penalty Recovery Cases</h2>
+                <p class="muted-text">Latest government penalty ledgers created from pump enforcement actions.</p>
+            </div>
+            <button class="btn primary small-btn" id="refreshPenaltyCasesBtn">Refresh</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Pump</th>
+                    <th>Rule</th>
+                    <th>Total Debt</th>
+                    <th>Paid</th>
+                    <th>Outstanding</th>
+                    <th>Status</th>
+                    <th>Operation</th>
+                </tr>
+                </thead>
+                <tbody id="analyticsPenaltyCasesBody">
+                <tr><td colspan="8">Loading penalty cases...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 
 </div>
 
