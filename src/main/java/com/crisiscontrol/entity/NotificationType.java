@@ -1,0 +1,24 @@
+package com.crisiscontrol.entity;
+
+public enum NotificationType {
+    FUEL_REQUEST,
+    FUEL_APPROVAL,
+    FUEL_COLLECTION,
+    PUMP_ASSIGNMENT,
+
+    POWER_OUTAGE,
+    OUTAGE_RESTORED,
+
+    PUMP_COMPLAINT,
+    LOCAL_VERIFICATION,
+    ADMIN_ACTION,
+
+    PENALTY,
+    PENALTY_RECOVERY,
+    GOVERNMENT_FUND,
+
+    HOSPITAL_CRITICAL,
+    BUILDING_LOW_STOCK,
+
+    SYSTEM
+}

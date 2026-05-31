@@ -34,6 +34,7 @@ import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.crisiscontrol.entity.NotificationType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,6 +58,7 @@ public class FuelRequestService {
     private final HospitalSupportCalculationService hospitalSupportCalculationService;
     private final AuditLogService auditLogService;
     private final GovernmentPenaltyLedgerService governmentPenaltyLedgerService;
+    private final NotificationService notificationService;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -179,6 +181,26 @@ public class FuelRequestService {
 
             FuelRequest savedPendingRequest = fuelRequestRepository.save(pendingRequest);
 
+            notificationService.notifyRole(
+                    Role.ADMIN,
+                    NotificationType.FUEL_REQUEST,
+                    "New Fuel Request Needs Approval",
+                    "A fuel request requires admin approval. Request ID: " + savedPendingRequest.getId(),
+                    "FUEL_REQUEST",
+                    savedPendingRequest.getId(),
+                    "admin-fuel-requests.html"
+            );
+
+            notificationService.notifyUser(
+                    user.getId(),
+                    NotificationType.FUEL_REQUEST,
+                    "Fuel Request Submitted",
+                    "Your fuel request has been submitted and is waiting for admin approval.",
+                    "FUEL_REQUEST",
+                    savedPendingRequest.getId(),
+                    "fuel-request-history.html"
+            );
+
             auditLogService.log(
                     user,
                     "EXTRA_FUEL_REQUEST_CREATED",
@@ -237,6 +259,32 @@ public class FuelRequestService {
                 .build();
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
+
+        notificationService.notifyUser(
+                savedRequest.getUser().getId(),
+                NotificationType.FUEL_COLLECTION,
+                "Fuel Collected Successfully",
+                "Your fuel request has been collected successfully from the assigned pump.",
+                "FUEL_REQUEST",
+                savedRequest.getId(),
+                "fuel-request-history.html"
+        );
+
+        if (savedRequest.getPumpProfile() != null && savedRequest.getPumpProfile().getUser() != null) {
+            notificationService.notifyUser(
+                    savedRequest.getPumpProfile().getUser().getId(),
+                    NotificationType.FUEL_COLLECTION,
+                    "Fuel Collection Completed",
+                    "Fuel collection completed. Government recovery: "
+                            + savedRequest.getGovernmentRecoveryAmountBdt()
+                            + " BDT, Pump kept: "
+                            + savedRequest.getPumpKeptAmountBdt()
+                            + " BDT.",
+                    "FUEL_REQUEST",
+                    savedRequest.getId(),
+                    "pump-payment-records.html"
+            );
+        }
 
         auditLogService.log(
                 user,
@@ -697,6 +745,27 @@ public class FuelRequestService {
         if (savedRequest.getRequestStatus() == FuelRequestStatus.APPROVED) {
             savedRequest.setCollectionCode(generateCollectionCode(savedRequest));
             savedRequest = fuelRequestRepository.save(savedRequest);
+            notificationService.notifyUser(
+                    user.getId(),
+                    NotificationType.FUEL_APPROVAL,
+                    "Fuel Request Approved",
+                    "Your fuel request has been approved. Collection code is ready.",
+                    "FUEL_REQUEST",
+                    savedRequest.getId(),
+                    "fuel-request-history.html"
+            );
+
+            if (savedRequest.getPumpProfile() != null && savedRequest.getPumpProfile().getUser() != null) {
+                notificationService.notifyUser(
+                        savedRequest.getPumpProfile().getUser().getId(),
+                        NotificationType.PUMP_ASSIGNMENT,
+                        "New Fuel Collection Assigned",
+                        "A new approved fuel request has been assigned to your pump. Request ID: " + savedRequest.getId(),
+                        "FUEL_REQUEST",
+                        savedRequest.getId(),
+                        "pump-fuel-requests.html"
+                );
+            }
 
             auditLogService.logSystem(
                     "FUEL_REQUEST_AUTO_APPROVED",
@@ -960,6 +1029,7 @@ public class FuelRequestService {
                         + savedPumpFuelStock.getCurrentStock()
                         + " L"
         );
+
 
         updatePumpProfileTotalStock(pumpProfile);
 
@@ -1603,6 +1673,7 @@ public class FuelRequestService {
                 .pumpKeptAmountBdt(fuelRequest.getPumpKeptAmountBdt())
                 .remainingPenaltyDebtAfterCollection(fuelRequest.getRemainingPenaltyDebtAfterCollection())
                 .penaltyRecoveryApplied(fuelRequest.getPenaltyRecoveryApplied())
+
 
                 .fuelType(fuelRequest.getFuelType())
                 .requestedLiter(fuelRequest.getRequestedLiter())

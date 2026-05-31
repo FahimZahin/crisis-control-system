@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.crisiscontrol.repository.FuelRequestRepository;
+import com.crisiscontrol.entity.NotificationType;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -29,6 +31,7 @@ public class GovernmentPenaltyLedgerService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final FuelRequestRepository fuelRequestRepository;
+    private final NotificationService notificationService;
 
     public GovernmentPenaltyLedger createLedgerForEnforcementAction(PumpEnforcementAction action) {
         if (action == null || action.getId() == null) {
@@ -67,6 +70,30 @@ public class GovernmentPenaltyLedgerService {
                 .build();
 
         GovernmentPenaltyLedger savedLedger = ledgerRepository.save(ledger);
+
+        if (savedLedger.getPumpProfile() != null && savedLedger.getPumpProfile().getUser() != null) {
+            notificationService.notifyUser(
+                    savedLedger.getPumpProfile().getUser().getId(),
+                    NotificationType.PENALTY,
+                    "Penalty Ledger Created",
+                    "A penalty ledger has been created for your pump. Start operation today amount: "
+                            + savedLedger.getEarlyOperationAmount()
+                            + " BDT.",
+                    "GOVERNMENT_PENALTY_LEDGER",
+                    savedLedger.getId(),
+                    "pump-penalty-account.html"
+            );
+        }
+
+        notificationService.notifyRole(
+                Role.GOVERNMENT_AUTHORITY,
+                NotificationType.GOVERNMENT_FUND,
+                "Government Penalty Fund Updated",
+                "A new penalty receivable has been added to the government penalty fund.",
+                "GOVERNMENT_PENALTY_LEDGER",
+                savedLedger.getId(),
+                "government-penalty-fund.html"
+        );
 
         createTransaction(
                 savedLedger,
@@ -538,6 +565,36 @@ public class GovernmentPenaltyLedgerService {
         }
 
         GovernmentPenaltyLedger savedLedger = ledgerRepository.save(activeLedger);
+
+        notificationService.notifyRole(
+                Role.GOVERNMENT_AUTHORITY,
+                NotificationType.PENALTY_RECOVERY,
+                "Penalty Recovery Received",
+                "Government recovered "
+                        + governmentRecovery
+                        + " BDT from pump earning. Remaining debt: "
+                        + savedLedger.getOutstandingAmount()
+                        + " BDT.",
+                "GOVERNMENT_PENALTY_LEDGER",
+                savedLedger.getId(),
+                "government-penalty-fund.html"
+        );
+
+        if (pumpProfile.getUser() != null) {
+            notificationService.notifyUser(
+                    pumpProfile.getUser().getId(),
+                    NotificationType.PENALTY_RECOVERY,
+                    "Penalty Recovery Updated",
+                    "Government recovered "
+                            + governmentRecovery
+                            + " BDT from your pump earning. Remaining debt: "
+                            + savedLedger.getOutstandingAmount()
+                            + " BDT.",
+                    "GOVERNMENT_PENALTY_LEDGER",
+                    savedLedger.getId(),
+                    "pump-penalty-account.html"
+            );
+        }
 
         createTransaction(
                 savedLedger,

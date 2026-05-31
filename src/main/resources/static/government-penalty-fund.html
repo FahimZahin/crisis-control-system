@@ -18,6 +18,7 @@
 </nav>
 
 <div class="role-dashboard-page">
+
     <div class="role-dashboard-header">
         <div>
             <h1>Government Penalty Fund</h1>
@@ -26,32 +27,41 @@
         <span class="role-badge">GOVT FUND</span>
     </div>
 
-    <div class="dashboard-stats">
-        <div class="stat-card">
+    <div class="role-summary-grid">
+        <div class="summary-card">
             <h3>Total Receivable</h3>
-            <p id="totalReceivable">0.00 BDT</p>
+            <p><span id="totalReceivable">0.00 BDT</span></p>
         </div>
-        <div class="stat-card">
+
+        <div class="summary-card">
             <h3>Total Collected</h3>
-            <p id="totalCollected">0.00 BDT</p>
+            <p><span id="totalCollected">0.00 BDT</span></p>
         </div>
-        <div class="stat-card">
+
+        <div class="summary-card">
             <h3>Total Outstanding</h3>
-            <p id="totalOutstanding">0.00 BDT</p>
+            <p><span id="totalOutstanding">0.00 BDT</span></p>
         </div>
-        <div class="stat-card">
+
+        <div class="summary-card">
             <h3>Active Debt Cases</h3>
-            <p id="activeDebtCases">0</p>
+            <p><span id="activeDebtCases">0</span></p>
         </div>
     </div>
 
     <div class="role-dashboard-section">
         <div class="card-title-row">
-            <h2>Penalty Ledger</h2>
+            <div>
+                <h2>Penalty Ledger</h2>
+                <p class="muted-text">
+                    Shows all pump penalty recovery records, paid amounts, outstanding debt, and operation permission.
+                </p>
+            </div>
+
             <button class="btn primary small-btn" id="refreshGovtPenaltyBtn">Refresh</button>
         </div>
 
-        <p id="govtPenaltyMessage"></p>
+        <div id="govtPenaltyMessage"></div>
 
         <div class="table-wrapper">
             <table class="admin-users-table">
@@ -67,12 +77,16 @@
                     <th>Operation</th>
                 </tr>
                 </thead>
+
                 <tbody id="govtPenaltyBody">
-                <tr><td colspan="8">Loading...</td></tr>
+                <tr>
+                    <td colspan="8">Loading...</td>
+                </tr>
                 </tbody>
             </table>
         </div>
     </div>
+
 </div>
 
 <script src="js/api-client.js"></script>

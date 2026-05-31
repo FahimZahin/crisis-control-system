@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import com.crisiscontrol.entity.NotificationType;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class UtilityPowerService {
     private final PowerOutageRepository powerOutageRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     private static final String NOT_AVAILABLE_MESSAGE =
             "System is currently available only for Dhaka city corporation areas under DPDC and DESCO.";
@@ -197,6 +199,26 @@ public class UtilityPowerService {
                 .build();
 
         PowerOutageNotice savedNotice = powerOutageRepository.save(notice);
+
+        notificationService.notifyRole(
+                Role.GOVERNMENT_AUTHORITY,
+                NotificationType.POWER_OUTAGE,
+                "New Power Outage Notice",
+                "A new power outage notice has been created for thana: " + savedNotice.getThanaName(),
+                "POWER_OUTAGE",
+                savedNotice.getId(),
+                "power-outage-notices.html"
+        );
+
+        notificationService.notifyLocalAuthoritiesByThana(
+                savedNotice.getThanaName(),
+                NotificationType.POWER_OUTAGE,
+                "Power Outage Notice in Your Area",
+                "A power outage notice has been created in your assigned thana: " + savedNotice.getThanaName(),
+                "POWER_OUTAGE",
+                savedNotice.getId(),
+                "power-outage-notices.html"
+        );
 
         auditLogService.log(
                 savedNotice.getUser(),

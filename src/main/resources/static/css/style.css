@@ -1775,3 +1775,60 @@ footer {
     margin-top: 10px;
     font-weight: 700;
 }
+
+.notification-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.notification-card {
+    background: #ffffff;
+    border: 1px solid #d8dee7;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.unread-notification {
+    border-left: 6px solid #00a8ff;
+    background: #eef8ff;
+}
+
+.notification-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.notification-card-header h3 {
+    color: #0b1f3a;
+    margin-bottom: 5px;
+}
+
+.notification-card-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.success-pill {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.warning-pill {
+    background: #fff3cd;
+    color: #856404;
+}

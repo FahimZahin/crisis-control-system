@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Notifications | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>My Notifications</h1>
+            <p>View system alerts, request updates, complaint progress, outage notices, and penalty recovery updates.</p>
+        </div>
+        <span class="role-badge">NOTIFICATIONS</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Total Notifications</h3>
+            <p id="totalNotifications">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Unread Notifications</h3>
+            <p id="unreadNotifications">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>User</h3>
+            <p id="notificationUserName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Role</h3>
+            <p id="notificationUserRole">-</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Notification List</h2>
+                <p class="muted-text">Newest notifications appear first.</p>
+            </div>
+
+            <div>
+                <button class="btn secondary small-btn" id="markAllReadBtn">Mark All Read</button>
+                <button class="btn primary small-btn" id="refreshNotificationsBtn">Refresh</button>
+            </div>
+        </div>
+
+        <p id="notificationMessage"></p>
+
+        <div id="notificationList" class="notification-list">
+            Loading notifications...
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/notifications.js"></script>
+
+</body>
+</html>

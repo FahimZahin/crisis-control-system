@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import com.crisiscontrol.dto.PumpComplaintVerificationRequest;
 import com.crisiscontrol.dto.PumpComplaintAdminActionRequest;
 import com.crisiscontrol.repository.PumpEnforcementActionRepository;
+import com.crisiscontrol.entity.NotificationType;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ public class PumpComplaintService {
     private final AuditLogService auditLogService;
     private final PumpEnforcementActionRepository pumpEnforcementActionRepository;
     private final GovernmentPenaltyLedgerService governmentPenaltyLedgerService;
+    private final NotificationService notificationService;
 
     public PumpComplaintResponse createComplaint(PumpComplaintRequest request) {
         validateCreateRequest(request);
@@ -419,7 +422,21 @@ public class PumpComplaintService {
             complaint.setStatus(PumpComplaintStatus.NEEDS_MORE_EVIDENCE);
         }
 
+
+
         PumpComplaint savedComplaint = pumpComplaintRepository.save(complaint);
+
+        if (decision.equals("VERIFIED_TRUE")) {
+            notificationService.notifyRole(
+                    Role.ADMIN,
+                    NotificationType.LOCAL_VERIFICATION,
+                    "Verified Pump Complaint Sent to Admin",
+                    "Local authority verified a pump complaint as true. Admin action is required.",
+                    "PUMP_COMPLAINT",
+                    savedComplaint.getId(),
+                    "pump-complaint-monitoring.html"
+            );
+        }
 
         auditLogService.log(
                 localAuthority,
@@ -476,6 +493,28 @@ public class PumpComplaintService {
 
             PumpComplaint savedComplaint = pumpComplaintRepository.save(complaint);
 
+            if (complaint.getPumpProfile() != null && complaint.getPumpProfile().getUser() != null) {
+                notificationService.notifyUser(
+                        complaint.getPumpProfile().getUser().getId(),
+                        NotificationType.ADMIN_ACTION,
+                        "Admin Action Taken Against Pump",
+                        "Admin has applied final law-book action for a verified pump complaint.",
+                        "PUMP_COMPLAINT",
+                        savedComplaint.getId(),
+                        "pump-penalty-account.html"
+                );
+            }
+
+            notificationService.notifyRole(
+                    Role.GOVERNMENT_AUTHORITY,
+                    NotificationType.ADMIN_ACTION,
+                    "Pump Enforcement Action Applied",
+                    "Admin applied a law-book enforcement action. Government fund may receive penalty recovery.",
+                    "PUMP_COMPLAINT",
+                    savedComplaint.getId(),
+                    "government-penalty-fund.html"
+            );
+
             auditLogService.log(
                     admin,
                     "PUMP_COMPLAINT_DISMISSED_BY_ADMIN",
@@ -528,6 +567,37 @@ public class PumpComplaintService {
         complaint.setAppliedAdminAction(rule.allowedAdminAction());
 
         PumpComplaint savedComplaint = pumpComplaintRepository.save(complaint);
+        notificationService.notifyRole(
+                Role.GOVERNMENT_AUTHORITY,
+                NotificationType.PUMP_COMPLAINT,
+                "New Pump Complaint Submitted",
+                "A new complaint has been submitted against pump: " + pumpProfile.getPumpName(),
+                "PUMP_COMPLAINT",
+                savedComplaint.getId(),
+                "pump-complaint-monitoring.html"
+        );
+
+        notificationService.notifyLocalAuthoritiesByThana(
+                savedComplaint.getPumpThana(),
+                NotificationType.PUMP_COMPLAINT,
+                "New Local Pump Complaint",
+                "A complaint has been submitted against a pump in your assigned thana: " + savedComplaint.getPumpThana(),
+                "PUMP_COMPLAINT",
+                savedComplaint.getId(),
+                "pump-complaint-monitoring.html"
+        );
+
+        if (pumpProfile.getUser() != null) {
+            notificationService.notifyUser(
+                    pumpProfile.getUser().getId(),
+                    NotificationType.PUMP_COMPLAINT,
+                    "Complaint Submitted Against Your Pump",
+                    "A complaint has been submitted against your pump. Complainant identity is hidden for privacy.",
+                    "PUMP_COMPLAINT",
+                    savedComplaint.getId(),
+                    "pump-complaint-monitoring.html"
+            );
+        }
 
         auditLogService.log(
                 admin,
