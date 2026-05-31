@@ -6,12 +6,25 @@
         ""
     ];
 
+    const allLoggedInRoles = [
+        "ADMIN",
+        "VEHICLE_OWNER",
+        "PUMP_AUTHORITY",
+        "EMERGENCY_VEHICLE_AUTHORITY",
+        "UTILITY_AUTHORITY",
+        "HOSPITAL_AUTHORITY",
+        "BUILDING_MANAGER",
+        "GOVERNMENT_AUTHORITY",
+        "LOCAL_AUTHORITY"
+    ];
+
     const roleProtectedPages = {
         "admin-dashboard.html": ["ADMIN"],
         "registered-users.html": ["ADMIN"],
         "admin-fuel-settings.html": ["ADMIN"],
         "admin-fuel-requests.html": ["ADMIN"],
         "admin-emergency-vehicles.html": ["ADMIN"],
+        "admin-weekly-allocation-requests.html": ["ADMIN"],
 
         "vehicle-owner-dashboard.html": ["VEHICLE_OWNER"],
         "profile-setup.html": ["VEHICLE_OWNER"],
@@ -21,6 +34,8 @@
         "pump-authority-dashboard.html": ["PUMP_AUTHORITY"],
         "pump-stock-management.html": ["PUMP_AUTHORITY"],
         "pump-fuel-requests.html": ["PUMP_AUTHORITY"],
+        "pump-payment-records.html": ["PUMP_AUTHORITY"],
+        "pump-penalty-account.html": ["PUMP_AUTHORITY"],
 
         "emergency-vehicle-dashboard.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-vehicle-setup.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
@@ -34,9 +49,13 @@
         "hospital-authority-dashboard.html": ["HOSPITAL_AUTHORITY"],
         "hospital-generator-request.html": ["HOSPITAL_AUTHORITY"],
         "hospital-generator-request-history.html": ["HOSPITAL_AUTHORITY"],
+        "hospital-generator-usage.html": ["HOSPITAL_AUTHORITY"],
 
         "building-manager-dashboard.html": ["BUILDING_MANAGER"],
+        "building-generator-request.html": ["BUILDING_MANAGER"],
         "building-generator-request-history.html": ["BUILDING_MANAGER"],
+        "building-weekly-allocation-increase-request.html": ["BUILDING_MANAGER"],
+        "building-generator-usage.html": ["BUILDING_MANAGER"],
 
         "government-dashboard.html": ["GOVERNMENT_AUTHORITY"],
         "local-authority-dashboard.html": ["LOCAL_AUTHORITY"],
@@ -65,29 +84,23 @@
         "building-reports-audit.html": ["BUILDING_MANAGER"],
         "emergency-reports-audit.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
 
-        "profile.html": [
+        "pump-complaint-monitoring.html": [
             "ADMIN",
-            "VEHICLE_OWNER",
-            "PUMP_AUTHORITY",
-            "EMERGENCY_VEHICLE_AUTHORITY",
-            "UTILITY_AUTHORITY",
-            "HOSPITAL_AUTHORITY",
-            "BUILDING_MANAGER",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY",
+            "PUMP_AUTHORITY"
+        ],
+
+        "government-penalty-fund.html": [
+            "ADMIN",
             "GOVERNMENT_AUTHORITY",
             "LOCAL_AUTHORITY"
         ],
 
-        "dashboard.html": [
-            "ADMIN",
-            "VEHICLE_OWNER",
-            "PUMP_AUTHORITY",
-            "EMERGENCY_VEHICLE_AUTHORITY",
-            "UTILITY_AUTHORITY",
-            "HOSPITAL_AUTHORITY",
-            "BUILDING_MANAGER",
-            "GOVERNMENT_AUTHORITY",
-            "LOCAL_AUTHORITY"
-        ]
+        "public-law-book.html": allLoggedInRoles,
+        "notifications.html": allLoggedInRoles,
+        "profile.html": allLoggedInRoles,
+        "dashboard.html": allLoggedInRoles
     };
 
     const currentPage = getCurrentPage();
@@ -104,6 +117,8 @@
         return;
     }
 
+    normalizeLoginStorage(loggedInUser);
+
     const allowedRoles = roleProtectedPages[currentPage];
 
     if (allowedRoles && !allowedRoles.includes(loggedInUser.role)) {
@@ -113,7 +128,6 @@
     function getCurrentPage() {
         const path = window.location.pathname;
         const page = path.substring(path.lastIndexOf("/") + 1);
-
         return page || "";
     }
 
@@ -132,13 +146,12 @@
 
         const userId = user.userId || user.id || localStorage.getItem("userId");
         const role = user.role || localStorage.getItem("role");
-        const phoneNumber = user.phoneNumber || localStorage.getItem("phoneNumber");
 
-        if (!userId || !role || !phoneNumber) {
+        if (!userId || !role) {
             return false;
         }
 
-        if (!/^[0-9]{11}$/.test(String(phoneNumber))) {
+        if (!allLoggedInRoles.includes(role)) {
             return false;
         }
 
@@ -147,6 +160,31 @@
         }
 
         return true;
+    }
+
+    function normalizeLoginStorage(user) {
+        const userId = user.userId || user.id || localStorage.getItem("userId");
+        const role = user.role || localStorage.getItem("role");
+
+        user.userId = userId;
+        user.id = user.id || userId;
+        user.role = role;
+
+        localStorage.setItem("loggedInUser", JSON.stringify(user));
+        localStorage.setItem("userId", userId);
+        localStorage.setItem("role", role);
+
+        if (user.fullName) {
+            localStorage.setItem("fullName", user.fullName);
+        }
+
+        if (user.phoneNumber) {
+            localStorage.setItem("phoneNumber", user.phoneNumber);
+        }
+
+        if (user.status) {
+            localStorage.setItem("status", user.status);
+        }
     }
 
     function clearLoginData() {

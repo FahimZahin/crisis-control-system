@@ -44,6 +44,27 @@ async function loadFuelReportDetails() {
             });
         }
 
+        if (type === "hospital-critical") {
+            filteredRequests = requests.filter(function (request) {
+                return request.requestSource === "HOSPITAL_GENERATOR"
+                    && (
+                        containsText(request.hospitalPriorityLevel, "CRITICAL")
+                        || containsText(request.hospitalUrgencyLevel, "CRITICAL")
+                        || containsText(request.fuelLevelStatus, "CRITICAL")
+                    );
+            });
+        }
+
+        if (type === "building-low-stock") {
+            filteredRequests = requests.filter(function (request) {
+                return request.requestSource === "BUILDING_GENERATOR"
+                    && (
+                        request.buildingLowStockAlert === true
+                        || containsText(request.fuelLevelStatus, "LOW_STOCK")
+                    );
+            });
+        }
+
         renderFuelReportDetails(filteredRequests);
 
     } catch (error) {
@@ -68,6 +89,11 @@ function updateTitle(status, type) {
         title = "Total Requested Fuel Details";
     } else if (type === "stock") {
         title = "Pump Fuel Stock Details";
+    }
+    else if (type === "hospital-critical") {
+        title = "Hospital Critical Request Details";
+    } else if (type === "building-low-stock") {
+        title = "Building Low Stock Request Details";
     }
 
     document.getElementById("fuelReportTitle").innerText = title;
@@ -156,4 +182,12 @@ function valueOrDash(value) {
     }
 
     return value;
+}
+
+function containsText(value, text) {
+    if (!value || !text) {
+        return false;
+    }
+
+    return String(value).toLowerCase().includes(String(text).toLowerCase());
 }

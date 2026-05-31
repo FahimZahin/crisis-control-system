@@ -1,12 +1,23 @@
 let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
 
 document.addEventListener("DOMContentLoaded", function () {
-    if (!loggedInUser || loggedInUser.role !== "GOVERNMENT_AUTHORITY") {
+    if (!loggedInUser) {
         window.location.href = "login.html";
         return;
     }
 
+    if (
+        loggedInUser.role !== "ADMIN" &&
+        loggedInUser.role !== "GOVERNMENT_AUTHORITY" &&
+        loggedInUser.role !== "LOCAL_AUTHORITY"
+    ) {
+        alert("You are not allowed to view the government penalty fund.");
+        window.location.href = "dashboard.html";
+        return;
+    }
+
     setupLogout();
+    setupPageForRole();
 
     const refreshBtn = document.getElementById("refreshGovtPenaltyBtn");
 
@@ -16,6 +27,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
     loadGovernmentPenaltyFund();
 });
+
+function setupPageForRole() {
+    const badge = document.querySelector(".role-badge");
+
+    if (badge) {
+        if (loggedInUser.role === "ADMIN") {
+            badge.innerText = "ADMIN VIEW";
+        } else if (loggedInUser.role === "GOVERNMENT_AUTHORITY") {
+            badge.innerText = "GOVT FUND";
+        } else if (loggedInUser.role === "LOCAL_AUTHORITY") {
+            badge.innerText = "LOCAL MONITOR";
+        }
+    }
+}
 
 async function loadGovernmentPenaltyFund() {
     await loadSummary();
@@ -37,6 +62,8 @@ async function loadSummary() {
         setText("totalOutstanding", formatMoney(data.totalOutstanding) + " BDT");
         setText("activeDebtCases", data.activeDebtCases || 0);
 
+        showMessage("Government penalty fund loaded successfully.", "success-text");
+
     } catch (error) {
         showMessage("Server connection failed while loading fund summary.", "error-text");
     }
@@ -55,6 +82,11 @@ async function loadLedgers() {
 
         if (!response.ok) {
             showMessage(getErrorMessage(result), "error-text");
+
+            if (body) {
+                body.innerHTML = `<tr><td colspan="8">${getErrorMessage(result)}</td></tr>`;
+            }
+
             return;
         }
 
@@ -62,6 +94,10 @@ async function loadLedgers() {
 
     } catch (error) {
         showMessage("Server connection failed while loading ledgers.", "error-text");
+
+        if (body) {
+            body.innerHTML = `<tr><td colspan="8">Server connection failed.</td></tr>`;
+        }
     }
 }
 
@@ -83,7 +119,7 @@ function renderLedgers(ledgers) {
         const row = document.createElement("tr");
 
         row.innerHTML = `
-            <td>${ledger.id}</td>
+            <td>${safeText(ledger.id)}</td>
             <td>
                 <strong>${safeText(ledger.pumpName)}</strong><br>
                 <small>${safeText(ledger.pumpAddress)}</small>
@@ -92,7 +128,7 @@ function renderLedgers(ledgers) {
             <td>${formatMoney(ledger.earlyOperationAmount)} BDT</td>
             <td>${formatMoney(ledger.paidAmount)} BDT</td>
             <td>${formatMoney(ledger.outstandingAmount)} BDT</td>
-            <td>${safeText(ledger.status)}</td>
+            <td>${formatEnumText(ledger.status)}</td>
             <td>${ledger.operationAllowed ? "Allowed" : "Not allowed"}</td>
         `;
 
@@ -104,8 +140,10 @@ function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");
 
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", function () {
+        logoutBtn.addEventListener("click", function (event) {
+            event.preventDefault();
             localStorage.clear();
+            window.location.href = "login.html";
         });
     }
 }
@@ -122,8 +160,8 @@ function showMessage(message, className) {
     const element = document.getElementById("govtPenaltyMessage");
 
     if (element) {
-        element.className = className;
-        element.innerText = message;
+        element.className = className || "";
+        element.innerText = message || "";
     }
 }
 
@@ -135,6 +173,20 @@ function formatMoney(value) {
     }
 
     return numberValue.toFixed(2);
+}
+
+function formatEnumText(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value)
+        .replaceAll("_", " ")
+        .replaceAll("-", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, function (char) {
+            return char.toUpperCase();
+        });
 }
 
 function safeText(value) {
@@ -150,5 +202,17 @@ function getErrorMessage(result) {
         return "Request failed.";
     }
 
-    return result.message || result.error || JSON.stringify(result);
+    if (result.message) {
+        return result.message;
+    }
+
+    if (result.error) {
+        return result.error;
+    }
+
+    if (result.messages) {
+        return JSON.stringify(result.messages);
+    }
+
+    return JSON.stringify(result);
 }

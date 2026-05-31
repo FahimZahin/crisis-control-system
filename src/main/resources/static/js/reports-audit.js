@@ -39,10 +39,14 @@ function setupReportsEvents() {
     }
 
     if (logoutBtn) {
-        logoutBtn.addEventListener("click", function () {
+        logoutBtn.addEventListener("click", function (event) {
+            event.preventDefault();
             localStorage.clear();
+            window.location.href = "login.html";
         });
     }
+
+    setupAdvancedReportCards();
 }
 
 function setupShowAllAuditButtons() {
@@ -510,8 +514,11 @@ async function loadAdvancedAnalyticsSummary() {
         }
 
         setText("analyticsTotalComplaints", data.totalComplaints);
-        setText("analyticsVerifiedTrue", data.verifiedTrueComplaints);
-        setText("analyticsAdminActionTaken", data.adminActionTakenComplaints);
+
+        // fixed IDs for clickable analytics cards
+        setText("analyticsVerifiedTrueComplaints", data.verifiedTrueComplaints);
+        setText("analyticsAdminActionTakenComplaints", data.adminActionTakenComplaints);
+
         setText("analyticsActiveDebtCases", data.activeDebtCases);
 
         setText("analyticsPenaltyReceivable", formatNumber(data.totalPenaltyReceivable));
@@ -519,8 +526,10 @@ async function loadAdvancedAnalyticsSummary() {
         setText("analyticsPenaltyOutstanding", formatNumber(data.totalPenaltyOutstanding));
         setText("analyticsPaidPenaltyCases", data.paidPenaltyCases);
 
-        setText("analyticsHospitalCritical", data.hospitalCriticalRequests);
-        setText("analyticsBuildingLowStock", data.buildingLowStockRequests);
+        // fixed IDs for clickable analytics cards
+        setText("analyticsHospitalCriticalRequests", data.hospitalCriticalRequests);
+        setText("analyticsBuildingLowStockRequests", data.buildingLowStockRequests);
+
         setText("analyticsOngoingOutageAreas", data.ongoingOutageAreas);
         setText("analyticsGeneratedAt", formatDateTime(data.generatedAt));
 
@@ -630,4 +639,76 @@ function renderPenaltyCases(rows) {
 
         body.appendChild(tableRow);
     });
+}
+
+function setupAdvancedReportCards() {
+    const cards = document.querySelectorAll(".advanced-report-card");
+
+    cards.forEach(function (card) {
+        card.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            const target = card.getAttribute("data-report-target");
+
+            if (target === "complaints") {
+                openComplaintMonitoringPageSafe();
+                return;
+            }
+
+            if (target === "penalty") {
+                openPenaltyFundPageSafe();
+                return;
+            }
+        });
+    });
+}
+
+function openComplaintMonitoringPageSafe() {
+    const role = getCurrentLoggedInRole();
+
+    if (!role) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    if (
+        role === "ADMIN" ||
+        role === "GOVERNMENT_AUTHORITY" ||
+        role === "LOCAL_AUTHORITY" ||
+        role === "PUMP_AUTHORITY"
+    ) {
+        window.location.href = "pump-complaint-monitoring.html";
+        return;
+    }
+
+    alert("You are not allowed to view pump complaint monitoring.");
+}
+
+function openPenaltyFundPageSafe() {
+    const role = getCurrentLoggedInRole();
+
+    if (!role) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    if (
+        role === "ADMIN" ||
+        role === "GOVERNMENT_AUTHORITY" ||
+        role === "LOCAL_AUTHORITY"
+    ) {
+        window.location.href = "government-penalty-fund.html";
+        return;
+    }
+
+    alert("Only Admin, Government Authority, and Local Authority can view this penalty monitoring page.");
+}
+
+function getCurrentLoggedInRole() {
+    try {
+        const user = JSON.parse(localStorage.getItem("loggedInUser")) || {};
+        return user.role || localStorage.getItem("role") || "";
+    } catch (error) {
+        return localStorage.getItem("role") || "";
+    }
 }
