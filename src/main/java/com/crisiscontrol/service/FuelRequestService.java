@@ -59,6 +59,7 @@ public class FuelRequestService {
     private final AuditLogService auditLogService;
     private final GovernmentPenaltyLedgerService governmentPenaltyLedgerService;
     private final NotificationService notificationService;
+    private final PaymentRecordService paymentRecordService;
 
     public FuelRequestResponse createFuelRequest(FuelRequestCreateRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -899,6 +900,7 @@ public class FuelRequestService {
 
         FuelRequest savedRequest = fuelRequestRepository.save(fuelRequest);
 
+
         auditLogService.logSystem(
                 "FUEL_REQUEST_APPROVED",
                 "FUEL_REQUEST",
@@ -1099,6 +1101,8 @@ public class FuelRequestService {
                         + ", Current Status: "
                         + savedRequest.getRequestStatus()
         );
+
+        paymentRecordService.recordFuelRequestPayment(savedRequest);
 
         return mapToResponse(savedRequest);
     }

@@ -3,8 +3,17 @@ package com.crisiscontrol.service;
 import com.crisiscontrol.dto.PublicPumpFuelStockResponse;
 import com.crisiscontrol.dto.PublicPumpTransparencyResponse;
 import com.crisiscontrol.dto.PublicPumpTransparencySummaryResponse;
-import com.crisiscontrol.entity.*;
-import com.crisiscontrol.repository.FuelRequestRepository;
+import com.crisiscontrol.entity.FuelType;
+import com.crisiscontrol.entity.PaymentPurpose;
+import com.crisiscontrol.entity.PaymentRecord;
+import com.crisiscontrol.entity.PaymentRecordStatus;
+import com.crisiscontrol.entity.PumpFuelStock;
+import com.crisiscontrol.entity.PumpProfile;
+import com.crisiscontrol.entity.PumpStatus;
+import com.crisiscontrol.entity.RouteFuelToken;
+import com.crisiscontrol.entity.RouteFuelTokenStatus;
+import com.crisiscontrol.entity.User;
+import com.crisiscontrol.repository.PaymentRecordRepository;
 import com.crisiscontrol.repository.PumpFuelStockRepository;
 import com.crisiscontrol.repository.PumpProfileRepository;
 import com.crisiscontrol.repository.RouteFuelTokenRepository;
@@ -26,8 +35,8 @@ public class PublicPumpTransparencyService {
 
     private final PumpProfileRepository pumpProfileRepository;
     private final PumpFuelStockRepository pumpFuelStockRepository;
-    private final FuelRequestRepository fuelRequestRepository;
     private final RouteFuelTokenRepository routeFuelTokenRepository;
+    private final PaymentRecordRepository paymentRecordRepository;
     private final UserRepository userRepository;
 
     public PublicPumpTransparencySummaryResponse getSummary(Long userId, String role) {
@@ -150,7 +159,7 @@ public class PublicPumpTransparencyService {
             }
         }
 
-        TodayCollection today = calculateTodayCollection(pump.getId());
+        TodayPaymentSummary today = calculateTodayPaymentSummary(pump.getId());
 
         return PublicPumpTransparencyResponse.builder()
                 .pumpId(pump.getId())
@@ -176,7 +185,7 @@ public class PublicPumpTransparencyService {
                 .todayTotalFuelSold(formatMoney(today.normalFuelSold.add(today.routeTokenFuelSold)))
                 .todayCashCollection(formatMoney(today.cashCollection))
                 .todayBkashCollection(formatMoney(today.bkashCollection))
-                .todayTotalCollection(formatMoney(today.cashCollection.add(today.bkashCollection)))
+                .todayTotalCollection(formatMoney(today.totalCollection))
                 .todayNormalCollections(today.normalCollections)
                 .todayRouteTokenCollections(today.routeTokenCollections)
                 .todayTotalCollections(today.normalCollections + today.routeTokenCollections)
@@ -239,57 +248,55 @@ public class PublicPumpTransparencyService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private TodayCollection calculateTodayCollection(Long pumpId) {
+    /*
+     * PaymentRecord is now the single source of truth for payment transparency.
+     * Fuel sold is still calculated from linked FuelRequest / RouteFuelToken.
+     */
+    private TodayPaymentSummary calculateTodayPaymentSummary(Long pumpId) {
         LocalDate today = LocalDate.now();
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
 
-        List<FuelRequest> normalCollections =
-                fuelRequestRepository.findByPumpProfileIdAndRequestStatusAndCollectedAtBetweenOrderByCollectedAtDesc(
+        List<PaymentRecord> records =
+                paymentRecordRepository.findByPumpProfileIdAndRecordedAtBetweenOrderByRecordedAtDesc(
                         pumpId,
-                        FuelRequestStatus.COLLECTED,
                         start,
                         end
                 );
 
-        List<RouteFuelToken> routeTokenCollections =
-                routeFuelTokenRepository.findByPumpProfileIdAndStatusAndUsedAtBetweenOrderByUsedAtDesc(
-                        pumpId,
-                        RouteFuelTokenStatus.USED,
-                        start,
-                        end
-                );
+        TodayPaymentSummary summary = new TodayPaymentSummary();
 
-        TodayCollection todayCollection = new TodayCollection();
-
-        todayCollection.normalCollections = normalCollections.size();
-        todayCollection.routeTokenCollections = routeTokenCollections.size();
-
-        for (FuelRequest request : normalCollections) {
-            todayCollection.normalFuelSold = todayCollection.normalFuelSold.add(safeMoney(request.getRequestedLiter()));
-
-            if ("CASH".equalsIgnoreCase(valueOrDash(request.getPaymentMethod()))) {
-                todayCollection.cashCollection = todayCollection.cashCollection.add(safeMoney(request.getPaidAmountBdt()));
+        for (PaymentRecord record : records) {
+            if (record.getStatus() != PaymentRecordStatus.RECORDED) {
+                continue;
             }
 
-            if ("BKASH".equalsIgnoreCase(valueOrDash(request.getPaymentMethod()))) {
-                todayCollection.bkashCollection = todayCollection.bkashCollection.add(safeMoney(request.getPaidAmountBdt()));
+            summary.cashCollection = summary.cashCollection.add(safeMoney(record.getCashAmountBdt()));
+            summary.bkashCollection = summary.bkashCollection.add(safeMoney(record.getBkashAmountBdt()));
+            summary.totalCollection = summary.totalCollection.add(safeMoney(record.getPaidAmountBdt()));
+
+            if (record.getPaymentPurpose() == PaymentPurpose.NORMAL_FUEL_REQUEST) {
+                summary.normalCollections++;
+
+                if (record.getFuelRequest() != null) {
+                    summary.normalFuelSold = summary.normalFuelSold.add(
+                            safeMoney(record.getFuelRequest().getRequestedLiter())
+                    );
+                }
             }
-        }
 
-        for (RouteFuelToken token : routeTokenCollections) {
-            todayCollection.routeTokenFuelSold = todayCollection.routeTokenFuelSold.add(safeMoney(token.getReservedLiter()));
+            if (record.getPaymentPurpose() == PaymentPurpose.ROUTE_FUEL_TOKEN) {
+                summary.routeTokenCollections++;
 
-            if ("CASH".equalsIgnoreCase(valueOrDash(token.getPaymentMethod()))) {
-                todayCollection.cashCollection = todayCollection.cashCollection.add(safeMoney(token.getPaidAmountBdt()));
-            }
-
-            if ("BKASH".equalsIgnoreCase(valueOrDash(token.getPaymentMethod()))) {
-                todayCollection.bkashCollection = todayCollection.bkashCollection.add(safeMoney(token.getPaidAmountBdt()));
+                if (record.getRouteFuelToken() != null) {
+                    summary.routeTokenFuelSold = summary.routeTokenFuelSold.add(
+                            safeMoney(record.getRouteFuelToken().getReservedLiter())
+                    );
+                }
             }
         }
 
-        return todayCollection;
+        return summary;
     }
 
     private boolean belongsToLocalThana(PumpProfile pump, String localThana) {
@@ -297,9 +304,9 @@ public class PublicPumpTransparencyService {
             return false;
         }
 
-        String normalizedLocal = normalizeArea(localThana);
-        String pumpThana = normalizeArea(resolvePumpThana(pump));
-        String pumpAddress = normalizeArea(pump.getPumpAddress());
+        String normalizedLocal = normalizeArea(cleanArea(localThana));
+        String pumpThana = normalizeArea(cleanArea(resolvePumpThana(pump)));
+        String pumpAddress = normalizeArea(cleanArea(pump.getPumpAddress()));
 
         return pumpThana.equals(normalizedLocal) || pumpAddress.contains(normalizedLocal);
     }
@@ -310,10 +317,39 @@ public class PublicPumpTransparencyService {
         }
 
         if (!isBlank(pump.getUser().getThanaOrUpazila())) {
-            return pump.getUser().getThanaOrUpazila();
+            return cleanArea(pump.getUser().getThanaOrUpazila());
         }
 
         return "-";
+    }
+
+    private String cleanArea(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = normalizeArea(value);
+
+        if (normalized.equals("gulsan") || normalized.equals("gulshan")) {
+            return "Gulshan";
+        }
+
+        if (normalized.equals("basabo")
+                || normalized.equals("bashabo")
+                || normalized.equals("southbasabo")
+                || normalized.equals("northbasabo")
+                || normalized.equals("sabujbag")
+                || normalized.equals("sabujbagh")) {
+            return "Sabujbagh";
+        }
+
+        if (normalized.equals("sherebanglanagar")
+                || normalized.equals("sherebangla")
+                || normalized.equals("sherabanglanagar")) {
+            return "Sher-e-Bangla Nagar";
+        }
+
+        return value.trim();
     }
 
     private boolean isLocalAuthority(String role) {
@@ -368,11 +404,12 @@ public class PublicPumpTransparencyService {
         return value == null || value.trim().isEmpty();
     }
 
-    private static class TodayCollection {
+    private static class TodayPaymentSummary {
         private BigDecimal normalFuelSold = BigDecimal.ZERO;
         private BigDecimal routeTokenFuelSold = BigDecimal.ZERO;
         private BigDecimal cashCollection = BigDecimal.ZERO;
         private BigDecimal bkashCollection = BigDecimal.ZERO;
+        private BigDecimal totalCollection = BigDecimal.ZERO;
         private int normalCollections = 0;
         private int routeTokenCollections = 0;
     }

@@ -28,6 +28,7 @@ public class RouteFuelTokenService {
     private final PumpFuelStockRepository pumpFuelStockRepository;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final PaymentRecordService paymentRecordService;
 
     @Transactional
     public RouteFuelTokenResponse createRouteFuelToken(RouteFuelTokenCreateRequest request) {
@@ -235,6 +236,8 @@ public class RouteFuelTokenService {
         token.setCollectionNote("Route fuel token used successfully at assigned pump.");
 
         RouteFuelToken savedToken = routeFuelTokenRepository.save(token);
+
+        paymentRecordService.recordRouteFuelTokenPayment(savedToken);
 
         User pumpUser = pump.getUser();
         User vehicleUser = token.getUser();
