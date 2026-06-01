@@ -2359,3 +2359,11 @@ footer {
 .assistant-send-box {
     margin-top: 16px;
 }
+
+.info-only-feature-card {
+    cursor: default;
+}
+
+.info-only-feature-card:hover {
+    transform: none;
+}

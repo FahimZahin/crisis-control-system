@@ -594,16 +594,24 @@ function setupLogout() {
 }
 
 function setupFeatureButtons() {
-    const buttons = document.querySelectorAll(".feature-preview-card");
+    const cards = document.querySelectorAll(".feature-preview-card");
 
-    buttons.forEach(function (button) {
-        if (button.tagName.toLowerCase() === "a") {
+    cards.forEach(function (card) {
+        const isLink = card.tagName.toLowerCase() === "a";
+
+        if (isLink) {
             return;
         }
 
-        button.addEventListener("click", function () {
-            const title = button.querySelector("h3").innerText;
-            alert(title + " feature will be implemented in a future module.");
+        /*
+         * Final project cleanup:
+         * Non-link feature cards are treated as informational cards only.
+         * Do not show "future module" alerts in final demo.
+         */
+        card.classList.add("info-only-feature-card");
+
+        card.addEventListener("click", function (event) {
+            event.preventDefault();
         });
     });
 }
