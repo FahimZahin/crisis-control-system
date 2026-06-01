@@ -57,7 +57,7 @@
         <div class="card-title-row">
             <div>
                 <h2>Plan Your Route</h2>
-                <p class="muted-text">Select vehicle, source city, destination city, and current fuel. The system uses saved mileage and pump stock.</p>
+                <p class="muted-text">Select vehicle, source district, destination district, and current fuel. The system estimates district-to-district travel distance, applies a safety reserve, and suggests suitable pumps using saved vehicle mileage and pump stock.</p>
             </div>
             <button class="btn secondary small-btn" id="refreshRouteDataBtn">Refresh</button>
         </div>
@@ -73,14 +73,14 @@
             </div>
 
             <div>
-                <label>Source City</label>
+                <label>Source District</label>
                 <select id="sourceCity" required>
                     <option value="">Loading cities...</option>
                 </select>
             </div>
 
             <div>
-                <label>Destination City</label>
+                <label>Destination District</label>
                 <select id="destinationCity" required>
                     <option value="">Loading cities...</option>
                 </select>
