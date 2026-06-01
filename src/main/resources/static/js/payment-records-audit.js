@@ -6,35 +6,36 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    if (loggedInUser.role !== "PUMP_AUTHORITY") {
-        alert("Only pump authority can view pump payment records.");
+    if (
+        loggedInUser.role !== "ADMIN" &&
+        loggedInUser.role !== "GOVERNMENT_AUTHORITY" &&
+        loggedInUser.role !== "LOCAL_AUTHORITY"
+    ) {
+        alert("You are not allowed to view payment audit.");
         window.location.href = "dashboard.html";
         return;
     }
 
     setupLogout();
 
-    const refreshBtn = document.getElementById("refreshPumpPaymentsBtn");
+    const refreshBtn = document.getElementById("refreshPaymentAuditBtn");
 
     if (refreshBtn) {
-        refreshBtn.addEventListener("click", loadPumpPaymentData);
+        refreshBtn.addEventListener("click", loadPaymentAudit);
     }
 
-    loadPumpPaymentData();
+    loadPaymentAudit();
 });
 
-async function loadPumpPaymentData() {
-    await loadPumpTodaySummary();
-    await loadPumpPayments();
+async function loadPaymentAudit() {
+    await loadTodayPaymentSummary();
+    await loadAllPaymentRecords();
 }
 
-async function loadPumpTodaySummary() {
+async function loadTodayPaymentSummary() {
     try {
         const response = await fetch(
-            "http://localhost:8081/api/payment-records/summary/pump-user/"
-            + getLoggedInUserId()
-            + "/today?time="
-            + Date.now()
+            "http://localhost:8081/api/payment-records/summary/today?time=" + Date.now()
         );
 
         const data = await response.json();
@@ -44,34 +45,31 @@ async function loadPumpTodaySummary() {
             return;
         }
 
-        setText("todayCashAmount", formatNumber(data.totalCash));
-        setText("todayBkashAmount", formatNumber(data.totalBkash));
-        setText("todayTotalAmount", formatNumber(data.totalPaid));
-        setText("todayRecordCount", data.totalRecords || 0);
+        setText("auditTodayCash", formatNumber(data.totalCash));
+        setText("auditTodayBkash", formatNumber(data.totalBkash));
+        setText("auditTodayTotal", formatNumber(data.totalPaid));
+        setText("auditTodayRecords", data.totalRecords || 0);
 
-        setText("todayGovtRecovery", formatNumber(data.totalGovernmentRecovery));
-        setText("todayPumpKept", formatNumber(data.totalPumpKept));
-        setText("todayNormalPaymentCount", data.normalFuelPaymentRecords || 0);
-        setText("todayRouteTokenPaymentCount", data.routeTokenPaymentRecords || 0);
+        setText("auditGovtRecovery", formatNumber(data.totalGovernmentRecovery));
+        setText("auditPumpKept", formatNumber(data.totalPumpKept));
+        setText("auditNormalRecords", data.normalFuelPaymentRecords || 0);
+        setText("auditRouteRecords", data.routeTokenPaymentRecords || 0);
 
     } catch (error) {
         showMessage("Server connection failed while loading payment summary.", "error-text");
     }
 }
 
-async function loadPumpPayments() {
-    const body = document.getElementById("pumpPaymentBody");
+async function loadAllPaymentRecords() {
+    const body = document.getElementById("paymentAuditBody");
 
     if (body) {
-        body.innerHTML = `<tr><td colspan="11">Loading...</td></tr>`;
+        body.innerHTML = `<tr><td colspan="12">Loading...</td></tr>`;
     }
 
     try {
         const response = await fetch(
-            "http://localhost:8081/api/payment-records/pump-user/"
-            + getLoggedInUserId()
-            + "?time="
-            + Date.now()
+            "http://localhost:8081/api/payment-records?time=" + Date.now()
         );
 
         const result = await response.json();
@@ -82,26 +80,26 @@ async function loadPumpPayments() {
         }
 
         renderPaymentRecords(Array.isArray(result) ? result : []);
-        showMessage("Payment records loaded successfully.", "success-text");
+        showMessage("Payment audit loaded successfully.", "success-text");
 
     } catch (error) {
-        showMessage("Server connection failed while loading payment records.", "error-text");
+        showMessage("Server connection failed while loading payment audit.", "error-text");
 
         if (body) {
-            body.innerHTML = `<tr><td colspan="11">Server connection failed.</td></tr>`;
+            body.innerHTML = `<tr><td colspan="12">Server connection failed.</td></tr>`;
         }
     }
 }
 
 function renderPaymentRecords(records) {
-    const body = document.getElementById("pumpPaymentBody");
+    const body = document.getElementById("paymentAuditBody");
 
     if (!body) {
         return;
     }
 
     if (!records.length) {
-        body.innerHTML = `<tr><td colspan="11">No payment record found.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="12">No payment record found.</td></tr>`;
         return;
     }
 
@@ -116,6 +114,11 @@ function renderPaymentRecords(records) {
             <td>
                 <strong>${safeText(record.userName)}</strong><br>
                 <small>${safeText(record.userPhone)}</small>
+            </td>
+
+            <td>
+                <strong>${safeText(record.pumpName)}</strong><br>
+                <small>${safeText(record.pumpAddress)}</small>
             </td>
 
             <td>${formatEnum(record.paymentPurpose)}</td>
@@ -162,10 +165,6 @@ function setupLogout() {
     }
 }
 
-function getLoggedInUserId() {
-    return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
-}
-
 function setText(id, value) {
     const element = document.getElementById(id);
 
@@ -175,7 +174,7 @@ function setText(id, value) {
 }
 
 function showMessage(message, className) {
-    const element = document.getElementById("pumpPaymentMessage");
+    const element = document.getElementById("paymentAuditMessage");
 
     if (element) {
         element.className = className || "";
