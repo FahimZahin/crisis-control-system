@@ -76,13 +76,13 @@
                     </div>
                 </a>
 
-                <button type="button" class="floating-chat-option disabled-floating-chat-option" id="commonCommunityPreviewBtn">
+                <a href="common-community-chat.html" class="floating-chat-option">
                     <div class="floating-chat-option-icon">🌐</div>
                     <div>
                         <h4>Common Community</h4>
                         <p>System-wide crisis discussion for all users. Coming in Priority 20C.</p>
                     </div>
-                </button>
+                </a>
 
                 <button type="button" class="floating-chat-option disabled-floating-chat-option" id="localCommunityPreviewBtn">
                     <div class="floating-chat-option-icon">📍</div>
@@ -130,11 +130,6 @@
         const localPreviewBtn = document.getElementById("localCommunityPreviewBtn");
         const aiPreviewBtn = document.getElementById("aiAssistantPreviewBtn");
 
-        if (commonPreviewBtn) {
-            commonPreviewBtn.addEventListener("click", function () {
-                alert("Common Community Chat will be added in Priority 20C.");
-            });
-        }
 
         if (localPreviewBtn) {
             localPreviewBtn.addEventListener("click", function () {
