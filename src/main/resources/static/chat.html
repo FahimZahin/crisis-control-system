@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat | Crisis Control System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="logo">Crisis Control System</div>
+  <div>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="profile.html">Profile</a>
+    <a href="login.html" id="logoutBtn">Logout</a>
+  </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+  <div class="role-dashboard-header">
+    <div>
+      <h1>Chat Communication</h1>
+      <p>Communicate with users, pumps, authorities, hospitals, buildings, and emergency-related roles.</p>
+    </div>
+    <span class="role-badge">CHAT</span>
+  </div>
+
+  <div class="chat-layout">
+
+    <div class="chat-sidebar">
+      <div class="card-title-row">
+        <h2>Contacts</h2>
+        <button class="btn primary small-btn" id="refreshChatBtn">Refresh</button>
+      </div>
+
+      <p id="chatMessage"></p>
+
+      <input type="text" id="chatContactSearch" placeholder="Search contacts">
+
+      <h3 class="muted-section-title">Recent Conversations</h3>
+      <div id="conversationList" class="chat-contact-list">
+        <p class="muted-text">Loading...</p>
+      </div>
+
+      <h3 class="muted-section-title">Available Contacts</h3>
+      <div id="contactList" class="chat-contact-list">
+        <p class="muted-text">Loading...</p>
+      </div>
+    </div>
+
+    <div class="chat-main">
+      <div class="chat-thread-header">
+        <div>
+          <h2 id="selectedChatName">Select a contact</h2>
+          <p id="selectedChatRole">Choose someone to start communication.</p>
+        </div>
+        <span class="role-badge" id="selectedChatBadge">NO CHAT</span>
+      </div>
+
+      <div id="chatThread" class="chat-thread-box">
+        <div class="empty-dashboard-box">
+          <h3>No conversation selected</h3>
+          <p>Select a contact or recent conversation from the left side.</p>
+        </div>
+      </div>
+
+      <form id="chatSendForm" class="chat-send-box">
+        <input type="text" id="chatInput" placeholder="Write a message..." disabled>
+        <button type="submit" class="btn primary" id="sendChatBtn" disabled>Send</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/scroll-buttons.js"></script>
+
+</body>
+</html>
