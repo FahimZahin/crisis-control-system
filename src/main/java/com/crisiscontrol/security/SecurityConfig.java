@@ -33,12 +33,19 @@ public class SecurityConfig {
                                 "/index.html",
                                 "/login.html",
                                 "/register.html",
+                                "/*.html",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
-                                "/api/auth/register",
-                                "/api/auth/login"
+
+                                /*
+                                 * Allow all auth endpoints:
+                                 * register, login, change-password.
+                                 * change-password still verifies current password in AuthService.
+                                 */
+                                "/api/auth/**"
                         ).permitAll()
+
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 );

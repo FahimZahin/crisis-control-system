@@ -143,15 +143,21 @@ function setupProfileSave() {
 }
 
 function setupPasswordChange() {
-    document.getElementById("changePasswordBtn").addEventListener("click", function () {
+    const changePasswordBtn = document.getElementById("changePasswordBtn");
+
+    if (!changePasswordBtn) {
+        return;
+    }
+
+    changePasswordBtn.addEventListener("click", async function () {
         if (loggedInUser.status === "INACTIVE") {
             showMessage("passwordMessage", "Your account is deactivated. Apply for activation first.", "error-text");
             return;
         }
 
-        const currentPassword = document.getElementById("currentPassword").value;
-        const newPassword = document.getElementById("newPassword").value;
-        const confirmNewPassword = document.getElementById("confirmNewPassword").value;
+        const currentPassword = document.getElementById("currentPassword").value.trim();
+        const newPassword = document.getElementById("newPassword").value.trim();
+        const confirmNewPassword = document.getElementById("confirmNewPassword").value.trim();
 
         if (!currentPassword || !newPassword || !confirmNewPassword) {
             showMessage("passwordMessage", "Please fill all password fields.", "error-text");
@@ -163,11 +169,66 @@ function setupPasswordChange() {
             return;
         }
 
-        showMessage("passwordMessage", "Password change preview successful. Database update will be added later.", "success-text");
+        if (newPassword.length < 6) {
+            showMessage("passwordMessage", "New password must be at least 6 characters.", "error-text");
+            return;
+        }
 
-        document.getElementById("currentPassword").value = "";
-        document.getElementById("newPassword").value = "";
-        document.getElementById("confirmNewPassword").value = "";
+        const userId = getLoggedInUserId();
+
+        if (!userId) {
+            showMessage("passwordMessage", "User ID not found. Please login again.", "error-text");
+            return;
+        }
+
+        const data = {
+            userId: Number(userId),
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+            confirmNewPassword: confirmNewPassword
+        };
+
+        try {
+            showMessage("passwordMessage", "Changing password...", "muted-text");
+
+            const response = await fetch("http://localhost:8081/api/auth/change-password", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            let result = {};
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = {};
+            }
+
+            if (!response.ok) {
+                showMessage(
+                    "passwordMessage",
+                    result.message || result.error || "Password change failed.",
+                    "error-text"
+                );
+                return;
+            }
+
+            document.getElementById("currentPassword").value = "";
+            document.getElementById("newPassword").value = "";
+            document.getElementById("confirmNewPassword").value = "";
+
+            showMessage(
+                "passwordMessage",
+                result.message || "Password changed successfully.",
+                "success-text"
+            );
+
+        } catch (error) {
+            showMessage("passwordMessage", "Server connection failed while changing password.", "error-text");
+        }
     });
 }
 

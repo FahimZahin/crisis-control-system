@@ -10,6 +10,7 @@ import com.crisiscontrol.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.crisiscontrol.dto.ChangePasswordRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -165,6 +166,62 @@ public class AuthService {
         response.setToken(authTokenService.createToken(user));
 
         return response;
+    }
+
+    public void changePassword(ChangePasswordRequest request) {
+        validateChangePasswordRequest(request);
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("User account is blocked");
+        }
+
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("User account is inactive. Please request activation first.");
+        }
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new RuntimeException("New password cannot be the same as current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    private void validateChangePasswordRequest(ChangePasswordRequest request) {
+        if (request == null) {
+            throw new RuntimeException("Change password request is required");
+        }
+
+        if (request.getUserId() == null) {
+            throw new RuntimeException("User ID is required");
+        }
+
+        if (isBlank(request.getCurrentPassword())) {
+            throw new RuntimeException("Current password is required");
+        }
+
+        if (isBlank(request.getNewPassword())) {
+            throw new RuntimeException("New password is required");
+        }
+
+        if (isBlank(request.getConfirmNewPassword())) {
+            throw new RuntimeException("Confirm new password is required");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new RuntimeException("New password and confirm password do not match");
+        }
+
+        if (request.getNewPassword().length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters");
+        }
     }
 
     private void validateCommonFields(RegisterRequest request) {
