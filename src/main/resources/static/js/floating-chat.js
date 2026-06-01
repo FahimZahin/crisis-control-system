@@ -84,13 +84,13 @@
                     </div>
                 </a>
 
-                <button type="button" class="floating-chat-option disabled-floating-chat-option" id="localCommunityPreviewBtn">
+                <a href="local-community-chat.html" class="floating-chat-option">
                     <div class="floating-chat-option-icon">📍</div>
                     <div>
-                        <h4>Local Community</h4>
-                        <p>Your local thana group: ${escapeHtml(getUserThana())}. Coming in Priority 20D.</p>
-                    </div>
-                </button>
+                         <h4>Local Community</h4>
+                          <p>Your local thana group: ${escapeHtml(getUserThana())}.</p>
+                     </div>
+                </a>
 
                 <button type="button" class="floating-chat-option disabled-floating-chat-option" id="aiAssistantPreviewBtn">
                     <div class="floating-chat-option-icon">🤖</div>
@@ -131,11 +131,7 @@
         const aiPreviewBtn = document.getElementById("aiAssistantPreviewBtn");
 
 
-        if (localPreviewBtn) {
-            localPreviewBtn.addEventListener("click", function () {
-                alert("Local Thana Community Chat will be added in Priority 20D.");
-            });
-        }
+
 
         if (aiPreviewBtn) {
             aiPreviewBtn.addEventListener("click", function () {
