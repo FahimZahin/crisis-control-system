@@ -3,15 +3,18 @@ package com.crisiscontrol.service;
 import com.crisiscontrol.dto.PaymentRecordResponse;
 import com.crisiscontrol.dto.PaymentSummaryResponse;
 import com.crisiscontrol.entity.*;
+import com.crisiscontrol.repository.GovernmentPenaltyLedgerRepository;
 import com.crisiscontrol.repository.PaymentRecordRepository;
 import com.crisiscontrol.repository.PumpProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -20,7 +23,9 @@ public class PaymentRecordService {
 
     private final PaymentRecordRepository paymentRecordRepository;
     private final PumpProfileRepository pumpProfileRepository;
+    private final GovernmentPenaltyLedgerRepository governmentPenaltyLedgerRepository;
 
+    @Transactional
     public PaymentRecord recordFuelRequestPayment(FuelRequest fuelRequest) {
         if (fuelRequest == null || fuelRequest.getId() == null) {
             throw new RuntimeException("Fuel request is required for payment record");
@@ -54,15 +59,20 @@ public class PaymentRecordService {
             bkashAmount = paidAmount;
         }
 
-        BigDecimal governmentRecovery = safeMoney(fuelRequest.getGovernmentRecoveryAmountBdt());
-        BigDecimal pumpKept = safeMoney(fuelRequest.getPumpKeptAmountBdt());
+        /*
+         * Permanent rule:
+         * If the pump has active outstanding government penalty debt,
+         * fuel-sale income goes to government recovery first.
+         * Only the extra amount after clearing debt can be kept by pump.
+         */
+        PaymentSplit split = calculatePaymentSplit(fuelRequest.getPumpProfile(), paidAmount);
 
-        if (pumpKept.compareTo(BigDecimal.ZERO) <= 0 && paidAmount.compareTo(BigDecimal.ZERO) > 0) {
-            pumpKept = paidAmount.subtract(governmentRecovery).setScale(2, RoundingMode.HALF_UP);
-
-            if (pumpKept.compareTo(BigDecimal.ZERO) < 0) {
-                pumpKept = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            }
+        if (split.governmentRecoveryAmount.compareTo(BigDecimal.ZERO) > 0
+                && fuelRequest.getPumpProfile() != null) {
+            applyGovernmentRecoveryToPenaltyLedgers(
+                    fuelRequest.getPumpProfile().getId(),
+                    split.governmentRecoveryAmount
+            );
         }
 
         PaymentRecord record = PaymentRecord.builder()
@@ -76,8 +86,8 @@ public class PaymentRecordService {
                 .cashAmountBdt(cashAmount)
                 .bkashAmountBdt(bkashAmount)
                 .paidAmountBdt(paidAmount)
-                .governmentRecoveryAmountBdt(governmentRecovery)
-                .pumpKeptAmountBdt(pumpKept)
+                .governmentRecoveryAmountBdt(split.governmentRecoveryAmount)
+                .pumpKeptAmountBdt(split.pumpKeptAmount)
                 .description("Payment recorded for normal fuel request ID: " + fuelRequest.getId())
                 .status(PaymentRecordStatus.RECORDED)
                 .recordedAt(fuelRequest.getPaymentRecordedAt() == null
@@ -88,6 +98,7 @@ public class PaymentRecordService {
         return paymentRecordRepository.save(record);
     }
 
+    @Transactional
     public PaymentRecord recordRouteFuelTokenPayment(RouteFuelToken token) {
         if (token == null || token.getId() == null) {
             throw new RuntimeException("Route fuel token is required for payment record");
@@ -121,19 +132,20 @@ public class PaymentRecordService {
             bkashAmount = paidAmount;
         }
 
-        BigDecimal governmentRecovery = BigDecimal.ZERO;
-        BigDecimal pumpKept = paidAmount;
+        /*
+         * Permanent rule:
+         * Do not depend only on pump_profiles.pump_status.
+         * If government_penalty_ledgers has outstanding debt,
+         * route-token payment goes to government recovery first.
+         */
+        PaymentSplit split = calculatePaymentSplit(token.getPumpProfile(), paidAmount);
 
-        if (token.getPumpProfile() != null
-                && token.getPumpProfile().getPumpStatus() == PumpStatus.OPEN_WITH_DEBT) {
-            /*
-             * Route token collection currently does not calculate debt recovery separately.
-             * For now, keep the amount under pump kept amount.
-             * Later, if you want route-token sales to recover government penalty debt,
-             * we can connect this with your pump penalty account service.
-             */
-            governmentRecovery = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            pumpKept = paidAmount;
+        if (split.governmentRecoveryAmount.compareTo(BigDecimal.ZERO) > 0
+                && token.getPumpProfile() != null) {
+            applyGovernmentRecoveryToPenaltyLedgers(
+                    token.getPumpProfile().getId(),
+                    split.governmentRecoveryAmount
+            );
         }
 
         PaymentRecord record = PaymentRecord.builder()
@@ -147,8 +159,8 @@ public class PaymentRecordService {
                 .cashAmountBdt(cashAmount)
                 .bkashAmountBdt(bkashAmount)
                 .paidAmountBdt(paidAmount)
-                .governmentRecoveryAmountBdt(governmentRecovery)
-                .pumpKeptAmountBdt(pumpKept)
+                .governmentRecoveryAmountBdt(split.governmentRecoveryAmount)
+                .pumpKeptAmountBdt(split.pumpKeptAmount)
                 .description("Payment recorded for route fuel token: " + token.getTokenCode())
                 .status(PaymentRecordStatus.RECORDED)
                 .recordedAt(token.getUsedAt() == null ? LocalDateTime.now() : token.getUsedAt())
@@ -218,6 +230,148 @@ public class PaymentRecordService {
                 .orElseThrow(() -> new RuntimeException("Pump profile not found"));
 
         return getPumpTodaySummary(pump.getId());
+    }
+
+    private PaymentSplit calculatePaymentSplit(PumpProfile pump, BigDecimal paidAmount) {
+        BigDecimal cleanPaidAmount = safeMoney(paidAmount);
+
+        if (cleanPaidAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new PaymentSplit(
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+            );
+        }
+
+        if (pump == null || pump.getId() == null) {
+            return new PaymentSplit(
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                    cleanPaidAmount
+            );
+        }
+
+        BigDecimal outstandingDebt = getActiveOutstandingDebt(pump.getId());
+
+        /*
+         * Main source of truth: government_penalty_ledgers outstanding amount.
+         */
+        if (outstandingDebt.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal governmentRecovery = cleanPaidAmount.min(outstandingDebt).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal pumpKept = cleanPaidAmount.subtract(governmentRecovery).setScale(2, RoundingMode.HALF_UP);
+
+            if (pumpKept.compareTo(BigDecimal.ZERO) < 0) {
+                pumpKept = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+
+            return new PaymentSplit(governmentRecovery, pumpKept);
+        }
+
+        /*
+         * Fallback: if status is OPEN_WITH_DEBT but ledger is missing,
+         * still send money to government recovery for safety.
+         */
+        if (pump.getPumpStatus() == PumpStatus.OPEN_WITH_DEBT) {
+            return new PaymentSplit(
+                    cleanPaidAmount,
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+            );
+        }
+
+        return new PaymentSplit(
+                BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                cleanPaidAmount
+        );
+    }
+
+    private BigDecimal getActiveOutstandingDebt(Long pumpId) {
+        if (pumpId == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return governmentPenaltyLedgerRepository.findByPumpProfileIdOrderByCreatedAtDesc(pumpId)
+                .stream()
+                .filter(this::isRecoverableLedger)
+                .map(GovernmentPenaltyLedger::getOutstandingAmount)
+                .filter(value -> value != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isRecoverableLedger(GovernmentPenaltyLedger ledger) {
+        if (ledger == null) {
+            return false;
+        }
+
+        if (ledger.getStatus() != GovernmentPenaltyStatus.PENDING
+                && ledger.getStatus() != GovernmentPenaltyStatus.DEBT_RECOVERY) {
+            return false;
+        }
+
+        return safeMoney(ledger.getOutstandingAmount()).compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private void applyGovernmentRecoveryToPenaltyLedgers(Long pumpId, BigDecimal recoveryAmount) {
+        if (pumpId == null) {
+            return;
+        }
+
+        BigDecimal remainingRecovery = safeMoney(recoveryAmount);
+
+        if (remainingRecovery.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        List<GovernmentPenaltyLedger> ledgers = governmentPenaltyLedgerRepository
+                .findByPumpProfileIdOrderByCreatedAtDesc(pumpId)
+                .stream()
+                .filter(this::isRecoverableLedger)
+                .sorted(Comparator.comparing(
+                        GovernmentPenaltyLedger::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ))
+                .toList();
+
+        for (GovernmentPenaltyLedger ledger : ledgers) {
+            if (remainingRecovery.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+
+            BigDecimal outstanding = safeMoney(ledger.getOutstandingAmount());
+
+            if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            BigDecimal recoveryForThisLedger = remainingRecovery.min(outstanding).setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal newPaidAmount = safeMoney(ledger.getPaidAmount())
+                    .add(recoveryForThisLedger)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal newOutstanding = outstanding
+                    .subtract(recoveryForThisLedger)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            if (newOutstanding.compareTo(BigDecimal.ZERO) < 0) {
+                newOutstanding = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+
+            ledger.setPaidAmount(newPaidAmount);
+            ledger.setOutstandingAmount(newOutstanding);
+            ledger.setOperationAllowed(true);
+
+            if (newOutstanding.compareTo(BigDecimal.ZERO) <= 0) {
+                ledger.setStatus(GovernmentPenaltyStatus.PAID);
+                ledger.setPaidAt(LocalDateTime.now());
+            } else {
+                ledger.setStatus(GovernmentPenaltyStatus.DEBT_RECOVERY);
+            }
+
+            remainingRecovery = remainingRecovery
+                    .subtract(recoveryForThisLedger)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            governmentPenaltyLedgerRepository.save(ledger);
+        }
     }
 
     private PaymentSummaryResponse buildSummary(List<PaymentRecord> records) {
@@ -320,5 +474,11 @@ public class PaymentRecordService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private record PaymentSplit(
+            BigDecimal governmentRecoveryAmount,
+            BigDecimal pumpKeptAmount
+    ) {
     }
 }

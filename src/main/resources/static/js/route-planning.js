@@ -43,7 +43,7 @@ function setupEvents() {
 
 async function loadInitialRouteData() {
     await loadVehicles();
-    await loadSupportedCities();
+    await loadBangladeshDistricts();
 }
 
 async function loadVehicles() {
@@ -73,24 +73,100 @@ async function loadVehicles() {
     }
 }
 
-async function loadSupportedCities() {
+async function loadBangladeshDistricts() {
     try {
-        const response = await fetch("http://localhost:8081/api/routes/supported-cities?time=" + Date.now());
-        const result = await response.json();
+        const response = await fetch("http://localhost:8081/api/bangladesh-districts?time=" + Date.now());
+        const districts = await response.json();
 
-        if (!response.ok) {
-            showMessage(getErrorMessage(result), "error-text");
+        if (!response.ok || !Array.isArray(districts)) {
+            showMessage("Could not load Bangladesh district list.", "error-text");
             renderCityOptions([]);
             return;
         }
 
-        supportedCities = Array.isArray(result) ? result : [];
-        renderCityOptions(supportedCities);
+        supportedCities = districts.map(function (district) {
+            return district.districtName;
+        });
+
+        populateDistrictDropdown("sourceCity", districts);
+        populateDistrictDropdown("destinationCity", districts);
 
     } catch (error) {
-        showMessage("Server connection failed while loading supported cities.", "error-text");
+        showMessage("Server connection failed while loading Bangladesh districts.", "error-text");
         renderCityOptions([]);
     }
+}
+
+function populateDistrictDropdown(selectId, districts) {
+    const select = document.getElementById(selectId);
+
+    if (!select) {
+        return;
+    }
+
+    const currentValue = select.value;
+
+    select.innerHTML = `<option value="">Select district</option>`;
+
+    const divisions = {};
+
+    districts.forEach(function (district) {
+        if (!divisions[district.divisionName]) {
+            divisions[district.divisionName] = [];
+        }
+
+        divisions[district.divisionName].push(district);
+    });
+
+    Object.keys(divisions).sort().forEach(function (divisionName) {
+        const group = document.createElement("optgroup");
+        group.label = divisionName;
+
+        divisions[divisionName]
+            .sort(function (a, b) {
+                return a.districtName.localeCompare(b.districtName);
+            })
+            .forEach(function (district) {
+                const option = document.createElement("option");
+                option.value = district.districtName;
+                option.innerText = district.districtName;
+                group.appendChild(option);
+            });
+
+        select.appendChild(group);
+    });
+
+    if (currentValue) {
+        select.value = currentValue;
+    }
+}
+
+/*
+ * Fallback only. Main loading now uses /api/bangladesh-districts.
+ */
+function renderCityOptions(cities) {
+    const source = document.getElementById("sourceCity");
+    const destination = document.getElementById("destinationCity");
+
+    [source, destination].forEach(function (select) {
+        if (!select) {
+            return;
+        }
+
+        if (!cities.length) {
+            select.innerHTML = `<option value="">No district configured</option>`;
+            return;
+        }
+
+        select.innerHTML = `<option value="">Select district</option>`;
+
+        cities.forEach(function (city) {
+            const option = document.createElement("option");
+            option.value = city;
+            option.innerText = city;
+            select.appendChild(option);
+        });
+    });
 }
 
 function renderVehicleOptions(vehicles) {
@@ -121,31 +197,6 @@ function renderVehicleOptions(vehicles) {
     });
 }
 
-function renderCityOptions(cities) {
-    const source = document.getElementById("sourceCity");
-    const destination = document.getElementById("destinationCity");
-
-    [source, destination].forEach(function (select) {
-        if (!select) {
-            return;
-        }
-
-        if (!cities.length) {
-            select.innerHTML = `<option value="">No city configured</option>`;
-            return;
-        }
-
-        select.innerHTML = `<option value="">Select city</option>`;
-
-        cities.forEach(function (city) {
-            const option = document.createElement("option");
-            option.value = city;
-            option.innerText = city;
-            select.appendChild(option);
-        });
-    });
-}
-
 function fillFuelFromSelectedVehicle() {
     const vehicleId = Number(getValue("routeVehicleId"));
     const vehicle = routeVehicles.find(item => Number(item.id) === vehicleId);
@@ -170,12 +221,12 @@ async function planRoute() {
     }
 
     if (!sourceCity || !destinationCity) {
-        showMessage("Please select source and destination city.", "error-text");
+        showMessage("Please select source and destination district.", "error-text");
         return;
     }
 
     if (sourceCity === destinationCity) {
-        showMessage("Source and destination cannot be the same.", "error-text");
+        showMessage("Source and destination cannot be the same district.", "error-text");
         return;
     }
 
@@ -188,7 +239,7 @@ async function planRoute() {
     };
 
     try {
-        showMessage("Planning route...", "muted-text");
+        showMessage("Planning route with 64-district distance system...", "muted-text");
 
         const response = await fetch("http://localhost:8081/api/routes/plan", {
             method: "POST",
@@ -224,7 +275,16 @@ function renderRoutePlan(plan) {
     setText("routeVehicleName", safeText(plan.vehicleName) + " | " + safeText(plan.numberPlate));
     setText("routeFuelType", safeText(plan.fuelType));
     setText("routeDecision", formatEnum(plan.decision));
-    setText("routeDecisionMessage", safeText(plan.message));
+
+    const fullMessage =
+        safeText(plan.message)
+        + " Route distance: "
+        + formatNumber(plan.routeDistanceKm)
+        + " km. Safety reserve: "
+        + formatNumber(plan.safetyBufferKm)
+        + " km.";
+
+    setText("routeDecisionMessage", fullMessage);
 
     showElement("routeDecisionSection");
     showElement("suggestedPumpSection");

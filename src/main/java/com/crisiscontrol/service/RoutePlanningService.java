@@ -1,5 +1,6 @@
 package com.crisiscontrol.service;
 
+import com.crisiscontrol.dto.DistrictOptionResponse;
 import com.crisiscontrol.dto.RoutePlanRequest;
 import com.crisiscontrol.dto.RoutePlanResponse;
 import com.crisiscontrol.dto.RoutePumpSuggestionResponse;
@@ -7,30 +8,39 @@ import com.crisiscontrol.entity.FuelType;
 import com.crisiscontrol.entity.PumpFuelStock;
 import com.crisiscontrol.entity.PumpProfile;
 import com.crisiscontrol.entity.PumpStatus;
+import com.crisiscontrol.entity.RouteFuelToken;
+import com.crisiscontrol.entity.RouteFuelTokenStatus;
 import com.crisiscontrol.entity.Vehicle;
 import com.crisiscontrol.repository.PumpFuelStockRepository;
 import com.crisiscontrol.repository.PumpProfileRepository;
+import com.crisiscontrol.repository.RouteFuelTokenRepository;
 import com.crisiscontrol.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class RoutePlanningService {
 
-    private static final BigDecimal SAFETY_BUFFER_KM = BigDecimal.valueOf(20.00);
+    /*
+     * 50 km reserve means the system does not wait until the vehicle is almost empty.
+     * This is better for crisis fuel planning because fuel may not be available everywhere.
+     */
+    private static final BigDecimal SAFETY_BUFFER_KM = BigDecimal.valueOf(50.00);
 
     private final VehicleRepository vehicleRepository;
     private final PumpProfileRepository pumpProfileRepository;
     private final PumpFuelStockRepository pumpFuelStockRepository;
+    private final RouteFuelTokenRepository routeFuelTokenRepository;
+    private final RouteDistanceService routeDistanceService;
+    private final BangladeshDistrictService bangladeshDistrictService;
 
     public RoutePlanResponse planRoute(RoutePlanRequest request) {
         validateRequest(request);
@@ -46,8 +56,13 @@ public class RoutePlanningService {
             throw new RuntimeException("This vehicle does not belong to the logged-in user");
         }
 
-        BigDecimal distanceKm = resolveDistance(request.getSourceCity(), request.getDestinationCity());
-        BigDecimal totalPlannedDistance = distanceKm.add(SAFETY_BUFFER_KM).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal distanceKm = routeDistanceService.getEstimatedRoadDistanceKm(
+                request.getSourceCity(),
+                request.getDestinationCity()
+        );
+
+        BigDecimal totalPlannedDistance = distanceKm.add(SAFETY_BUFFER_KM)
+                .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal mileage = safePositive(vehicle.getCompanyMileage(), "Vehicle mileage is missing or invalid");
 
@@ -55,9 +70,16 @@ public class RoutePlanningService {
                 ? safeMoney(vehicle.getCurrentFuelLiter())
                 : safeMoney(request.getCurrentFuelLiter());
 
-        BigDecimal currentRange = currentFuel.multiply(mileage).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal currentRange = currentFuel.multiply(mileage)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        /*
+         * Required fuel includes full route distance + 50 km reserve.
+         */
         BigDecimal requiredFuel = totalPlannedDistance.divide(mileage, 2, RoundingMode.CEILING);
-        BigDecimal shortage = requiredFuel.subtract(currentFuel).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal shortage = requiredFuel.subtract(currentFuel)
+                .setScale(2, RoundingMode.HALF_UP);
 
         if (shortage.compareTo(BigDecimal.ZERO) < 0) {
             shortage = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -66,20 +88,22 @@ public class RoutePlanningService {
         boolean canCompleteTrip = shortage.compareTo(BigDecimal.ZERO) <= 0;
 
         String decision = canCompleteTrip ? "ENOUGH_FUEL" : "REFUEL_RECOMMENDED";
+
         String message = canCompleteTrip
-                ? "Your current fuel is enough for this route with a 20 km safety buffer."
-                : "Your current fuel may not be enough. Suggested pumps are listed below.";
+                ? "Your current fuel is enough for this route with a 50 km safety reserve."
+                : "Your current fuel is not enough with the 50 km safety reserve. Suggested pumps are listed below.";
 
         List<RoutePumpSuggestionResponse> suggestions = suggestPumps(
                 vehicle.getFuelType(),
                 request.getSourceCity(),
                 request.getDestinationCity(),
-                shortage
+                shortage,
+                canCompleteTrip
         );
 
         return RoutePlanResponse.builder()
-                .sourceCity(normalizeDisplayName(request.getSourceCity()))
-                .destinationCity(normalizeDisplayName(request.getDestinationCity()))
+                .sourceCity(bangladeshDistrictService.normalizeDisplayName(request.getSourceCity()))
+                .destinationCity(bangladeshDistrictService.normalizeDisplayName(request.getDestinationCity()))
                 .routeDistanceKm(distanceKm)
                 .safetyBufferKm(SAFETY_BUFFER_KM)
                 .totalPlannedDistanceKm(totalPlannedDistance)
@@ -100,9 +124,9 @@ public class RoutePlanningService {
     }
 
     public List<String> getSupportedCities() {
-        return cityDistances().keySet()
+        return bangladeshDistrictService.getAllDistricts()
                 .stream()
-                .map(this::normalizeDisplayName)
+                .map(DistrictOptionResponse::getDistrictName)
                 .sorted()
                 .toList();
     }
@@ -111,7 +135,8 @@ public class RoutePlanningService {
             FuelType fuelType,
             String sourceCity,
             String destinationCity,
-            BigDecimal shortageFuelLiter
+            BigDecimal shortageFuelLiter,
+            boolean canCompleteTrip
     ) {
         List<PumpProfile> pumps = pumpProfileRepository.findAllByOrderByUpdatedAtDesc();
         List<RoutePumpSuggestionResponse> suggestions = new ArrayList<>();
@@ -136,13 +161,22 @@ public class RoutePlanningService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add)
                     .setScale(2, RoundingMode.HALF_UP);
 
-            if (matchingStock.compareTo(BigDecimal.ZERO) <= 0) {
+            BigDecimal activeReserved = getActiveReservedStock(pump.getId(), fuelType);
+
+            BigDecimal usableMatchingStock = matchingStock.subtract(activeReserved)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            if (usableMatchingStock.compareTo(BigDecimal.ZERO) < 0) {
+                usableMatchingStock = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+
+            if (usableMatchingStock.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
 
             String routeMatchNote = resolveRouteMatchNote(pump, sourceCity, destinationCity);
-            String recommendationLevel = resolveRecommendationLevel(matchingStock, shortageFuelLiter, routeMatchNote);
-            String reason = buildRecommendationReason(fuelType, matchingStock, shortageFuelLiter, routeMatchNote);
+            String recommendationLevel = resolveRecommendationLevel(usableMatchingStock, shortageFuelLiter, routeMatchNote, canCompleteTrip);
+            String reason = buildRecommendationReason(fuelType, usableMatchingStock, shortageFuelLiter, routeMatchNote, canCompleteTrip);
 
             suggestions.add(RoutePumpSuggestionResponse.builder()
                     .pumpId(pump.getId())
@@ -156,7 +190,7 @@ public class RoutePlanningService {
                     .openingTime(pump.getOpeningTime())
                     .closingTime(pump.getClosingTime())
                     .totalCurrentStock(totalStock)
-                    .matchingFuelStock(matchingStock)
+                    .matchingFuelStock(usableMatchingStock)
                     .recommendationLevel(recommendationLevel)
                     .recommendationReason(reason)
                     .routeMatchNote(routeMatchNote)
@@ -171,15 +205,32 @@ public class RoutePlanningService {
                 .toList();
     }
 
+    private BigDecimal getActiveReservedStock(Long pumpId, FuelType fuelType) {
+        return routeFuelTokenRepository
+                .findByPumpProfileIdAndFuelTypeAndStatusOrderByCreatedAtDesc(
+                        pumpId,
+                        fuelType,
+                        RouteFuelTokenStatus.ACTIVE
+                )
+                .stream()
+                .filter(token -> token.getValidUntil() != null)
+                .filter(token -> token.getValidUntil().isAfter(LocalDateTime.now()))
+                .map(RouteFuelToken::getReservedLiter)
+                .filter(value -> value != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
     private int routePriority(RoutePumpSuggestionResponse response) {
         if (response == null || response.getRecommendationLevel() == null) {
             return 0;
         }
 
         return switch (response.getRecommendationLevel()) {
-            case "BEST" -> 3;
-            case "GOOD" -> 2;
-            case "AVAILABLE" -> 1;
+            case "BEST" -> 4;
+            case "GOOD" -> 3;
+            case "AVAILABLE" -> 2;
+            case "OPTIONAL" -> 1;
             default -> 0;
         };
     }
@@ -193,8 +244,17 @@ public class RoutePlanningService {
                 || pump.getPumpStatus() == PumpStatus.OPEN_WITH_DEBT;
     }
 
-    private String resolveRecommendationLevel(BigDecimal matchingStock, BigDecimal shortageFuelLiter, String routeMatchNote) {
+    private String resolveRecommendationLevel(
+            BigDecimal matchingStock,
+            BigDecimal shortageFuelLiter,
+            String routeMatchNote,
+            boolean canCompleteTrip
+    ) {
         BigDecimal shortage = safeMoney(shortageFuelLiter);
+
+        if (canCompleteTrip) {
+            return "OPTIONAL";
+        }
 
         if (!"General available pump".equals(routeMatchNote) && matchingStock.compareTo(shortage) >= 0) {
             return "BEST";
@@ -211,141 +271,104 @@ public class RoutePlanningService {
             FuelType fuelType,
             BigDecimal matchingStock,
             BigDecimal shortageFuelLiter,
-            String routeMatchNote
+            String routeMatchNote,
+            boolean canCompleteTrip
     ) {
         BigDecimal shortage = safeMoney(shortageFuelLiter);
 
-        if (shortage.compareTo(BigDecimal.ZERO) <= 0) {
-            return "This pump has " + matchingStock + " L " + fuelType + " available if you still want to refuel.";
+        if (canCompleteTrip) {
+            return "Your route is possible, but this pump has "
+                    + matchingStock
+                    + " L usable "
+                    + fuelType
+                    + " if you want extra preparation.";
         }
 
         if (matchingStock.compareTo(shortage) >= 0) {
-            return "This pump has enough " + fuelType + " stock for your estimated shortage of " + shortage + " L.";
+            return "This pump has enough usable "
+                    + fuelType
+                    + " stock for your estimated shortage of "
+                    + shortage
+                    + " L.";
         }
 
-        return "This pump has " + matchingStock + " L " + fuelType + ", which may partially support your route shortage of " + shortage + " L.";
+        return "This pump has "
+                + matchingStock
+                + " L usable "
+                + fuelType
+                + ", which may partially support your shortage of "
+                + shortage
+                + " L.";
     }
 
     private String resolveRouteMatchNote(PumpProfile pump, String sourceCity, String destinationCity) {
-        String address = normalizeKey(pump.getPumpAddress());
-        String source = normalizeKey(sourceCity);
-        String destination = normalizeKey(destinationCity);
+        String address = normalizeArea(pump.getPumpAddress());
+        String source = normalizeArea(sourceCity);
+        String destination = normalizeArea(destinationCity);
 
         if (!address.isBlank() && address.contains(source)) {
-            return "Near source city";
+            return "Near source district";
         }
 
         if (!address.isBlank() && address.contains(destination)) {
-            return "Near destination city";
+            return "Near destination district";
         }
 
-        List<String> corridorCities = corridorCities(sourceCity, destinationCity);
+        List<String> corridorDistricts = corridorDistricts(sourceCity, destinationCity);
 
-        for (String city : corridorCities) {
-            if (!address.isBlank() && address.contains(normalizeKey(city))) {
-                return "Possible route corridor: " + normalizeDisplayName(city);
+        for (String district : corridorDistricts) {
+            if (!address.isBlank() && address.contains(normalizeArea(district))) {
+                return "Possible route corridor: " + bangladeshDistrictService.normalizeDisplayName(district);
             }
         }
 
         return "General available pump";
     }
 
-    private BigDecimal resolveDistance(String sourceCity, String destinationCity) {
-        String source = normalizeKey(sourceCity);
-        String destination = normalizeKey(destinationCity);
-
-        if (source.equals(destination)) {
-            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        }
-
-        Map<String, BigDecimal> sourceMap = cityDistances().get(source);
-
-        if (sourceMap != null && sourceMap.containsKey(destination)) {
-            return sourceMap.get(destination).setScale(2, RoundingMode.HALF_UP);
-        }
-
-        Map<String, BigDecimal> destinationMap = cityDistances().get(destination);
-
-        if (destinationMap != null && destinationMap.containsKey(source)) {
-            return destinationMap.get(source).setScale(2, RoundingMode.HALF_UP);
-        }
-
-        throw new RuntimeException("Route distance is not configured for "
-                + normalizeDisplayName(sourceCity)
-                + " to "
-                + normalizeDisplayName(destinationCity)
-                + ". Please choose a supported route.");
-    }
-
-    private Map<String, Map<String, BigDecimal>> cityDistances() {
-        Map<String, Map<String, BigDecimal>> map = new LinkedHashMap<>();
-
-        addDistance(map, "Dhaka", "Gazipur", 40);
-        addDistance(map, "Dhaka", "Narayanganj", 25);
-        addDistance(map, "Dhaka", "Mymensingh", 115);
-        addDistance(map, "Dhaka", "Comilla", 100);
-        addDistance(map, "Dhaka", "Chittagong", 250);
-        addDistance(map, "Dhaka", "Sylhet", 240);
-        addDistance(map, "Dhaka", "Rajshahi", 245);
-        addDistance(map, "Dhaka", "Khulna", 270);
-        addDistance(map, "Dhaka", "Barishal", 180);
-        addDistance(map, "Dhaka", "Rangpur", 300);
-        addDistance(map, "Dhaka", "Cox's Bazar", 390);
-        addDistance(map, "Dhaka", "Tangail", 95);
-        addDistance(map, "Dhaka", "Faridpur", 115);
-        addDistance(map, "Dhaka", "Jessore", 210);
-
-        addDistance(map, "Chittagong", "Cox's Bazar", 150);
-        addDistance(map, "Chittagong", "Comilla", 150);
-        addDistance(map, "Sylhet", "Mymensingh", 270);
-        addDistance(map, "Rajshahi", "Rangpur", 210);
-        addDistance(map, "Khulna", "Jessore", 60);
-        addDistance(map, "Barishal", "Faridpur", 120);
-
-        return map;
-    }
-
-    private void addDistance(Map<String, Map<String, BigDecimal>> map, String source, String destination, int km) {
-        String sourceKey = normalizeKey(source);
-        String destinationKey = normalizeKey(destination);
-
-        map.computeIfAbsent(sourceKey, key -> new LinkedHashMap<>())
-                .put(destinationKey, BigDecimal.valueOf(km));
-
-        map.computeIfAbsent(destinationKey, key -> new LinkedHashMap<>())
-                .put(sourceKey, BigDecimal.valueOf(km));
-    }
-
-    private List<String> corridorCities(String sourceCity, String destinationCity) {
-        String source = normalizeKey(sourceCity);
-        String destination = normalizeKey(destinationCity);
+    private List<String> corridorDistricts(String sourceCity, String destinationCity) {
+        String source = normalizeArea(sourceCity);
+        String destination = normalizeArea(destinationCity);
 
         if (source.equals("dhaka") || destination.equals("dhaka")) {
             String other = source.equals("dhaka") ? destination : source;
 
-            if (other.equals("chittagong") || other.equals("coxsbazar") || other.equals("comilla")) {
-                return List.of("Narayanganj", "Comilla", "Feni", "Chittagong");
+            if (other.equals("chattogram") || other.equals("coxsbazar") || other.equals("cumilla")) {
+                return List.of("Narayanganj", "Cumilla", "Feni", "Chattogram");
             }
 
             if (other.equals("sylhet")) {
-                return List.of("Narayanganj", "Bhairab", "Habiganj", "Sylhet");
+                return List.of("Narayanganj", "Brahmanbaria", "Habiganj", "Sylhet");
             }
 
             if (other.equals("rajshahi") || other.equals("rangpur")) {
                 return List.of("Gazipur", "Tangail", "Sirajganj", "Rajshahi", "Rangpur");
             }
 
-            if (other.equals("khulna") || other.equals("jessore")) {
-                return List.of("Faridpur", "Magura", "Jessore", "Khulna");
+            if (other.equals("khulna") || other.equals("jashore")) {
+                return List.of("Faridpur", "Magura", "Jashore", "Khulna");
             }
 
             if (other.equals("barishal")) {
-                return List.of("Mawa", "Faridpur", "Barishal");
+                return List.of("Munshiganj", "Faridpur", "Barishal");
             }
 
             if (other.equals("mymensingh")) {
                 return List.of("Gazipur", "Mymensingh");
             }
+
+            if (other.equals("faridpur")) {
+                return List.of("Munshiganj", "Faridpur");
+            }
+        }
+
+        if ((source.equals("coxsbazar") && destination.equals("rangpur"))
+                || (source.equals("rangpur") && destination.equals("coxsbazar"))) {
+            return List.of("Cox's Bazar", "Chattogram", "Cumilla", "Dhaka", "Tangail", "Sirajganj", "Bogura", "Rangpur");
+        }
+
+        if ((source.equals("faridpur") && destination.equals("coxsbazar"))
+                || (source.equals("coxsbazar") && destination.equals("faridpur"))) {
+            return List.of("Faridpur", "Dhaka", "Cumilla", "Feni", "Chattogram", "Cox's Bazar");
         }
 
         return List.of();
@@ -361,15 +384,23 @@ public class RoutePlanningService {
         }
 
         if (isBlank(request.getSourceCity())) {
-            throw new RuntimeException("Source city is required");
+            throw new RuntimeException("Source district is required");
         }
 
         if (isBlank(request.getDestinationCity())) {
-            throw new RuntimeException("Destination city is required");
+            throw new RuntimeException("Destination district is required");
         }
 
-        if (normalizeKey(request.getSourceCity()).equals(normalizeKey(request.getDestinationCity()))) {
-            throw new RuntimeException("Source and destination cannot be the same");
+        if (normalizeArea(request.getSourceCity()).equals(normalizeArea(request.getDestinationCity()))) {
+            throw new RuntimeException("Source and destination cannot be the same district");
+        }
+
+        if (!bangladeshDistrictService.districtExists(request.getSourceCity())) {
+            throw new RuntimeException("Source district is not supported: " + request.getSourceCity());
+        }
+
+        if (!bangladeshDistrictService.districtExists(request.getDestinationCity())) {
+            throw new RuntimeException("Destination district is not supported: " + request.getDestinationCity());
         }
 
         if (request.getCurrentFuelLiter() != null && request.getCurrentFuelLiter().compareTo(BigDecimal.ZERO) < 0) {
@@ -397,50 +428,19 @@ public class RoutePlanningService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String normalizeKey(String value) {
+    private String normalizeArea(String value) {
         if (value == null) {
             return "";
         }
 
         return value.trim()
+                .toLowerCase()
+                .replace("’", "'")
+                .replace("`", "'")
                 .replace("'", "")
-                .replace("’", "")
+                .replace(".", "")
                 .replace("-", "")
                 .replace("_", "")
-                .replaceAll("\\s+", "")
-                .toLowerCase();
-    }
-
-    private String normalizeDisplayName(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return "-";
-        }
-
-        String trimmed = value.trim();
-
-        if (normalizeKey(trimmed).equals("coxsbazar")) {
-            return "Cox's Bazar";
-        }
-
-        String[] words = trimmed.replace("_", " ").split("\\s+");
-        StringBuilder result = new StringBuilder();
-
-        for (String word : words) {
-            if (word.isBlank()) {
-                continue;
-            }
-
-            if (!result.isEmpty()) {
-                result.append(" ");
-            }
-
-            result.append(word.substring(0, 1).toUpperCase());
-
-            if (word.length() > 1) {
-                result.append(word.substring(1).toLowerCase());
-            }
-        }
-
-        return result.toString();
+                .replaceAll("\\s+", "");
     }
 }

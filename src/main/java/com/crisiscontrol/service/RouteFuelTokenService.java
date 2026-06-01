@@ -29,10 +29,20 @@ public class RouteFuelTokenService {
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
     private final PaymentRecordService paymentRecordService;
+    private final RouteDistanceService routeDistanceService;
 
     @Transactional
     public RouteFuelTokenResponse createRouteFuelToken(RouteFuelTokenCreateRequest request) {
         validateCreateRequest(request);
+
+        /*
+         * This validates that the route is supported by the new Bangladesh 64-district route module.
+         * It also prevents the old issue: "Route distance is not configured..."
+         */
+        routeDistanceService.getEstimatedRoadDistanceKm(
+                request.getSourceCity(),
+                request.getDestinationCity()
+        );
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -207,11 +217,6 @@ public class RouteFuelTokenService {
         );
         pumpFuelStockRepository.save(matchingStock);
 
-        /*
-         * Route fuel token collection must also update the vehicle.
-         * Otherwise vehicle-owner-dashboard.html still shows old fuel,
-         * old odometer, old last updated time.
-         */
         Vehicle vehicle = token.getVehicle();
 
         BigDecimal oldVehicleFuel = safeMoney(vehicle.getCurrentFuelLiter());
@@ -237,6 +242,10 @@ public class RouteFuelTokenService {
 
         RouteFuelToken savedToken = routeFuelTokenRepository.save(token);
 
+        /*
+         * PaymentRecordService handles the payment ledger.
+         * If pump is OPEN_WITH_DEBT, PaymentRecordService must send payment to government recovery.
+         */
         paymentRecordService.recordRouteFuelTokenPayment(savedToken);
 
         User pumpUser = pump.getUser();
@@ -330,7 +339,13 @@ public class RouteFuelTokenService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        return currentStock.subtract(activeReserved).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal available = currentStock.subtract(activeReserved).setScale(2, RoundingMode.HALF_UP);
+
+        if (available.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return available;
     }
 
     private void validateCreateRequest(RouteFuelTokenCreateRequest request) {
@@ -356,6 +371,10 @@ public class RouteFuelTokenService {
 
         if (isBlank(request.getDestinationCity())) {
             throw new RuntimeException("Destination city is required");
+        }
+
+        if (clean(request.getSourceCity()).equalsIgnoreCase(clean(request.getDestinationCity()))) {
+            throw new RuntimeException("Source and destination cannot be the same district");
         }
 
         if (request.getReservedLiter() == null || request.getReservedLiter().compareTo(BigDecimal.ZERO) <= 0) {
