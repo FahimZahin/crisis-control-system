@@ -108,37 +108,137 @@ function setupInactiveAccountBox() {
 }
 
 function setupProfileSave() {
-    document.getElementById("saveProfileBtn").addEventListener("click", function () {
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+
+    if (!saveProfileBtn) {
+        return;
+    }
+
+    saveProfileBtn.addEventListener("click", async function () {
         if (loggedInUser.status === "INACTIVE") {
             showMessage("profileMessage", "Your account is deactivated. Apply for activation first.", "error-text");
             return;
         }
 
-        loggedInUser.fullName = document.getElementById("profileFullName").value;
-        loggedInUser.phoneNumber = document.getElementById("profilePhoneNumber").value;
-        loggedInUser.address = document.getElementById("profileAddress").value;
+        const userId = getLoggedInUserId();
+
+        if (!userId) {
+            showMessage("profileMessage", "User ID not found. Please login again.", "error-text");
+            return;
+        }
+
+        const fullName = document.getElementById("profileFullName").value.trim();
+        const phoneNumber = document.getElementById("profilePhoneNumber").value.trim();
+        const address = document.getElementById("profileAddress").value.trim();
 
         const role = loggedInUser.role || localStorage.getItem("role") || "";
+
+        let thanaOrUpazila = "";
 
         if (
             role === "PUMP_AUTHORITY" ||
             role === "BUILDING_MANAGER" ||
             role === "HOSPITAL_AUTHORITY"
         ) {
-            const resolvedThana = document.getElementById("buildingUnderThana").value;
+            const thanaInput = document.getElementById("buildingUnderThana");
 
-            if (resolvedThana) {
-                loggedInUser.thanaOrUpazila = resolvedThana;
+            if (thanaInput) {
+                thanaOrUpazila = thanaInput.value.trim();
             }
         }
 
-        localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
-        localStorage.setItem("fullName", loggedInUser.fullName);
-        localStorage.setItem("phoneNumber", loggedInUser.phoneNumber);
-        localStorage.setItem("address", loggedInUser.address);
-        localStorage.setItem("thanaOrUpazila", loggedInUser.thanaOrUpazila || "");
+        if (!fullName) {
+            showMessage("profileMessage", "Full name is required.", "error-text");
+            return;
+        }
 
-        showMessage("profileMessage", "Profile preview updated successfully.", "success-text");
+        if (!phoneNumber.match(/^[0-9]{11}$/)) {
+            showMessage("profileMessage", "Phone number must be exactly 11 digits.", "error-text");
+            return;
+        }
+
+        const data = {
+            fullName: fullName,
+            phoneNumber: phoneNumber,
+            address: address,
+            thanaOrUpazila: thanaOrUpazila
+        };
+
+        try {
+            showMessage("profileMessage", "Saving profile to database...", "muted-text");
+
+            const response = await fetch("http://localhost:8081/api/users/" + userId + "/profile", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            let result = {};
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = {};
+            }
+
+            if (!response.ok) {
+                showMessage(
+                    "profileMessage",
+                    result.message || result.error || "Profile update failed.",
+                    "error-text"
+                );
+                return;
+            }
+
+            loggedInUser.fullName = result.fullName || fullName;
+            loggedInUser.phoneNumber = result.phoneNumber || phoneNumber;
+            loggedInUser.address = result.address || address;
+            loggedInUser.status = result.status || loggedInUser.status;
+            loggedInUser.role = result.role || loggedInUser.role;
+
+            if (result.thanaOrUpazila) {
+                loggedInUser.thanaOrUpazila = result.thanaOrUpazila;
+            }
+
+            if (result.buildingUnderThana) {
+                loggedInUser.buildingUnderThana = result.buildingUnderThana;
+            }
+
+            if (result.hospitalUnderThana) {
+                loggedInUser.hospitalUnderThana = result.hospitalUnderThana;
+            }
+
+            if (result.serviceArea) {
+                loggedInUser.serviceArea = result.serviceArea;
+            }
+
+            if (result.assignedArea) {
+                loggedInUser.assignedArea = result.assignedArea;
+            }
+
+            if (result.district) {
+                loggedInUser.district = result.district;
+            }
+
+            localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+            localStorage.setItem("fullName", loggedInUser.fullName || "");
+            localStorage.setItem("phoneNumber", loggedInUser.phoneNumber || "");
+            localStorage.setItem("address", loggedInUser.address || "");
+            localStorage.setItem("status", loggedInUser.status || "");
+            localStorage.setItem("role", loggedInUser.role || "");
+            localStorage.setItem("thanaOrUpazila", loggedInUser.thanaOrUpazila || "");
+
+            showMessage(
+                "profileMessage",
+                result.message || "Profile updated successfully in database.",
+                "success-text"
+            );
+
+        } catch (error) {
+            showMessage("profileMessage", "Server connection failed while updating profile.", "error-text");
+        }
     });
 }
 

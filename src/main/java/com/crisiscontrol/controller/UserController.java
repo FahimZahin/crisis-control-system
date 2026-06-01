@@ -1,7 +1,9 @@
 package com.crisiscontrol.controller;
 
+import com.crisiscontrol.dto.ProfileUpdateRequest;
 import com.crisiscontrol.entity.Role;
 import com.crisiscontrol.entity.User;
+import com.crisiscontrol.entity.UserStatus;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.service.UserDeleteService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,50 @@ public class UserController {
 
     private final UserDeleteService userDeleteService;
     private final UserRepository userRepository;
+
+    @PutMapping("/api/users/{userId}/profile")
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            @PathVariable Long userId,
+            @RequestBody ProfileUpdateRequest request
+    ) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("Your account is inactive. Please request activation first.");
+        }
+
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("Your account is blocked.");
+        }
+
+        validateProfileUpdate(request, user);
+
+        user.setFullName(request.getFullName().trim());
+        user.setPhoneNumber(request.getPhoneNumber().trim());
+        user.setAddress(emptyToNull(request.getAddress()));
+
+        updateAllowedThanaField(user, request.getThanaOrUpazila());
+
+        User savedUser = userRepository.save(user);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("message", "Profile updated successfully in database.");
+        response.put("userId", savedUser.getId());
+        response.put("fullName", savedUser.getFullName());
+        response.put("phoneNumber", savedUser.getPhoneNumber());
+        response.put("address", savedUser.getAddress());
+        response.put("role", savedUser.getRole());
+        response.put("status", savedUser.getStatus());
+        response.put("thanaOrUpazila", resolveUserThana(savedUser));
+        response.put("buildingUnderThana", savedUser.getBuildingUnderThana());
+        response.put("hospitalUnderThana", savedUser.getHospitalUnderThana());
+        response.put("serviceArea", savedUser.getServiceArea());
+        response.put("assignedArea", savedUser.getAssignedArea());
+        response.put("district", savedUser.getDistrict());
+
+        return ResponseEntity.ok(response);
+    }
 
     @DeleteMapping("/api/users/{userId}")
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long userId) {
@@ -88,6 +134,108 @@ public class UserController {
         response.put("message", "Building weekly diesel allocation updated successfully");
 
         return ResponseEntity.ok(response);
+    }
+
+    private void validateProfileUpdate(ProfileUpdateRequest request, User user) {
+        if (request == null) {
+            throw new RuntimeException("Profile update request is required");
+        }
+
+        if (isBlank(request.getFullName())) {
+            throw new RuntimeException("Full name is required");
+        }
+
+        if (request.getFullName().trim().length() < 2) {
+            throw new RuntimeException("Full name must be at least 2 characters");
+        }
+
+        if (isBlank(request.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        if (!request.getPhoneNumber().trim().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Phone number must be exactly 11 digits");
+        }
+
+        userRepository.findByPhoneNumber(request.getPhoneNumber().trim())
+                .ifPresent(existingUser -> {
+                    if (!existingUser.getId().equals(user.getId())) {
+                        throw new RuntimeException("Phone number already registered by another user");
+                    }
+                });
+
+        if (requiresEditableThana(user.getRole()) && isBlank(request.getThanaOrUpazila())) {
+            throw new RuntimeException("Thana / Upazila is required for this role");
+        }
+    }
+
+    private void updateAllowedThanaField(User user, String thanaValue) {
+        if (!requiresEditableThana(user.getRole())) {
+            return;
+        }
+
+        String cleanedThana = cleanArea(thanaValue);
+
+        user.setThanaOrUpazila(cleanedThana);
+
+        if (user.getRole() == Role.BUILDING_MANAGER) {
+            user.setBuildingUnderThana(cleanedThana);
+        }
+
+        if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            user.setHospitalUnderThana(cleanedThana);
+        }
+    }
+
+    private boolean requiresEditableThana(Role role) {
+        return role == Role.PUMP_AUTHORITY
+                || role == Role.BUILDING_MANAGER
+                || role == Role.HOSPITAL_AUTHORITY;
+    }
+
+    private String resolveUserThana(User user) {
+        return firstNonBlank(
+                user.getThanaOrUpazila(),
+                user.getBuildingUnderThana(),
+                user.getHospitalUnderThana(),
+                user.getServiceArea(),
+                user.getAssignedArea(),
+                user.getDistrict()
+        );
+    }
+
+    private String cleanArea(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        String normalized = trimmed
+                .replace("-", "")
+                .replace("_", "")
+                .replaceAll("\\s+", "")
+                .toLowerCase();
+
+        if (normalized.equals("gulsan") || normalized.equals("gulshan")) {
+            return "Gulshan";
+        }
+
+        if (normalized.equals("basabo")
+                || normalized.equals("bashabo")
+                || normalized.equals("southbasabo")
+                || normalized.equals("northbasabo")
+                || normalized.equals("sabujbag")
+                || normalized.equals("sabujbagh")) {
+            return "Sabujbagh";
+        }
+
+        if (normalized.equals("sherebanglanagar")
+                || normalized.equals("sherebangla")
+                || normalized.equals("sherabanglanagar")) {
+            return "Sher-e-Bangla Nagar";
+        }
+
+        return trimmed;
     }
 
     private Map<String, Object> mapBuildingAllocation(User user) {
@@ -187,5 +335,34 @@ public class UserController {
         } catch (NumberFormatException exception) {
             throw new RuntimeException("Weekly allocation must be a valid number");
         }
+    }
+
+    private String emptyToNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (
+                    value != null
+                            && !value.trim().isEmpty()
+                            && !value.trim().equals("-")
+                            && !value.trim().equalsIgnoreCase("Not Provided")
+                            && !value.trim().equalsIgnoreCase("null")
+                            && !value.trim().equalsIgnoreCase("undefined")
+            ) {
+                return value.trim();
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
