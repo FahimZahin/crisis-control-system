@@ -91,6 +91,18 @@
             "LOCAL_AUTHORITY"
         ],
 
+        "ai-crisis-assistant.html": [
+            "ADMIN",
+            "VEHICLE_OWNER",
+            "PUMP_AUTHORITY",
+            "EMERGENCY_VEHICLE_AUTHORITY",
+            "UTILITY_AUTHORITY",
+            "HOSPITAL_AUTHORITY",
+            "BUILDING_MANAGER",
+            "GOVERNMENT_AUTHORITY",
+            "LOCAL_AUTHORITY"
+        ],
+
         "emergency-vehicle-dashboard.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-vehicle-setup.html": ["EMERGENCY_VEHICLE_AUTHORITY"],
         "emergency-fuel-request.html": ["EMERGENCY_VEHICLE_AUTHORITY"],

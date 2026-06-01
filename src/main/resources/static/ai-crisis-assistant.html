@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Crisis Assistant | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="chat.html">Direct Chat</a>
+        <a href="common-community-chat.html">Common Community</a>
+        <a href="local-community-chat.html">Local Community</a>
+        <a href="notifications.html" class="navbar-notification-link">
+            🔔
+            <span id="navbarNotificationBadge" class="navbar-notification-badge" style="display:none;">0</span>
+        </a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>AI Crisis Assistant</h1>
+            <p>Ask about fuel availability, open pumps, route tokens, fuel requests, and local power outage notices.</p>
+        </div>
+        <span class="role-badge">SMART BOT</span>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Crisis Assistant Chat</h2>
+                <p class="muted-text">This assistant uses rule-based intent detection and live database analysis.</p>
+            </div>
+            <button class="btn secondary small-btn" id="clearAssistantChatBtn">Clear</button>
+        </div>
+
+        <p id="assistantStatusMessage"></p>
+
+        <div class="assistant-suggested-box">
+            <h3>Common askable questions</h3>
+            <div id="assistantSuggestedQuestions" class="assistant-question-chip-grid">
+                <button type="button" class="assistant-question-chip">Available Octane near me?</button>
+                <button type="button" class="assistant-question-chip">Which pump has petrol?</button>
+                <button type="button" class="assistant-question-chip">Is there loadshedding in my area?</button>
+                <button type="button" class="assistant-question-chip">My route token status?</button>
+            </div>
+        </div>
+
+        <div id="assistantChatThread" class="assistant-chat-thread">
+            <div class="assistant-message assistant-bot-message">
+                <strong>AI Crisis Assistant</strong>
+                <p>Hello! Ask me about nearby fuel, open pumps, local outage notices, fuel request status, or route token status.</p>
+            </div>
+        </div>
+
+        <form id="assistantAskForm" class="chat-send-box assistant-send-box">
+            <input type="text" id="assistantQuestionInput" placeholder="Ask something like: Available Octane near me?" maxlength="1000">
+            <button type="submit" class="btn primary">Ask</button>
+        </form>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/ai-crisis-assistant.js"></script>
+<script src="js/scroll-buttons.js"></script>
+<script src="js/floating-chat.js"></script>
+<script src="js/navbar-notifications.js"></script>
+
+</body>
+</html>

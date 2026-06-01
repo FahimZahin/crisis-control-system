@@ -92,13 +92,13 @@
                      </div>
                 </a>
 
-                <button type="button" class="floating-chat-option disabled-floating-chat-option" id="aiAssistantPreviewBtn">
-                    <div class="floating-chat-option-icon">🤖</div>
-                    <div>
-                        <h4>AI Crisis Assistant</h4>
-                        <p>Ask about fuel availability, outage notices and route tokens. Coming in Priority 20E.</p>
-                    </div>
-                </button>
+                <a href="ai-crisis-assistant.html" class="floating-chat-option">
+                   <div class="floating-chat-option-icon">🤖</div>
+                        <div>
+                              <h4>AI Crisis Assistant</h4>
+                              <p>Ask about fuel availability, outage notices, route tokens, and fuel request status.</p>
+                        </div>
+                </a>
             </div>
 
             <div class="floating-chat-footer">
@@ -133,11 +133,6 @@
 
 
 
-        if (aiPreviewBtn) {
-            aiPreviewBtn.addEventListener("click", function () {
-                alert("AI Crisis Assistant will be added in Priority 20E.");
-            });
-        }
     }
 
     function formatRole(role) {
