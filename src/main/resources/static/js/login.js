@@ -112,10 +112,11 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             localStorage.setItem("nonAcPatientCapacity", result.nonAcPatientCapacity || "");
 
             showMainMessage(result.message || "Login successful", "success-text");
+            showCelebration("🎉 Congratulations! Login successful");
 
             setTimeout(function () {
                 redirectToRoleDashboard(result.role);
-            }, 800);
+            }, 2200);
         } else {
             showMainMessage(result.message || "Login failed", "error-text");
         }
@@ -249,4 +250,56 @@ function redirectToRoleDashboard(role) {
     } else {
         window.location.href = "dashboard.html";
     }
+}
+
+function showCelebration(text) {
+    const oldOverlay = document.querySelector(".celebration-overlay");
+
+    if (oldOverlay) {
+        oldOverlay.remove();
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "celebration-overlay";
+
+    const messageBox = document.createElement("div");
+    messageBox.className = "celebration-message";
+    messageBox.innerText = text;
+    overlay.appendChild(messageBox);
+
+    const balloonColors = [
+        "balloon-red",
+        "balloon-blue",
+        "balloon-yellow",
+        "balloon-green",
+        "balloon-purple"
+    ];
+
+    for (let i = 0; i < 10; i++) {
+        const balloon = document.createElement("div");
+        balloon.className = "celebration-balloon " + balloonColors[i % balloonColors.length];
+        balloon.style.left = Math.floor(Math.random() * 90) + "vw";
+        balloon.style.animationDelay = (Math.random() * 0.5) + "s";
+        overlay.appendChild(balloon);
+    }
+
+    for (let i = 0; i < 35; i++) {
+        const confetti = document.createElement("div");
+        confetti.className = "celebration-confetti";
+        confetti.style.left = Math.floor(Math.random() * 100) + "vw";
+        confetti.style.background = getRandomCelebrationColor();
+        confetti.style.animationDelay = (Math.random() * 0.7) + "s";
+        overlay.appendChild(confetti);
+    }
+
+    document.body.appendChild(overlay);
+
+    setTimeout(function () {
+        overlay.remove();
+    }, 2600);
+}
+
+function getRandomCelebrationColor() {
+    const colors = ["#ff4d6d", "#00a8ff", "#ffd166", "#06d6a0", "#9b5de5", "#f72585"];
+    return colors[Math.floor(Math.random() * colors.length)];
 }

@@ -2367,3 +2367,122 @@ footer {
 .info-only-feature-card:hover {
     transform: none;
 }
+
+.celebration-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.celebration-message {
+    position: fixed;
+    top: 22%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: white;
+    color: #0b1f3a;
+    padding: 18px 30px;
+    border-radius: 18px;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+    animation: celebrationPop 0.45s ease forwards, celebrationFadeOut 0.5s ease forwards 1.8s;
+}
+
+.celebration-balloon {
+    position: absolute;
+    bottom: -120px;
+    width: 48px;
+    height: 62px;
+    border-radius: 50% 50% 45% 45%;
+    animation: balloonFlyUp 2.4s ease-in forwards;
+}
+
+.celebration-balloon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -34px;
+    width: 2px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.balloon-red {
+    background: #ff4d6d;
+}
+
+.balloon-blue {
+    background: #00a8ff;
+}
+
+.balloon-yellow {
+    background: #ffd166;
+}
+
+.balloon-green {
+    background: #06d6a0;
+}
+
+.balloon-purple {
+    background: #9b5de5;
+}
+
+.celebration-confetti {
+    position: absolute;
+    top: -20px;
+    width: 10px;
+    height: 18px;
+    border-radius: 3px;
+    animation: confettiFall 2.2s linear forwards;
+}
+
+@keyframes celebrationPop {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.7);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+}
+
+@keyframes celebrationFadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(-50%) scale(1.05);
+    }
+}
+
+@keyframes balloonFlyUp {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+
+    75% {
+        transform: translateY(-85vh) rotate(12deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-105vh) rotate(-12deg) scale(1.25);
+        opacity: 0;
+    }
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(105vh) rotate(720deg);
+        opacity: 0;
+    }
+}
