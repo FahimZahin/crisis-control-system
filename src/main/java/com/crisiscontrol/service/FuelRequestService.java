@@ -263,9 +263,9 @@ public class FuelRequestService {
 
         notificationService.notifyUser(
                 savedRequest.getUser().getId(),
-                NotificationType.FUEL_COLLECTION,
-                "Fuel Collected Successfully",
-                "Your fuel request has been collected successfully from the assigned pump.",
+                NotificationType.FUEL_REQUEST,
+                "Fuel Request Created",
+                "Your fuel request has been created successfully. Please collect fuel from the assigned pump after pump verification.",
                 "FUEL_REQUEST",
                 savedRequest.getId(),
                 "fuel-request-history.html"
@@ -1232,16 +1232,32 @@ public class FuelRequestService {
 
         fuelRequest.setCollectionOdometerReading(request.getCurrentOdometerReading());
 
-        vehicle.setOdometerReading(request.getCurrentOdometerReading());
+        BigDecimal previousVerifiedOdometer = vehicle.getOdometerReading();
+        BigDecimal collectionOdometer = request.getCurrentOdometerReading();
+        BigDecimal distanceTravelledSinceLastVerification = collectionOdometer.subtract(previousVerifiedOdometer);
 
-        BigDecimal updatedVehicleFuel = vehicle.getCurrentFuelLiter() == null
-                ? fuelRequest.getRequestedLiter()
-                : vehicle.getCurrentFuelLiter().add(fuelRequest.getRequestedLiter());
+        BigDecimal currentSavedFuel = vehicle.getCurrentFuelLiter() == null
+                ? BigDecimal.ZERO
+                : vehicle.getCurrentFuelLiter();
+
+        BigDecimal effectiveMileage = calculateEffectiveMileage(vehicle.getCompanyMileage());
+
+        BigDecimal consumedFuelSinceLastVerification = distanceTravelledSinceLastVerification
+                .divide(effectiveMileage, 2, java.math.RoundingMode.HALF_UP);
+
+        BigDecimal remainingFuelBeforeCollection = currentSavedFuel.subtract(consumedFuelSinceLastVerification);
+
+        if (remainingFuelBeforeCollection.compareTo(BigDecimal.ZERO) < 0) {
+            remainingFuelBeforeCollection = BigDecimal.ZERO;
+        }
+
+        BigDecimal updatedVehicleFuel = remainingFuelBeforeCollection.add(fuelRequest.getRequestedLiter());
 
         if (updatedVehicleFuel.compareTo(vehicle.getTankCapacity()) > 0) {
             updatedVehicleFuel = vehicle.getTankCapacity();
         }
 
+        vehicle.setOdometerReading(collectionOdometer);
         vehicle.setCurrentFuelLiter(updatedVehicleFuel);
         vehicleRepository.save(vehicle);
     }
