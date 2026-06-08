@@ -10,6 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/community-chat")
@@ -28,6 +32,32 @@ public class CommunityChatController {
             @RequestBody CommunityMessageRequest request
     ) {
         return ResponseEntity.ok(communityChatService.sendCommonMessage(request));
+    }
+
+    @GetMapping("/common/unread-count/{userId}")
+    public ResponseEntity<Map<String, Long>> getCommonUnreadCount(
+            @PathVariable Long userId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime lastSeenAt
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "unreadCount",
+                communityChatService.getCommonUnreadCount(userId, lastSeenAt)
+        ));
+    }
+
+    @GetMapping("/local/unread-count/{userId}")
+    public ResponseEntity<Map<String, Long>> getLocalUnreadCount(
+            @PathVariable Long userId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime lastSeenAt
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "unreadCount",
+                communityChatService.getLocalUnreadCount(userId, lastSeenAt)
+        ));
     }
 
     @GetMapping("/local/groups/{userId}")

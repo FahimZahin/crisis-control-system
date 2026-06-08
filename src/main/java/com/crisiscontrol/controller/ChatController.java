@@ -32,6 +32,16 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getConversations(userId));
     }
 
+    @GetMapping("/unread-count/{userId}")
+    public ResponseEntity<Map<String, Long>> getUnreadCount(
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "unreadCount",
+                chatService.getTotalUnreadCount(userId)
+        ));
+    }
+
     @GetMapping("/thread")
     public ResponseEntity<List<ChatMessageResponse>> getThread(
             @RequestParam Long userId,

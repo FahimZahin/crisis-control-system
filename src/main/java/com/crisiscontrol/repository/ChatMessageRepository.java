@@ -31,4 +31,9 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             Long senderId,
             ChatMessageStatus status
     );
+
+    long countByReceiverIdAndStatus(
+            Long receiverId,
+            ChatMessageStatus status
+    );
 }

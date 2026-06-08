@@ -132,6 +132,7 @@ async function loadLocalMessages(scrollBottom) {
         }
 
         renderMessages(Array.isArray(result) ? result : [], scrollBottom);
+        markLocalCommunityAsSeen();
 
     } catch (error) {
         if (thread) {
@@ -327,4 +328,14 @@ function getErrorMessage(result) {
     }
 
     return JSON.stringify(result);
+}
+
+function markLocalCommunityAsSeen() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        return;
+    }
+
+    localStorage.setItem("localCommunityLastSeenAt_" + userId, new Date().toISOString());
 }

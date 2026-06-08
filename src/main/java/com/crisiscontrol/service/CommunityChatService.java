@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-
+import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class CommunityChatService {
@@ -64,6 +64,57 @@ public class CommunityChatService {
                 .build();
 
         return mapMessage(chatGroupMessageRepository.save(message));
+    }
+
+    public long getCommonUnreadCount(Long userId, LocalDateTime lastSeenAt) {
+        User user = getUser(userId);
+
+        if (lastSeenAt == null) {
+            return 0;
+        }
+
+        ChatGroup group = getOrCreateCommonGroup();
+
+        return chatGroupMessageRepository.countByGroupIdAndDeletedFalseAndSenderIdNotAndCreatedAtAfter(
+                group.getId(),
+                user.getId(),
+                lastSeenAt
+        );
+    }
+
+    public long getLocalUnreadCount(Long userId, LocalDateTime lastSeenAt) {
+        User user = getUser(userId);
+
+        if (lastSeenAt == null) {
+            return 0;
+        }
+
+        ensureLocalGroupsFromExistingUsers();
+
+        if (isAdminOrGovernment(user)) {
+            return chatGroupRepository.findByGroupTypeOrderByThanaNameAsc(ChatGroupType.LOCAL)
+                    .stream()
+                    .mapToLong(group -> chatGroupMessageRepository.countByGroupIdAndDeletedFalseAndSenderIdNotAndCreatedAtAfter(
+                            group.getId(),
+                            user.getId(),
+                            lastSeenAt
+                    ))
+                    .sum();
+        }
+
+        String thana = resolveUserThana(user);
+
+        if (isBlank(thana)) {
+            return 0;
+        }
+
+        ChatGroup group = getOrCreateLocalGroup(thana);
+
+        return chatGroupMessageRepository.countByGroupIdAndDeletedFalseAndSenderIdNotAndCreatedAtAfter(
+                group.getId(),
+                user.getId(),
+                lastSeenAt
+        );
     }
 
     public List<LocalCommunityGroupResponse> getLocalGroupsForUser(Long userId) {

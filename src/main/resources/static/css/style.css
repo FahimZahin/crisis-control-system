@@ -2486,3 +2486,53 @@ footer {
         opacity: 0;
     }
 }
+
+.floating-chat-option-content {
+    flex: 1;
+}
+
+.floating-chat-option-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.direct-chat-unread-badge {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.floating-chat-option-content {
+    flex: 1;
+}
+
+.floating-chat-option-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.chat-option-unread-badge {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}

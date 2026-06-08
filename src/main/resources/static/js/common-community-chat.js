@@ -50,6 +50,7 @@ async function loadCommonMessages(scrollBottom) {
         }
 
         renderMessages(Array.isArray(result) ? result : [], scrollBottom);
+        markCommonCommunityAsSeen();
 
     } catch (error) {
         if (thread) {
@@ -222,4 +223,14 @@ function getErrorMessage(result) {
     }
 
     return JSON.stringify(result);
+}
+
+function markCommonCommunityAsSeen() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        return;
+    }
+
+    localStorage.setItem("commonCommunityLastSeenAt_" + userId, new Date().toISOString());
 }

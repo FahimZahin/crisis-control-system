@@ -120,6 +120,15 @@ public class ChatService {
         return mapMessage(savedMessage);
     }
 
+    public long getTotalUnreadCount(Long userId) {
+        User currentUser = getUser(userId);
+
+        return chatMessageRepository.countByReceiverIdAndStatus(
+                currentUser.getId(),
+                ChatMessageStatus.SENT
+        );
+    }
+
     @Transactional
     public void markThreadAsRead(Long userId, Long otherUserId) {
         User currentUser = getUser(userId);
