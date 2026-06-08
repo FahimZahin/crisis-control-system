@@ -6,6 +6,7 @@
             return;
         }
 
+        resetOldCommunitySeenTimesOnce();
         createFloatingChatButton();
         createFloatingChatPanel();
         setupFloatingChatEvents();
@@ -27,6 +28,10 @@
         return loggedInUser.role || localStorage.getItem("role") || "";
     }
 
+    function getUserId() {
+        return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+    }
+
     function getUserThana() {
         return loggedInUser.thanaOrUpazila
             || loggedInUser.buildingUnderThana
@@ -34,6 +39,40 @@
             || loggedInUser.serviceArea
             || loggedInUser.assignedArea
             || "Not Set";
+    }
+
+    function getActiveLocalCommunityThana() {
+        const groupSelect = document.getElementById("localCommunityGroupSelect");
+
+        if (groupSelect && groupSelect.value) {
+            return groupSelect.value;
+        }
+
+        return getUserThana();
+    }
+
+    function resetOldCommunitySeenTimesOnce() {
+        const userId = getUserId();
+
+        if (!userId) {
+            return;
+        }
+
+        const resetKey = "communitySeenTimeLocalFixApplied_" + userId;
+
+        if (localStorage.getItem(resetKey) === "true") {
+            return;
+        }
+
+        Object.keys(localStorage)
+            .filter(function (key) {
+                return key.includes("CommunityLastSeenAt");
+            })
+            .forEach(function (key) {
+                localStorage.removeItem(key);
+            });
+
+        localStorage.setItem(resetKey, "true");
     }
 
     function createFloatingChatButton() {
@@ -72,45 +111,45 @@
             </div>
 
             <div class="floating-chat-body">
-<a href="chat.html" class="floating-chat-option">
-    <div class="floating-chat-option-icon">👤</div>
-    <div class="floating-chat-option-content">
-        <div class="floating-chat-option-title-row">
-            <h4>Direct Chat</h4>
-            <span id="directChatUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
-        </div>
-        <p>Message users, pumps, authorities and emergency roles.</p>
-    </div>
-</a>
+                <a href="chat.html" class="floating-chat-option">
+                    <div class="floating-chat-option-icon">👤</div>
+                    <div class="floating-chat-option-content">
+                        <div class="floating-chat-option-title-row">
+                            <h4>Direct Chat</h4>
+                            <span id="directChatUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
+                        </div>
+                        <p>Message users, pumps, authorities and emergency roles.</p>
+                    </div>
+                </a>
 
-<a href="common-community-chat.html" class="floating-chat-option">
-    <div class="floating-chat-option-icon">🌐</div>
-    <div class="floating-chat-option-content">
-        <div class="floating-chat-option-title-row">
-            <h4>Common Community</h4>
-            <span id="commonCommunityUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
-        </div>
-        <p>System-wide crisis discussion for all users.</p>
-    </div>
-</a>
+                <a href="common-community-chat.html" class="floating-chat-option">
+                    <div class="floating-chat-option-icon">🌐</div>
+                    <div class="floating-chat-option-content">
+                        <div class="floating-chat-option-title-row">
+                            <h4>Common Community</h4>
+                            <span id="commonCommunityUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
+                        </div>
+                        <p>System-wide crisis discussion for all users.</p>
+                    </div>
+                </a>
 
-<a href="local-community-chat.html" class="floating-chat-option">
-    <div class="floating-chat-option-icon">📍</div>
-    <div class="floating-chat-option-content">
-        <div class="floating-chat-option-title-row">
-            <h4>Local Community</h4>
-            <span id="localCommunityUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
-        </div>
-        <p>Your local thana group: ${escapeHtml(getUserThana())}.</p>
-    </div>
-</a>
+                <a href="local-community-chat.html" class="floating-chat-option">
+                    <div class="floating-chat-option-icon">📍</div>
+                    <div class="floating-chat-option-content">
+                        <div class="floating-chat-option-title-row">
+                            <h4>Local Community</h4>
+                            <span id="localCommunityUnreadBadge" class="chat-option-unread-badge" style="display:none;">0</span>
+                        </div>
+                        <p>Your local thana group: ${escapeHtml(getActiveLocalCommunityThana())}.</p>
+                    </div>
+                </a>
 
                 <a href="ai-crisis-assistant.html" class="floating-chat-option">
-                   <div class="floating-chat-option-icon">🤖</div>
-                        <div>
-                              <h4>AI Crisis Assistant</h4>
-                              <p>Ask about fuel availability, outage notices, route tokens, and fuel request status.</p>
-                        </div>
+                    <div class="floating-chat-option-icon">🤖</div>
+                    <div>
+                        <h4>AI Crisis Assistant</h4>
+                        <p>Ask about fuel availability, outage notices, route tokens, and fuel request status.</p>
+                    </div>
                 </a>
             </div>
 
@@ -130,6 +169,7 @@
         if (chatBtn && panel) {
             chatBtn.addEventListener("click", function () {
                 panel.classList.toggle("floating-chat-panel-open");
+                loadAllFloatingUnreadCounts();
             });
         }
 
@@ -138,128 +178,6 @@
                 panel.classList.remove("floating-chat-panel-open");
             });
         }
-
-        const commonPreviewBtn = document.getElementById("commonCommunityPreviewBtn");
-        const localPreviewBtn = document.getElementById("localCommunityPreviewBtn");
-        const aiPreviewBtn = document.getElementById("aiAssistantPreviewBtn");
-
-
-
-
-    }
-
-    function getUserId() {
-        return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
-    }
-
-    async function loadFloatingChatUnreadCount() {
-        const badge = document.getElementById("floatingChatUnreadBadge");
-
-        if (!badge) {
-            return;
-        }
-
-        const userId = getUserId();
-
-        if (!userId) {
-            badge.style.display = "none";
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                "http://localhost:8081/api/chats/unread-count/"
-                + encodeURIComponent(userId)
-                + "?time="
-                + Date.now()
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                badge.style.display = "none";
-                return;
-            }
-
-            const count = Number(result.unreadCount || 0);
-
-            if (count > 0) {
-                badge.innerText = count > 99 ? "99+" : String(count);
-                badge.style.display = "inline-block";
-            } else {
-                badge.style.display = "none";
-            }
-
-        } catch (error) {
-            badge.style.display = "none";
-        }
-    }
-
-    function getUserId() {
-        return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
-    }
-
-    async function loadFloatingChatUnreadCount() {
-        const floatingBadge = document.getElementById("floatingChatUnreadBadge");
-        const directChatBadge = document.getElementById("directChatUnreadBadge");
-        const userId = getUserId();
-
-        if (!userId) {
-            hideUnreadBadge(floatingBadge);
-            hideUnreadBadge(directChatBadge);
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                "http://localhost:8081/api/chats/unread-count/"
-                + encodeURIComponent(userId)
-                + "?time="
-                + Date.now()
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                hideUnreadBadge(floatingBadge);
-                hideUnreadBadge(directChatBadge);
-                return;
-            }
-
-            const unreadCount = Number(result.unreadCount || 0);
-
-            updateUnreadBadge(floatingBadge, unreadCount);
-            updateUnreadBadge(directChatBadge, unreadCount);
-
-        } catch (error) {
-            hideUnreadBadge(floatingBadge);
-            hideUnreadBadge(directChatBadge);
-        }
-    }
-
-    function updateUnreadBadge(badge, count) {
-        if (!badge) {
-            return;
-        }
-
-        if (count > 0) {
-            badge.innerText = count > 99 ? "99+" : String(count);
-            badge.style.display = "inline-flex";
-        } else {
-            badge.style.display = "none";
-        }
-    }
-
-    function hideUnreadBadge(badge) {
-        if (!badge) {
-            return;
-        }
-
-        badge.style.display = "none";
-    }
-
-    function getUserId() {
-        return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
     }
 
     function getSeenKey(type) {
@@ -273,32 +191,44 @@
             return;
         }
 
-        const now = new Date().toISOString();
+        const now = getLocalDateTimeForBackend();
 
         if (!localStorage.getItem(getSeenKey("common"))) {
             localStorage.setItem(getSeenKey("common"), now);
         }
 
-        if (!localStorage.getItem(getSeenKey("local"))) {
-            localStorage.setItem(getSeenKey("local"), now);
+        const thanaName = getActiveLocalCommunityThana();
+
+        if (
+            thanaName
+            && thanaName !== "-"
+            && thanaName !== "Not Set"
+            && !localStorage.getItem(getLocalGroupSeenKey(thanaName))
+        ) {
+            localStorage.setItem(getLocalGroupSeenKey(thanaName), now);
         }
     }
 
     async function loadAllFloatingUnreadCounts() {
-        await loadDirectChatUnreadCount();
-        await loadCommonCommunityUnreadCount();
-        await loadLocalCommunityUnreadCount();
+        const directCount = await loadDirectChatUnreadCount();
+        const commonCount = await loadCommonCommunityUnreadCount();
+        const localCount = await loadLocalCommunityUnreadCount();
+
+        const totalUnread = directCount + commonCount + localCount;
+        const floatingBadge = document.getElementById("floatingChatUnreadBadge");
+
+        updateUnreadBadge(floatingBadge, totalUnread);
     }
 
+    window.loadAllFloatingUnreadCounts = loadAllFloatingUnreadCounts;
+
     async function loadDirectChatUnreadCount() {
-        const floatingBadge = document.getElementById("floatingChatUnreadBadge");
         const directChatBadge = document.getElementById("directChatUnreadBadge");
         const userId = getUserId();
 
         if (!userId) {
-            hideUnreadBadge(floatingBadge);
             hideUnreadBadge(directChatBadge);
-            return;
+            return 0;
         }
 
         try {
@@ -312,19 +242,18 @@
             const result = await response.json();
 
             if (!response.ok) {
-                hideUnreadBadge(floatingBadge);
                 hideUnreadBadge(directChatBadge);
-                return;
+                return 0;
             }
 
             const unreadCount = Number(result.unreadCount || 0);
-
-            updateUnreadBadge(floatingBadge, unreadCount);
             updateUnreadBadge(directChatBadge, unreadCount);
 
+            return unreadCount;
+
         } catch (error) {
-            hideUnreadBadge(floatingBadge);
             hideUnreadBadge(directChatBadge);
+            return 0;
         }
     }
 
@@ -335,7 +264,7 @@
 
         if (!userId || !lastSeenAt) {
             hideUnreadBadge(badge);
-            return;
+            return 0;
         }
 
         try {
@@ -352,31 +281,45 @@
 
             if (!response.ok) {
                 hideUnreadBadge(badge);
-                return;
+                return 0;
             }
 
-            updateUnreadBadge(badge, Number(result.unreadCount || 0));
+            const unreadCount = Number(result.unreadCount || 0);
+            updateUnreadBadge(badge, unreadCount);
+
+            return unreadCount;
 
         } catch (error) {
             hideUnreadBadge(badge);
+            return 0;
         }
     }
 
     async function loadLocalCommunityUnreadCount() {
         const badge = document.getElementById("localCommunityUnreadBadge");
         const userId = getUserId();
-        const lastSeenAt = localStorage.getItem(getSeenKey("local"));
+        const thanaName = getActiveLocalCommunityThana();
 
-        if (!userId || !lastSeenAt) {
+        if (!userId || !thanaName || thanaName === "-" || thanaName === "Not Set") {
             hideUnreadBadge(badge);
-            return;
+            return 0;
+        }
+
+        const lastSeenAt = localStorage.getItem(getLocalGroupSeenKey(thanaName));
+
+        if (!lastSeenAt) {
+            localStorage.setItem(getLocalGroupSeenKey(thanaName), getLocalDateTimeForBackend());
+            hideUnreadBadge(badge);
+            return 0;
         }
 
         try {
             const response = await fetch(
                 "http://localhost:8081/api/community-chat/local/unread-count/"
                 + encodeURIComponent(userId)
-                + "?lastSeenAt="
+                + "?thanaName="
+                + encodeURIComponent(thanaName)
+                + "&lastSeenAt="
                 + encodeURIComponent(lastSeenAt)
                 + "&time="
                 + Date.now()
@@ -386,13 +329,17 @@
 
             if (!response.ok) {
                 hideUnreadBadge(badge);
-                return;
+                return 0;
             }
 
-            updateUnreadBadge(badge, Number(result.unreadCount || 0));
+            const unreadCount = Number(result.unreadCount || 0);
+            updateUnreadBadge(badge, unreadCount);
+
+            return unreadCount;
 
         } catch (error) {
             hideUnreadBadge(badge);
+            return 0;
         }
     }
 
@@ -405,6 +352,7 @@
             badge.innerText = count > 99 ? "99+" : String(count);
             badge.style.display = "inline-flex";
         } else {
+            badge.innerText = "0";
             badge.style.display = "none";
         }
     }
@@ -414,7 +362,20 @@
             return;
         }
 
+        badge.innerText = "0";
         badge.style.display = "none";
+    }
+
+    function getLocalGroupSeenKey(thanaName) {
+        return "localCommunityLastSeenAt_" + getUserId() + "_" + normalizeLocalSeenKey(thanaName);
+    }
+
+    function normalizeLocalSeenKey(value) {
+        return String(value || "")
+            .trim()
+            .toLowerCase()
+            .replaceAll(" ", "_")
+            .replaceAll("-", "_");
     }
 
     function formatRole(role) {
@@ -441,5 +402,17 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+    }
+
+    function getLocalDateTimeForBackend() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hour = String(now.getHours()).padStart(2, "0");
+        const minute = String(now.getMinutes()).padStart(2, "0");
+        const second = String(now.getSeconds()).padStart(2, "0");
+
+        return year + "-" + month + "-" + day + "T" + hour + ":" + minute + ":" + second;
     }
 })();

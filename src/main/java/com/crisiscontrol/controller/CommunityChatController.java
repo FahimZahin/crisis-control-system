@@ -14,6 +14,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/community-chat")
@@ -47,24 +51,26 @@ public class CommunityChatController {
         ));
     }
 
-    @GetMapping("/local/unread-count/{userId}")
-    public ResponseEntity<Map<String, Long>> getLocalUnreadCount(
-            @PathVariable Long userId,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            LocalDateTime lastSeenAt
-    ) {
-        return ResponseEntity.ok(Map.of(
-                "unreadCount",
-                communityChatService.getLocalUnreadCount(userId, lastSeenAt)
-        ));
-    }
 
     @GetMapping("/local/groups/{userId}")
     public ResponseEntity<List<LocalCommunityGroupResponse>> getLocalGroupsForUser(
             @PathVariable Long userId
     ) {
         return ResponseEntity.ok(communityChatService.getLocalGroupsForUser(userId));
+    }
+
+    @GetMapping("/local/unread-count/{userId}")
+    public ResponseEntity<Map<String, Long>> getLocalUnreadCountForThana(
+            @PathVariable Long userId,
+            @RequestParam String thanaName,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime lastSeenAt
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "unreadCount",
+                communityChatService.getLocalUnreadCountForThana(userId, thanaName, lastSeenAt)
+        ));
     }
 
     @GetMapping("/local/messages")

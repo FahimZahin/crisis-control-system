@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class CommunityChatService {
@@ -129,6 +130,7 @@ public class CommunityChatService {
                             .groupId(group.getId())
                             .groupName(group.getGroupName())
                             .thanaName(group.getThanaName())
+                            .unreadCount(0L)
                             .build())
                     .toList();
         }
@@ -146,7 +148,25 @@ public class CommunityChatService {
                         .groupId(group.getId())
                         .groupName(group.getGroupName())
                         .thanaName(group.getThanaName())
+                        .unreadCount(0L)
                         .build()
+        );
+    }
+
+    public long getLocalUnreadCountForThana(Long userId, String thanaName, LocalDateTime lastSeenAt) {
+        User user = getUser(userId);
+
+        if (lastSeenAt == null) {
+            return 0;
+        }
+
+        String allowedThana = resolveAllowedLocalThana(user, thanaName);
+        ChatGroup group = getOrCreateLocalGroup(allowedThana);
+
+        return chatGroupMessageRepository.countByGroupIdAndDeletedFalseAndSenderIdNotAndCreatedAtAfter(
+                group.getId(),
+                user.getId(),
+                lastSeenAt
         );
     }
 

@@ -12,4 +12,5 @@ public class LocalCommunityGroupResponse {
     private Long groupId;
     private String groupName;
     private String thanaName;
+    private Long unreadCount;
 }

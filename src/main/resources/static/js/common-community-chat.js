@@ -142,6 +142,32 @@ async function sendCommonMessage() {
     }
 }
 
+function markCommonCommunityAsSeen() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        return;
+    }
+
+    localStorage.setItem(
+        "commonCommunityLastSeenAt_" + userId,
+        getLocalDateTimeForBackend()
+    );
+
+    const commonBadge = document.getElementById("commonCommunityUnreadBadge");
+
+    if (commonBadge) {
+        commonBadge.innerText = "0";
+        commonBadge.style.display = "none";
+    }
+
+    if (window.loadAllFloatingUnreadCounts) {
+        setTimeout(function () {
+            window.loadAllFloatingUnreadCounts();
+        }, 300);
+    }
+}
+
 function setupLogout() {
     const logoutBtn = document.getElementById("logoutBtn");
 
@@ -225,12 +251,14 @@ function getErrorMessage(result) {
     return JSON.stringify(result);
 }
 
-function markCommonCommunityAsSeen() {
-    const userId = getLoggedInUserId();
+function getLocalDateTimeForBackend() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+    const second = String(now.getSeconds()).padStart(2, "0");
 
-    if (!userId) {
-        return;
-    }
-
-    localStorage.setItem("commonCommunityLastSeenAt_" + userId, new Date().toISOString());
+    return year + "-" + month + "-" + day + "T" + hour + ":" + minute + ":" + second;
 }

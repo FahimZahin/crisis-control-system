@@ -42,7 +42,10 @@ function setupEvents() {
         groupSelect.addEventListener("change", function () {
             selectedLocalThana = groupSelect.value;
             updateLocalTitle();
-            loadLocalMessages(true);
+
+            if (selectedLocalThana) {
+                loadLocalMessages(true);
+            }
         });
     }
 }
@@ -51,7 +54,7 @@ async function loadLocalGroups() {
     try {
         const response = await fetch(
             "http://localhost:8081/api/community-chat/local/groups/"
-            + getLoggedInUserId()
+            + encodeURIComponent(getLoggedInUserId())
             + "?time="
             + Date.now()
         );
@@ -64,6 +67,8 @@ async function loadLocalGroups() {
         }
 
         localCommunityGroups = Array.isArray(result) ? result : [];
+
+        await loadLocalGroupUnreadCounts();
         setupLocalGroupSelection();
 
     } catch (error) {
@@ -92,7 +97,7 @@ function setupLocalGroupSelection() {
             localCommunityGroups.forEach(function (group) {
                 const option = document.createElement("option");
                 option.value = group.thanaName;
-                option.innerText = group.groupName;
+                option.innerText = buildLocalGroupOptionText(group);
                 groupSelect.appendChild(option);
             });
         }
@@ -132,7 +137,7 @@ async function loadLocalMessages(scrollBottom) {
         }
 
         renderMessages(Array.isArray(result) ? result : [], scrollBottom);
-        markLocalCommunityAsSeen();
+        markSelectedLocalCommunityAsSeen();
 
     } catch (error) {
         if (thread) {
@@ -228,6 +233,136 @@ async function sendLocalMessage() {
     } catch (error) {
         showMessage("Server connection failed while sending local message.", "error-text");
     }
+}
+
+async function loadLocalGroupUnreadCounts() {
+    if (!Array.isArray(localCommunityGroups) || !localCommunityGroups.length) {
+        return;
+    }
+
+    for (const group of localCommunityGroups) {
+        group.unreadCount = await loadUnreadCountForLocalGroup(group.thanaName);
+    }
+}
+
+async function loadUnreadCountForLocalGroup(thanaName) {
+    const userId = getLoggedInUserId();
+
+    if (!userId || !thanaName) {
+        return 0;
+    }
+
+    const lastSeenAt = localStorage.getItem(getLocalGroupSeenKey(thanaName));
+
+    if (!lastSeenAt) {
+        localStorage.setItem(getLocalGroupSeenKey(thanaName), getLocalDateTimeForBackend());
+        return 0;
+    }
+
+    try {
+        const response = await fetch(
+            "http://localhost:8081/api/community-chat/local/unread-count/"
+            + encodeURIComponent(userId)
+            + "?thanaName="
+            + encodeURIComponent(thanaName)
+            + "&lastSeenAt="
+            + encodeURIComponent(lastSeenAt)
+            + "&time="
+            + Date.now()
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            return 0;
+        }
+
+        return Number(result.unreadCount || 0);
+
+    } catch (error) {
+        return 0;
+    }
+}
+
+function markSelectedLocalCommunityAsSeen() {
+    const userId = getLoggedInUserId();
+
+    if (!userId || !selectedLocalThana) {
+        return;
+    }
+
+    const now = getLocalDateTimeForBackend();
+
+    localStorage.setItem(getLocalGroupSeenKey(selectedLocalThana), now);
+    localStorage.setItem("localCommunityLastSeenAt_" + userId, now);
+
+    localCommunityGroups = localCommunityGroups.map(function (group) {
+        if (normalizeLocalSeenKey(group.thanaName) === normalizeLocalSeenKey(selectedLocalThana)) {
+            group.unreadCount = 0;
+        }
+
+        return group;
+    });
+
+    refreshLocalGroupDropdownText();
+
+    const localBadge = document.getElementById("localCommunityUnreadBadge");
+
+    if (localBadge) {
+        localBadge.innerText = "0";
+        localBadge.style.display = "none";
+    }
+
+    if (window.loadAllFloatingUnreadCounts) {
+        setTimeout(function () {
+            window.loadAllFloatingUnreadCounts();
+        }, 300);
+    }
+}
+
+function refreshLocalGroupDropdownText() {
+    const groupSelect = document.getElementById("localCommunityGroupSelect");
+
+    if (!groupSelect) {
+        return;
+    }
+
+    Array.from(groupSelect.options).forEach(function (option) {
+        if (!option.value) {
+            return;
+        }
+
+        const matchedGroup = localCommunityGroups.find(function (group) {
+            return normalizeLocalSeenKey(group.thanaName) === normalizeLocalSeenKey(option.value);
+        });
+
+        if (matchedGroup) {
+            option.innerText = buildLocalGroupOptionText(matchedGroup);
+        }
+    });
+}
+
+function buildLocalGroupOptionText(group) {
+    const unreadCount = Number(group.unreadCount || 0);
+    const groupName = group.groupName || "Local Community";
+
+    if (unreadCount > 0) {
+        return groupName + " (" + unreadCount + " new)";
+    }
+
+    return groupName;
+}
+
+function getLocalGroupSeenKey(thanaName) {
+    return "localCommunityLastSeenAt_" + getLoggedInUserId() + "_" + normalizeLocalSeenKey(thanaName);
+}
+
+function normalizeLocalSeenKey(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replaceAll(" ", "_")
+        .replaceAll("-", "_");
 }
 
 function updateLocalTitle() {
@@ -330,12 +465,14 @@ function getErrorMessage(result) {
     return JSON.stringify(result);
 }
 
-function markLocalCommunityAsSeen() {
-    const userId = getLoggedInUserId();
+function getLocalDateTimeForBackend() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+    const second = String(now.getSeconds()).padStart(2, "0");
 
-    if (!userId) {
-        return;
-    }
-
-    localStorage.setItem("localCommunityLastSeenAt_" + userId, new Date().toISOString());
+    return year + "-" + month + "-" + day + "T" + hour + ":" + minute + ":" + second;
 }
