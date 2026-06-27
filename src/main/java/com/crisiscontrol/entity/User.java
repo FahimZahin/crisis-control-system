@@ -41,6 +41,12 @@ public class User {
     @Column(name = "address")
     private String address;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Column(name = "password", nullable = false)
     private String password;
 

@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadProfileData();
     setupInactiveAccountBox();
     setupProfileSave();
+    setupLocationUpdate();
     setupPasswordChange();
     setupActivationRequest();
     setupDeleteProfile();
@@ -44,6 +45,16 @@ function loadProfileData() {
     setInputValueIfExists(
         "profileAddress",
         loggedInUser.address || localStorage.getItem("address") || ""
+    );
+
+    setInputValueIfExists(
+        "profileLatitude",
+        firstValidValue(loggedInUser.latitude, localStorage.getItem("latitude")) || ""
+    );
+
+    setInputValueIfExists(
+        "profileLongitude",
+        firstValidValue(loggedInUser.longitude, localStorage.getItem("longitude")) || ""
     );
 
     const resolvedThana = resolveUserThana();
@@ -161,7 +172,9 @@ function setupProfileSave() {
             fullName: fullName,
             phoneNumber: phoneNumber,
             address: address,
-            thanaOrUpazila: thanaOrUpazila
+            thanaOrUpazila: thanaOrUpazila,
+            latitude: readCoordinateValue("profileLatitude"),
+            longitude: readCoordinateValue("profileLongitude")
         };
 
         try {
@@ -195,6 +208,8 @@ function setupProfileSave() {
             loggedInUser.fullName = result.fullName || fullName;
             loggedInUser.phoneNumber = result.phoneNumber || phoneNumber;
             loggedInUser.address = result.address || address;
+            loggedInUser.latitude = result.latitude ?? data.latitude ?? loggedInUser.latitude ?? null;
+            loggedInUser.longitude = result.longitude ?? data.longitude ?? loggedInUser.longitude ?? null;
             loggedInUser.status = result.status || loggedInUser.status;
             loggedInUser.role = result.role || loggedInUser.role;
 
@@ -226,6 +241,10 @@ function setupProfileSave() {
             localStorage.setItem("fullName", loggedInUser.fullName || "");
             localStorage.setItem("phoneNumber", loggedInUser.phoneNumber || "");
             localStorage.setItem("address", loggedInUser.address || "");
+            localStorage.setItem("latitude", loggedInUser.latitude ?? "");
+            localStorage.setItem("longitude", loggedInUser.longitude ?? "");
+            setInputValueIfExists("profileLatitude", loggedInUser.latitude ?? "");
+            setInputValueIfExists("profileLongitude", loggedInUser.longitude ?? "");
             localStorage.setItem("status", loggedInUser.status || "");
             localStorage.setItem("role", loggedInUser.role || "");
             localStorage.setItem("thanaOrUpazila", loggedInUser.thanaOrUpazila || "");
@@ -240,6 +259,67 @@ function setupProfileSave() {
             showMessage("profileMessage", "Server connection failed while updating profile.", "error-text");
         }
     });
+}
+
+function setupLocationUpdate() {
+    const detectLocationBtn = document.getElementById("detectLocationBtn");
+
+    if (!detectLocationBtn) {
+        return;
+    }
+
+    detectLocationBtn.addEventListener("click", function () {
+        if (!navigator.geolocation) {
+            showMessage("locationMessage", "Location is not supported by this browser.", "error-text");
+            return;
+        }
+
+        showMessage("locationMessage", "Requesting location permission...", "muted-text");
+        detectLocationBtn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                const latitude = Number(position.coords.latitude).toFixed(6);
+                const longitude = Number(position.coords.longitude).toFixed(6);
+
+                setInputValueIfExists("profileLatitude", latitude);
+                setInputValueIfExists("profileLongitude", longitude);
+
+                showMessage(
+                    "locationMessage",
+                    "Location captured. Click Save Profile Changes to store it in database.",
+                    "success-text"
+                );
+
+                detectLocationBtn.disabled = false;
+            },
+            function (error) {
+                const message = error && error.message
+                    ? error.message
+                    : "Location permission denied or unavailable.";
+
+                showMessage("locationMessage", message, "error-text");
+                detectLocationBtn.disabled = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 60000
+            }
+        );
+    });
+}
+
+function readCoordinateValue(inputId) {
+    const input = document.getElementById(inputId);
+
+    if (!input || input.value.trim() === "") {
+        return null;
+    }
+
+    const value = Number(input.value.trim());
+
+    return Number.isFinite(value) ? value : null;
 }
 
 function setupPasswordChange() {

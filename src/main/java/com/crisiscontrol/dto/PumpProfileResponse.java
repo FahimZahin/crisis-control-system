@@ -23,6 +23,8 @@ public class PumpProfileResponse {
     private String pumpName;
     private String businessLicenseNumber;
     private String pumpAddress;
+    private Double latitude;
+    private Double longitude;
 
     private BigDecimal totalFuelCapacity;
     private BigDecimal totalCurrentStock;

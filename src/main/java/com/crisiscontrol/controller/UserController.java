@@ -4,6 +4,7 @@ import com.crisiscontrol.dto.ProfileUpdateRequest;
 import com.crisiscontrol.entity.Role;
 import com.crisiscontrol.entity.User;
 import com.crisiscontrol.entity.UserStatus;
+import com.crisiscontrol.repository.PumpProfileRepository;
 import com.crisiscontrol.repository.UserRepository;
 import com.crisiscontrol.service.UserDeleteService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class UserController {
 
     private final UserDeleteService userDeleteService;
     private final UserRepository userRepository;
+    private final PumpProfileRepository pumpProfileRepository;
 
     @PutMapping("/api/users/{userId}/profile")
     public ResponseEntity<Map<String, Object>> updateProfile(
@@ -53,10 +55,12 @@ public class UserController {
         user.setFullName(request.getFullName().trim());
         user.setPhoneNumber(request.getPhoneNumber().trim());
         user.setAddress(emptyToNull(request.getAddress()));
+        updateUserCoordinates(user, request.getLatitude(), request.getLongitude());
 
         updateAllowedThanaField(user, request.getThanaOrUpazila());
 
         User savedUser = userRepository.save(user);
+        syncPumpProfileLocation(savedUser);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("message", "Profile updated successfully in database.");
@@ -64,6 +68,8 @@ public class UserController {
         response.put("fullName", savedUser.getFullName());
         response.put("phoneNumber", savedUser.getPhoneNumber());
         response.put("address", savedUser.getAddress());
+        response.put("latitude", savedUser.getLatitude());
+        response.put("longitude", savedUser.getLongitude());
         response.put("role", savedUser.getRole());
         response.put("status", savedUser.getStatus());
         response.put("thanaOrUpazila", resolveUserThana(savedUser));
@@ -166,6 +172,47 @@ public class UserController {
 
         if (requiresEditableThana(user.getRole()) && isBlank(request.getThanaOrUpazila())) {
             throw new RuntimeException("Thana / Upazila is required for this role");
+        }
+
+        validateCoordinatePair(request.getLatitude(), request.getLongitude());
+    }
+
+    private void updateUserCoordinates(User user, Double latitude, Double longitude) {
+        if (latitude == null && longitude == null) {
+            return;
+        }
+
+        user.setLatitude(latitude);
+        user.setLongitude(longitude);
+    }
+
+    private void syncPumpProfileLocation(User user) {
+        if (user.getRole() != Role.PUMP_AUTHORITY) {
+            return;
+        }
+
+        pumpProfileRepository.findByUserId(user.getId()).ifPresent(pumpProfile -> {
+            pumpProfile.setLatitude(user.getLatitude());
+            pumpProfile.setLongitude(user.getLongitude());
+            pumpProfileRepository.save(pumpProfile);
+        });
+    }
+
+    private void validateCoordinatePair(Double latitude, Double longitude) {
+        if (latitude == null && longitude == null) {
+            return;
+        }
+
+        if (latitude == null || longitude == null) {
+            throw new RuntimeException("Both latitude and longitude are required when updating location");
+        }
+
+        if (latitude < -90 || latitude > 90) {
+            throw new RuntimeException("Latitude must be between -90 and 90");
+        }
+
+        if (longitude < -180 || longitude > 180) {
+            throw new RuntimeException("Longitude must be between -180 and 180");
         }
     }
 

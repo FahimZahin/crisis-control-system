@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +24,39 @@ public class CrisisAssistantService {
     private final PowerOutageRepository powerOutageRepository;
     private final FuelRequestRepository fuelRequestRepository;
     private final RouteFuelTokenRepository routeFuelTokenRepository;
+
+    private static final double EARTH_RADIUS_KM = 6371.0;
+
+    private static final Map<String, GeoPoint> THANA_COORDINATES = Map.ofEntries(
+            Map.entry("gulshan", new GeoPoint(23.7925, 90.4078, false, "Gulshan thana center")),
+            Map.entry("banani", new GeoPoint(23.7937, 90.4066, false, "Banani area center")),
+            Map.entry("badda", new GeoPoint(23.7806, 90.4253, false, "Badda thana center")),
+            Map.entry("rampura", new GeoPoint(23.7628, 90.4206, false, "Rampura area center")),
+            Map.entry("khilgaon", new GeoPoint(23.7509, 90.4250, false, "Khilgaon thana center")),
+            Map.entry("sabujbagh", new GeoPoint(23.7398, 90.4276, false, "Sabujbagh thana center")),
+            Map.entry("basabo", new GeoPoint(23.7406, 90.4312, false, "Basabo area center")),
+            Map.entry("bashabo", new GeoPoint(23.7406, 90.4312, false, "Bashabo area center")),
+            Map.entry("motijheel", new GeoPoint(23.7330, 90.4172, false, "Motijheel thana center")),
+            Map.entry("paltan", new GeoPoint(23.7366, 90.4123, false, "Paltan thana center")),
+            Map.entry("ramna", new GeoPoint(23.7475, 90.4077, false, "Ramna thana center")),
+            Map.entry("shahbagh", new GeoPoint(23.7381, 90.3954, false, "Shahbagh thana center")),
+            Map.entry("dhanmondi", new GeoPoint(23.7465, 90.3760, false, "Dhanmondi thana center")),
+            Map.entry("mohammadpur", new GeoPoint(23.7650, 90.3588, false, "Mohammadpur thana center")),
+            Map.entry("adabor", new GeoPoint(23.7728, 90.3592, false, "Adabor thana center")),
+            Map.entry("mirpur", new GeoPoint(23.8223, 90.3654, false, "Mirpur thana center")),
+            Map.entry("pallabi", new GeoPoint(23.8276, 90.3614, false, "Pallabi thana center")),
+            Map.entry("kafrul", new GeoPoint(23.7907, 90.3859, false, "Kafrul thana center")),
+            Map.entry("tejgaon", new GeoPoint(23.7637, 90.3937, false, "Tejgaon thana center")),
+            Map.entry("sherebanglanagar", new GeoPoint(23.7780, 90.3742, false, "Sher-e-Bangla Nagar thana center")),
+            Map.entry("sher-e-banglanagar", new GeoPoint(23.7780, 90.3742, false, "Sher-e-Bangla Nagar thana center")),
+            Map.entry("uttara", new GeoPoint(23.8759, 90.3795, false, "Uttara area center")),
+            Map.entry("wari", new GeoPoint(23.7177, 90.4179, false, "Wari thana center")),
+            Map.entry("kotwali", new GeoPoint(23.7099, 90.4071, false, "Kotwali thana center")),
+            Map.entry("lalbagh", new GeoPoint(23.7182, 90.3861, false, "Lalbagh thana center")),
+            Map.entry("jatrabari", new GeoPoint(23.7104, 90.4351, false, "Jatrabari thana center")),
+            Map.entry("demra", new GeoPoint(23.7217, 90.4812, false, "Demra thana center")),
+            Map.entry("mugda", new GeoPoint(23.7321, 90.4303, false, "Mugda thana center"))
+    );
 
     public CrisisAssistantResponse ask(CrisisAssistantRequest request) {
         validateRequest(request);
@@ -38,11 +72,11 @@ public class CrisisAssistantService {
         String answer;
 
         switch (intent) {
-            case "PUMP_AVAILABILITY" -> answer = answerPumpAvailability(userArea, normalizedQuestion);
+            case "PUMP_AVAILABILITY" -> answer = answerPumpAvailability(user, userArea, normalizedQuestion);
             case "OUTAGE_STATUS" -> answer = answerOutageStatus(userArea, normalizedQuestion);
             case "FUEL_REQUEST_STATUS" -> answer = answerLatestFuelRequest(user);
             case "ROUTE_TOKEN_STATUS" -> answer = answerLatestRouteToken(user);
-            case "OPEN_PUMP" -> answer = answerOpenPumps(userArea);
+            case "OPEN_PUMP" -> answer = answerOpenPumps(user, userArea);
             default -> {
                 intent = "HELP";
                 answer = answerHelp(userArea);
@@ -111,7 +145,7 @@ public class CrisisAssistantService {
         return "HELP";
     }
 
-    private String answerPumpAvailability(String userArea, String normalizedQuestion) {
+    private String answerPumpAvailability(User user, String userArea, String normalizedQuestion) {
         FuelType requestedFuelType = detectFuelType(normalizedQuestion);
 
         if (requestedFuelType == null) {
@@ -119,88 +153,109 @@ public class CrisisAssistantService {
                     + "Example: Available Octane near me?";
         }
 
-        List<PumpProfile> pumps = pumpProfileRepository.findAllByOrderByUpdatedAtDesc()
+        GeoPoint userPoint = resolveUserPoint(user, userArea);
+
+        List<PumpFuelDistanceResult> results = pumpProfileRepository.findAllByOrderByUpdatedAtDesc()
                 .stream()
                 .filter(this::isPumpUsable)
-                .filter(pump -> isBlank(userArea) || isPumpNearArea(pump, userArea))
-                .toList();
-
-        StringBuilder answer = new StringBuilder();
-
-        if (isBlank(userArea)) {
-            answer.append("Your area/thana is not set, so I checked all available pumps.\n\n");
-        } else {
-            answer.append("I checked pumps near ").append(userArea).append(".\n\n");
-        }
-
-        List<PumpFuelResult> results = pumps.stream()
-                .map(pump -> buildPumpFuelResult(pump, requestedFuelType))
-                .filter(result -> result.usableStock.compareTo(BigDecimal.ZERO) > 0)
-                .sorted(Comparator.comparing((PumpFuelResult result) -> result.usableStock).reversed())
-                .limit(5)
+                .map(pump -> new PumpFuelDistanceResult(
+                        buildPumpFuelResult(pump, requestedFuelType),
+                        calculateDistance(userPoint, resolvePumpPoint(pump))
+                ))
+                .filter(result -> result.fuelResult.usableStock.compareTo(BigDecimal.ZERO) > 0)
+                .sorted(pumpFuelDistanceComparator())
+                .limit(3)
                 .toList();
 
         if (results.isEmpty()) {
-            return answer
-                    + "Sorry, I could not find any open pump with usable "
+            return "Sorry, I could not find any registered open pump with usable "
                     + requestedFuelType
-                    + " stock"
-                    + (isBlank(userArea) ? "." : " near " + userArea + ".")
-                    + "\n\nTry checking the Public Pump Transparency page for all areas.";
+                    + " stock right now.\n\nTry checking again after pump authorities update stock.";
         }
 
-        answer.append("I found ")
+        StringBuilder answer = new StringBuilder();
+
+        answer.append("I checked all registered open pumps, not only your thana.\n");
+
+        if (hasExactCoordinate(user)) {
+            answer.append("Distance is calculated from your saved GPS location.\n\n");
+        } else if (userPoint != null) {
+            answer.append("Distance is approximate because your exact GPS is not saved; I used your thana/area center.\n\n");
+        } else {
+            answer.append("Your location is not saved, so I ranked pumps by available stock. Update your profile location for nearest-pump distance.\n\n");
+        }
+
+        answer.append("Top ")
                 .append(results.size())
-                .append(" pump(s) with usable ")
+                .append(" pump(s) where you can take ")
                 .append(requestedFuelType)
                 .append(":\n\n");
 
         int index = 1;
 
-        for (PumpFuelResult result : results) {
+        for (PumpFuelDistanceResult result : results) {
+            PumpFuelResult fuelResult = result.fuelResult;
+            PumpProfile pump = fuelResult.pump;
+
             answer.append(index++).append(". ")
-                    .append(result.pump.getPumpName()).append("\n")
-                    .append("Address: ").append(result.pump.getPumpAddress()).append("\n")
-                    .append("Status: ").append(displayPumpStatus(result.pump.getPumpStatus())).append("\n")
+                    .append(pump.getPumpName()).append("\n")
+                    .append("Distance: ").append(formatDistance(result.distanceInfo)).append("\n")
+                    .append("Address: ").append(pump.getPumpAddress()).append("\n")
+                    .append("Status: ").append(displayPumpStatus(pump.getPumpStatus())).append("\n")
                     .append("Usable ").append(requestedFuelType).append(": ")
-                    .append(result.usableStock).append(" L\n")
-                    .append("Route reserved: ").append(result.reservedStock).append(" L\n\n");
+                    .append(fuelResult.usableStock).append(" L\n")
+                    .append("Route reserved: ").append(fuelResult.reservedStock).append(" L\n\n");
         }
 
         return answer.toString().trim();
     }
 
-    private String answerOpenPumps(String userArea) {
-        List<PumpProfile> pumps = pumpProfileRepository.findAllByOrderByUpdatedAtDesc()
+    private String answerOpenPumps(User user, String userArea) {
+        GeoPoint userPoint = resolveUserPoint(user, userArea);
+
+        List<OpenPumpDistanceResult> results = pumpProfileRepository.findAllByOrderByUpdatedAtDesc()
                 .stream()
                 .filter(this::isPumpUsable)
-                .filter(pump -> isBlank(userArea) || isPumpNearArea(pump, userArea))
-                .limit(5)
+                .map(pump -> new OpenPumpDistanceResult(
+                        pump,
+                        getTotalUsableStock(pump),
+                        calculateDistance(userPoint, resolvePumpPoint(pump))
+                ))
+                .filter(result -> result.totalUsable.compareTo(BigDecimal.ZERO) > 0)
+                .sorted(openPumpDistanceComparator())
+                .limit(3)
                 .toList();
 
-        if (pumps.isEmpty()) {
-            return isBlank(userArea)
-                    ? "I could not find any open pump right now."
-                    : "I could not find any open pump near " + userArea + " right now.";
+        if (results.isEmpty()) {
+            return "I could not find any registered open pump with usable stock right now.";
         }
 
         StringBuilder answer = new StringBuilder();
 
-        answer.append(isBlank(userArea)
-                ? "Open pumps right now:\n\n"
-                : "Open pumps near " + userArea + ":\n\n");
+        answer.append("Top ")
+                .append(results.size())
+                .append(" registered open pump(s) you can use right now:\n\n");
+
+        if (hasExactCoordinate(user)) {
+            answer.append("Distance is calculated from your saved GPS location.\n\n");
+        } else if (userPoint != null) {
+            answer.append("Distance is approximate because your exact GPS is not saved; I used your thana/area center.\n\n");
+        } else {
+            answer.append("Your location is not saved, so distance is unavailable. Update your profile location for nearest-pump ranking.\n\n");
+        }
 
         int index = 1;
 
-        for (PumpProfile pump : pumps) {
-            BigDecimal totalUsable = getTotalUsableStock(pump);
+        for (OpenPumpDistanceResult result : results) {
+            PumpProfile pump = result.pump;
 
             answer.append(index++).append(". ")
                     .append(pump.getPumpName()).append("\n")
+                    .append("Distance: ").append(formatDistance(result.distanceInfo)).append("\n")
                     .append("Address: ").append(pump.getPumpAddress()).append("\n")
                     .append("Status: ").append(displayPumpStatus(pump.getPumpStatus())).append("\n")
                     .append("Fuel Types: ").append(pump.getFuelTypes()).append("\n")
-                    .append("Total usable stock: ").append(totalUsable).append(" L\n\n");
+                    .append("Total usable stock: ").append(result.totalUsable).append(" L\n\n");
         }
 
         return answer.toString().trim();
@@ -588,6 +643,134 @@ public class CrisisAssistantService {
         return value == null || value.trim().isEmpty();
     }
 
+    private GeoPoint resolveUserPoint(User user, String userArea) {
+        if (hasExactCoordinate(user)) {
+            return new GeoPoint(user.getLatitude(), user.getLongitude(), true, "saved GPS location");
+        }
+
+        return resolveAreaPoint(userArea);
+    }
+
+    private GeoPoint resolvePumpPoint(PumpProfile pump) {
+        if (pump == null) {
+            return null;
+        }
+
+        if (hasExactCoordinate(pump)) {
+            return new GeoPoint(pump.getLatitude(), pump.getLongitude(), true, "pump saved GPS location");
+        }
+
+        if (pump.getUser() != null && hasExactCoordinate(pump.getUser())) {
+            return new GeoPoint(
+                    pump.getUser().getLatitude(),
+                    pump.getUser().getLongitude(),
+                    true,
+                    "pump owner saved GPS location"
+            );
+        }
+
+        GeoPoint pumpUserAreaPoint = pump.getUser() == null ? null : resolveAreaPoint(resolveUserArea(pump.getUser()));
+
+        if (pumpUserAreaPoint != null) {
+            return pumpUserAreaPoint;
+        }
+
+        return resolveAreaPoint(pump.getPumpAddress());
+    }
+
+    private GeoPoint resolveAreaPoint(String areaOrAddress) {
+        if (isBlank(areaOrAddress)) {
+            return null;
+        }
+
+        String cleanedArea = cleanArea(areaOrAddress);
+        String normalized = normalizeArea(cleanedArea);
+
+        GeoPoint exactKeyPoint = THANA_COORDINATES.get(normalized);
+
+        if (exactKeyPoint != null) {
+            return exactKeyPoint;
+        }
+
+        for (Map.Entry<String, GeoPoint> entry : THANA_COORDINATES.entrySet()) {
+            if (normalized.contains(entry.getKey()) || entry.getKey().contains(normalized)) {
+                return entry.getValue();
+            }
+        }
+
+        return null;
+    }
+
+    private DistanceInfo calculateDistance(GeoPoint userPoint, GeoPoint pumpPoint) {
+        if (userPoint == null || pumpPoint == null) {
+            return new DistanceInfo(null, true);
+        }
+
+        double userLatitudeRadians = Math.toRadians(userPoint.latitude);
+        double pumpLatitudeRadians = Math.toRadians(pumpPoint.latitude);
+        double latitudeDifference = Math.toRadians(pumpPoint.latitude - userPoint.latitude);
+        double longitudeDifference = Math.toRadians(pumpPoint.longitude - userPoint.longitude);
+
+        double haversine = Math.sin(latitudeDifference / 2) * Math.sin(latitudeDifference / 2)
+                + Math.cos(userLatitudeRadians)
+                * Math.cos(pumpLatitudeRadians)
+                * Math.sin(longitudeDifference / 2)
+                * Math.sin(longitudeDifference / 2);
+
+        double clampedHaversine = Math.min(1.0, Math.max(0.0, haversine));
+        double angularDistance = 2 * Math.atan2(Math.sqrt(clampedHaversine), Math.sqrt(1 - clampedHaversine));
+        double kilometers = EARTH_RADIUS_KM * angularDistance;
+        boolean approximate = !userPoint.exact || !pumpPoint.exact;
+
+        return new DistanceInfo(roundDistance(kilometers), approximate);
+    }
+
+    private Comparator<PumpFuelDistanceResult> pumpFuelDistanceComparator() {
+        return Comparator
+                .comparingDouble((PumpFuelDistanceResult result) -> distanceSortValue(result.distanceInfo))
+                .thenComparing(result -> result.fuelResult.usableStock, Comparator.reverseOrder());
+    }
+
+    private Comparator<OpenPumpDistanceResult> openPumpDistanceComparator() {
+        return Comparator
+                .comparingDouble((OpenPumpDistanceResult result) -> distanceSortValue(result.distanceInfo))
+                .thenComparing(result -> result.totalUsable, Comparator.reverseOrder());
+    }
+
+    private double distanceSortValue(DistanceInfo distanceInfo) {
+        if (distanceInfo == null || distanceInfo.kilometers == null) {
+            return Double.MAX_VALUE;
+        }
+
+        return distanceInfo.kilometers;
+    }
+
+    private String formatDistance(DistanceInfo distanceInfo) {
+        if (distanceInfo == null || distanceInfo.kilometers == null) {
+            return "Unavailable — update user and pump GPS location";
+        }
+
+        return String.format("%.2f km away%s", distanceInfo.kilometers, distanceInfo.approximate ? " (approx.)" : "");
+    }
+
+    private boolean hasExactCoordinate(User user) {
+        return user != null
+                && user.getLatitude() != null
+                && user.getLongitude() != null;
+    }
+
+    private boolean hasExactCoordinate(PumpProfile pump) {
+        return pump != null
+                && pump.getLatitude() != null
+                && pump.getLongitude() != null;
+    }
+
+    private double roundDistance(double value) {
+        return BigDecimal.valueOf(value)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
+
     private void validateRequest(CrisisAssistantRequest request) {
         if (request == null) {
             throw new RuntimeException("Assistant request is required");
@@ -606,11 +789,38 @@ public class CrisisAssistantService {
         }
     }
 
+    private record GeoPoint(
+            double latitude,
+            double longitude,
+            boolean exact,
+            String source
+    ) {
+    }
+
+    private record DistanceInfo(
+            Double kilometers,
+            boolean approximate
+    ) {
+    }
+
     private record PumpFuelResult(
             PumpProfile pump,
             BigDecimal currentStock,
             BigDecimal reservedStock,
             BigDecimal usableStock
+    ) {
+    }
+
+    private record PumpFuelDistanceResult(
+            PumpFuelResult fuelResult,
+            DistanceInfo distanceInfo
+    ) {
+    }
+
+    private record OpenPumpDistanceResult(
+            PumpProfile pump,
+            BigDecimal totalUsable,
+            DistanceInfo distanceInfo
     ) {
     }
 }

@@ -71,6 +71,28 @@
             <label>Address</label>
             <input type="text" id="profileAddress">
 
+            <div class="location-update-box">
+                <h3>📍 Location for Nearest Pump</h3>
+                <p>Save your current GPS location so the AI assistant can show the nearest registered fuel pumps with distance.</p>
+
+                <div class="location-coordinate-grid">
+                    <div>
+                        <label>Latitude</label>
+                        <input type="text" id="profileLatitude" readonly placeholder="Not saved">
+                    </div>
+                    <div>
+                        <label>Longitude</label>
+                        <input type="text" id="profileLongitude" readonly placeholder="Not saved">
+                    </div>
+                </div>
+
+                <button type="button" class="btn secondary full-width" id="detectLocationBtn">
+                    📍 Use My Current Location
+                </button>
+
+                <p id="locationMessage" class="muted-text"></p>
+            </div>
+
             <button class="btn primary full-width" id="saveProfileBtn">Save Profile Changes</button>
 
             <p id="profileMessage"></p>

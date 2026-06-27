@@ -90,6 +90,8 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             localStorage.setItem("fullName", result.fullName || "");
             localStorage.setItem("phoneNumber", result.phoneNumber || "");
             localStorage.setItem("address", result.address || "");
+            localStorage.setItem("latitude", result.latitude ?? "");
+            localStorage.setItem("longitude", result.longitude ?? "");
             localStorage.setItem("role", result.role || "");
             localStorage.setItem("status", result.status || "");
             localStorage.setItem("drivingLicenseNumber", result.drivingLicenseNumber || "");

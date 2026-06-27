@@ -53,6 +53,8 @@ public class AuthService {
                 .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .status(UserStatus.ACTIVE)
@@ -563,6 +565,8 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .address(user.getAddress())
+                .latitude(user.getLatitude())
+                .longitude(user.getLongitude())
                 .role(user.getRole())
                 .status(user.getStatus())
 

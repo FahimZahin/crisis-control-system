@@ -11,4 +11,6 @@ public class ProfileUpdateRequest {
     private String phoneNumber;
     private String address;
     private String thanaOrUpazila;
+    private Double latitude;
+    private Double longitude;
 }

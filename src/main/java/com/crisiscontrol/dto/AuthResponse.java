@@ -19,6 +19,8 @@ public class AuthResponse {
     private String fullName;
     private String phoneNumber;
     private String address;
+    private Double latitude;
+    private Double longitude;
     private Role role;
     private UserStatus status;
 

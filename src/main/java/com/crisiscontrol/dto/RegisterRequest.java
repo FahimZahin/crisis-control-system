@@ -19,6 +19,8 @@ public class RegisterRequest {
     private String phoneNumber;
 
     private String address;
+    private Double latitude;
+    private Double longitude;
 
     @NotBlank(message = "Password is required")
     private String password;

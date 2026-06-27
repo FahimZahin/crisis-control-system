@@ -38,6 +38,12 @@ public class PumpProfile {
     @Column(name = "pump_address", nullable = false)
     private String pumpAddress;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Column(name = "fuel_capacity", nullable = false, precision = 12, scale = 2)
     private BigDecimal fuelCapacity;
 
