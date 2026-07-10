@@ -3550,3 +3550,22 @@ table tbody tr:hover {
         grid-template-columns: 1fr;
     }
 }
+
+
+.dashboard-summary-grid .summary-card h3,
+.role-summary-grid .summary-card h3 {
+    font-weight: 500 !important;
+    letter-spacing: -0.01em !important;
+}
+
+.dashboard-summary-grid .summary-card p,
+.dashboard-summary-grid .summary-card strong,
+.dashboard-summary-grid .summary-card .stat-value,
+.dashboard-summary-grid .summary-card .summary-value,
+.role-summary-grid .summary-card p,
+.role-summary-grid .summary-card strong,
+.role-summary-grid .summary-card .stat-value,
+.role-summary-grid .summary-card .summary-value {
+    font-weight: 600 !important;
+    letter-spacing: -0.015em !important;
+}
