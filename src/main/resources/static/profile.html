@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="notifications.html" class="navbar-notification-link">
+            🔔
+            <span id="navbarNotificationBadge" class="navbar-notification-badge" style="display:none;">0</span>
+        </a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="profile-page">
+
+    <div class="profile-header">
+        <h1>My Profile</h1>
+        <p>View and manage your account information</p>
+    </div>
+
+    <div id="inactiveAccountBox" class="inactive-account-box hidden-section">
+        <h2>Your Account is Deactivated</h2>
+        <p>
+            Your account has been deactivated by admin. You cannot use system actions until admin approves your activation request.
+        </p>
+
+        <label>Why should your account be activated?</label>
+        <textarea id="activationReason" placeholder="Write your activation request reason"></textarea>
+
+        <button class="btn primary full-width" id="sendActivationRequestBtn">
+            Apply for Account Activation
+        </button>
+
+        <p id="activationRequestMessage"></p>
+    </div>
+
+    <div class="profile-grid">
+
+        <div class="profile-card">
+            <h2>Account Information</h2>
+
+            <label>User ID</label>
+            <input type="text" id="profileUserId" readonly>
+
+            <label>Full Name</label>
+            <input type="text" id="profileFullName">
+
+            <label>Phone Number</label>
+            <input type="text" id="profilePhoneNumber">
+
+            <label>Role</label>
+            <input type="text" id="profileRole" readonly>
+
+            <label>Status</label>
+            <input type="text" id="profileStatus" readonly>
+
+            <div id="profileThanaSection" class="hidden-section">
+                <label>Thana / Upazila</label>
+                <input type="text" id="buildingUnderThana" readonly>
+            </div>
+
+            <label>Address</label>
+            <input type="text" id="profileAddress">
+
+            <div class="location-update-box">
+                <h3>📍 Location for Nearest Pump</h3>
+                <p>Save your current GPS location so the AI assistant can show the nearest registered fuel pumps with distance.</p>
+
+                <div class="location-coordinate-grid">
+                    <div>
+                        <label>Latitude</label>
+                        <input type="text" id="profileLatitude" readonly placeholder="Not saved">
+                    </div>
+                    <div>
+                        <label>Longitude</label>
+                        <input type="text" id="profileLongitude" readonly placeholder="Not saved">
+                    </div>
+                </div>
+
+                <button type="button" class="btn secondary full-width" id="detectLocationBtn">
+                    📍 Use My Current Location
+                </button>
+
+                <p id="locationMessage" class="muted-text"></p>
+            </div>
+
+            <button class="btn primary full-width" id="saveProfileBtn">Save Profile Changes</button>
+
+            <p id="profileMessage"></p>
+        </div>
+
+        <div class="profile-card">
+            <h2>Change Password</h2>
+
+            <label>Current Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="currentPassword" placeholder="Enter current password">
+                <button type="button" class="eye-btn" onclick="togglePassword('currentPassword', this)">👁</button>
+            </div>
+
+            <label>New Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="newPassword" placeholder="Enter new password">
+                <button type="button" class="eye-btn" onclick="togglePassword('newPassword', this)">👁</button>
+            </div>
+
+            <label>Confirm New Password</label>
+            <div class="password-wrapper">
+                <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+                <button type="button" class="eye-btn" onclick="togglePassword('confirmNewPassword', this)">👁</button>
+            </div>
+
+            <button class="btn primary full-width" id="changePasswordBtn">Change Password</button>
+
+            <p id="passwordMessage"></p>
+        </div>
+
+    </div>
+
+    <div class="profile-card danger-zone">
+        <h2>Danger Zone</h2>
+        <p>
+            Deleting your profile will permanently remove your account and related records from the database.
+            You will be logged out after successful deletion.
+        </p>
+
+        <button class="btn danger full-width" id="deleteProfileBtn">Delete Profile</button>
+
+        <p id="deleteMessage"></p>
+    </div>
+
+</div>
+
+<script>
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
+
+        if (input.type === "password") {
+            input.type = "text";
+            button.innerText = "🙈";
+        } else {
+            input.type = "password";
+            button.innerText = "👁";
+        }
+    }
+</script>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/scroll-buttons.js"></script>
+<script src="js/floating-chat.js"></script>
+<script src="js/navbar-notifications.js"></script>
+
+<script src="js/ui-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Request | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="vehicle-owner-dashboard.html">Dashboard</a>
+        <a href="fuel-request-history.html">Request History</a>
+        <a href="notifications.html" class="navbar-notification-link">
+            🔔
+            <span id="navbarNotificationBadge" class="navbar-notification-badge" style="display:none;">0</span>
+        </a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Request</h1>
+            <p>Fuel approval is based on odometer eligibility. Remaining range must be 5 km or less.</p>
+        </div>
+        <span class="role-badge">VEHICLE OWNER</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Fuel Type</h3>
+            <p id="selectedFuelTypePreview">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Price Per Unit</h3>
+            <p><span id="pricePerUnitPreview">0</span> BDT</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Estimated Cost</h3>
+            <p><span id="estimatedCostPreview">0</span> BDT</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Estimated Remaining Range</h3>
+            <p><span id="remainingRangePreview">0</span> km</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Create Fuel Request</h2>
+        <p class="muted-text">
+            You can submit a fuel request only when estimated remaining range is 5 km or less.
+        </p>
+
+        <form id="fuelRequestForm" class="settings-form-grid">
+
+            <div class="settings-full-row">
+                <label>Select Vehicle</label>
+                <select id="vehicleSelect" required>
+                    <option value="">Loading vehicles...</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Fuel Type</label>
+                <select id="fuelType" required>
+                    <option value="">Select fuel type</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Requested Fuel in Liter</label>
+                <input type="number" id="requestedLiter" min="0.1" step="0.01" placeholder="Enter liter">
+                <small class="muted-text">
+                    If your request exceeds the normal limit, you can still submit it by selecting a valid emergency reason for admin approval.
+                </small>
+            </div>
+
+            <div>
+                <label>Requested Amount in BDT</label>
+                <input type="number" id="requestedAmountBdt" min="1" step="0.01" placeholder="Enter amount in BDT">
+                <small class="muted-text">
+                    Normal limit is auto-checked. Higher requests require admin approval with a reason.
+                </small>
+            </div>
+
+            <div>
+                <label>Saved Current Fuel</label>
+                <input type="text" id="savedCurrentFuelLiter" readonly>
+            </div>
+
+            <div>
+                <label>Normal Limit</label>
+                <input type="text" id="normalFuelLimit" readonly>
+            </div>
+
+            <div>
+                <label>Auto Fuel Level</label>
+                <input type="text" id="fuelLevelStatus" readonly required>
+            </div>
+
+            <div id="extraFuelReasonSection" class="settings-full-row hidden-section">
+                <label>Extra Fuel Reason</label>
+                <select id="extraFuelReasonType">
+                    <option value="">Select emergency reason</option>
+                    <option value="Medical emergency">Medical emergency</option>
+                    <option value="Going to another city">Going to another city</option>
+                    <option value="Family emergency">Family emergency</option>
+                    <option value="Work / official emergency">Work / official emergency</option>
+                    <option value="Long-distance essential trip">Long-distance essential trip</option>
+                    <option value="Disaster or evacuation">Disaster or evacuation</option>
+                    <option value="No nearby fuel station available later">No nearby fuel station available later</option>
+                    <option value="Other emergency reason">Other emergency reason</option>
+                </select>
+            </div>
+
+            <div id="extraFuelMessageSection" class="settings-full-row hidden-section">
+                <label>Auto Generated Message for Admin</label>
+                <textarea id="extraFuelDemandMessage" readonly></textarea>
+            </div>
+
+            <div>
+                <label>Vehicle Type</label>
+                <input type="text" id="vehicleType" readonly>
+            </div>
+
+            <div>
+                <label>Number Plate</label>
+                <input type="text" id="numberPlate" readonly>
+            </div>
+
+            <div>
+                <label>Company Mileage</label>
+                <input type="text" id="companyMileage" readonly>
+            </div>
+
+            <div>
+                <label>Effective Mileage</label>
+                <input type="text" id="effectiveMileage" readonly>
+            </div>
+
+            <div>
+                <label>Tank Capacity</label>
+                <input type="text" id="tankCapacity" readonly>
+            </div>
+
+            <div>
+                <label>Last Verified Odometer</label>
+                <input type="text" id="lastVerifiedOdometer" readonly>
+            </div>
+
+            <div>
+                <label>Current Odometer Reading</label>
+                <input type="number" id="currentOdometerReading" min="0" step="0.01" placeholder="Enter current odometer" required>
+            </div>
+
+            <div>
+                <label>Distance Travelled Since Last Fuel</label>
+                <input type="text" id="distanceTravelledPreview" readonly>
+            </div>
+
+            <div>
+                <label>Full Tank Range</label>
+                <input type="text" id="fullTankRangePreview" readonly>
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Submit Fuel Request
+            </button>
+        </form>
+
+        <p id="fuelRequestMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Request Rules</h2>
+
+        <div class="feature-preview-grid">
+            <div class="feature-preview-card">
+                <h3>Odometer Rule</h3>
+                <p>Remaining range must be 5 km or less to request fuel.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Bike / Car Limit</h3>
+                <p>Admin limit still controls maximum request value.</p>
+            </div>
+
+            <div class="feature-preview-card">
+                <h3>Pump Verification</h3>
+                <p>Pump must verify number plate and odometer during collection.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/fuel-request.js"></script>
+<script src="js/scroll-buttons.js"></script>
+<script src="js/floating-chat.js"></script>
+<script src="js/navbar-notifications.js"></script>
+
+<script src="js/ui-enhancements.js"></script>
+</body>
+</html>

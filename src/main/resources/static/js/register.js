@@ -2,6 +2,7 @@ const roleSelect = document.getElementById("role");
 const registrationFields = document.getElementById("registrationFields");
 const open24HoursCheckbox = document.getElementById("open24Hours");
 const pumpTimeFields = document.getElementById("pumpTimeFields");
+const touchedFields = new Set();
 
 const roleSections = {
     VEHICLE_OWNER: document.getElementById("vehicleOwnerFields"),
@@ -15,11 +16,24 @@ const roleSections = {
     ADMIN: document.getElementById("adminFields")
 };
 
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof populateDhakaThanaSelect === "function") {
+        populateDhakaThanaSelect("hospitalUnderThana", "");
+        populateDhakaThanaSelect("buildingUnderThana", "");
+        populateDhakaThanaSelect("pumpUnderThana", "");
+        populateDhakaThanaSelect("thanaOrUpazila", "");
+    }
+
+    setupLiveValidation();
+});
+
 roleSelect.addEventListener("change", function () {
     const selectedRole = roleSelect.value;
 
     hideAllRoleSections();
     clearMessage();
+    clearAllFieldErrors();
+    touchedFields.clear();
 
     if (!selectedRole) {
         registrationFields.style.display = "none";
@@ -33,15 +47,21 @@ roleSelect.addEventListener("change", function () {
     }
 });
 
-open24HoursCheckbox.addEventListener("change", function () {
-    if (open24HoursCheckbox.checked) {
-        pumpTimeFields.style.display = "none";
-        document.getElementById("openingTime").value = "";
-        document.getElementById("closingTime").value = "";
-    } else {
-        pumpTimeFields.style.display = "block";
-    }
-});
+if (open24HoursCheckbox) {
+    open24HoursCheckbox.addEventListener("change", function () {
+        if (open24HoursCheckbox.checked) {
+            pumpTimeFields.style.display = "none";
+            document.getElementById("openingTime").value = "";
+            document.getElementById("closingTime").value = "";
+            clearFieldError("openingTime");
+            clearFieldError("closingTime");
+        } else {
+            pumpTimeFields.style.display = "block";
+        }
+
+        validateCurrentVisibleFields();
+    });
+}
 
 document.getElementById("registerForm").addEventListener("submit", async function (event) {
     event.preventDefault();
@@ -50,15 +70,16 @@ document.getElementById("registerForm").addEventListener("submit", async functio
 
     if (!selectedRole) {
         showMessage("Please select a role first.", "error-text");
+        markInvalid(roleSelect);
         return;
     }
 
     const data = buildRegistrationData(selectedRole);
+    const isValid = validateFrontendData(data, true);
 
-    const frontendValidationMessage = validateFrontendData(data);
-
-    if (frontendValidationMessage) {
-        showMessage(frontendValidationMessage, "error-text");
+    if (!isValid) {
+        showMessage("Please fix the highlighted fields before registration.", "error-text");
+        focusFirstInvalidField();
         return;
     }
 
@@ -74,11 +95,12 @@ document.getElementById("registerForm").addEventListener("submit", async functio
         const result = await response.json();
 
         if (response.ok) {
-            showMessage(result.message + ". Please login now.", "success-text");
+            showMessage((result.message || "Registration successful") + ". Please login now.", "success-text");
+            showCelebration("🎉 Congratulations! Registration successful");
 
             setTimeout(function () {
                 window.location.href = "login.html";
-            }, 1500);
+            }, 2500);
         } else {
             showMessage(result.message || "Registration failed", "error-text");
         }
@@ -88,8 +110,368 @@ document.getElementById("registerForm").addEventListener("submit", async functio
     }
 });
 
-function buildRegistrationData(selectedRole) {
+function setupLiveValidation() {
+    const fieldIds = [
+        "fullName",
+        "phoneNumber",
+        "address",
+        "password",
+        "confirmPassword",
+        "drivingLicenseNumber",
 
+        "buildingName",
+        "holdingNumber",
+        "numberOfFlats",
+        "generatorPower",
+        "buildingUnderThana",
+
+        "pumpName",
+        "businessLicenseNumber",
+        "pumpAddress",
+        "pumpUnderThana",
+        "fuelCapacity",
+        "currentStock",
+        "openingTime",
+        "closingTime",
+
+        "hospitalName",
+        "hospitalRegistrationNumber",
+        "hospitalAddress",
+        "hospitalUnderThana",
+        "hospitalGeneratorCapacity",
+        "hospitalDieselTankCapacity",
+        "hospitalCurrentDieselReserve",
+        "totalIcuUnits",
+        "acPatientCapacity",
+        "nonAcPatientCapacity",
+        "emergencyContactNumber",
+
+        "utilityOrganizationType",
+        "utilityEmployeeId",
+        "serviceArea",
+        "utilityOfficeAddress",
+
+        "organizationName",
+        "organizationType",
+        "officialVerificationId",
+        "assignedArea",
+
+        "governmentEmployeeId",
+        "departmentName",
+        "governmentDesignation",
+        "governmentOfficeAddress",
+
+        "localAuthorityId",
+        "district",
+        "thanaOrUpazila",
+        "localDesignation",
+        "localOfficeAddress",
+
+        "adminCode"
+    ];
+
+    fieldIds.forEach(function (id) {
+        const element = document.getElementById(id);
+
+        if (!element) {
+            return;
+        }
+
+        if (id === "phoneNumber" || id === "emergencyContactNumber") {
+            element.addEventListener("input", function () {
+                element.value = element.value.replace(/\D/g, "").slice(0, 11);
+
+                if (touchedFields.has(id)) {
+                    validateSingleField(id);
+                }
+            });
+        } else {
+            element.addEventListener("input", function () {
+                if (touchedFields.has(id)) {
+                    validateSingleField(id);
+                }
+
+                if (id === "password" || id === "confirmPassword") {
+                    validatePasswordMatchIfTouched();
+                }
+
+                if (id === "fuelCapacity" || id === "currentStock") {
+                    validatePumpStockIfTouched();
+                }
+
+                if (id === "hospitalDieselTankCapacity" || id === "hospitalCurrentDieselReserve") {
+                    validateHospitalReserveIfTouched();
+                }
+            });
+
+            element.addEventListener("change", function () {
+                touchedFields.add(id);
+                validateSingleField(id);
+
+                if (id === "hospitalDieselTankCapacity" || id === "hospitalCurrentDieselReserve") {
+                    validateHospitalReserveIfTouched();
+                }
+            });
+        }
+
+        element.addEventListener("blur", function () {
+            touchedFields.add(id);
+            validateSingleField(id);
+
+            if (id === "password" || id === "confirmPassword") {
+                validatePasswordMatchIfTouched();
+            }
+
+            if (id === "fuelCapacity" || id === "currentStock") {
+                validatePumpStockIfTouched();
+            }
+
+            if (id === "hospitalDieselTankCapacity" || id === "hospitalCurrentDieselReserve") {
+                validateHospitalReserveIfTouched();
+            }
+        });
+    });
+
+    document.querySelectorAll("input[name='fuelTypes']").forEach(function (checkbox) {
+        checkbox.addEventListener("change", function () {
+            touchedFields.add("fuelTypes");
+            validateFuelTypesIfTouched();
+        });
+    });
+}
+
+function validateCurrentVisibleFields() {
+    const selectedRole = roleSelect.value;
+
+    if (!selectedRole) {
+        return false;
+    }
+
+    const data = buildRegistrationData(selectedRole);
+    return validateFrontendData(data, false);
+}
+
+function validateSingleField(id) {
+    const selectedRole = roleSelect.value;
+
+    if (!selectedRole) {
+        return true;
+    }
+
+    const data = buildRegistrationData(selectedRole);
+
+    if (id === "fullName") {
+        return validateRequired("fullName", data.fullName, "Full name is required.");
+    }
+
+    if (id === "phoneNumber") {
+        return validatePhoneField("phoneNumber", data.phoneNumber, "Phone number must be exactly 11 digits.");
+    }
+
+    if (id === "password") {
+        return validateRequired("password", data.password, "Password is required.");
+    }
+
+    if (id === "confirmPassword") {
+        return validateRequired("confirmPassword", data.confirmPassword, "Confirm password is required.");
+    }
+
+    if (id === "drivingLicenseNumber" && data.role === "VEHICLE_OWNER") {
+        return validateRequired("drivingLicenseNumber", data.drivingLicenseNumber, "Driving license number is required for vehicle owner.");
+    }
+
+    if (data.role === "BUILDING_MANAGER") {
+        if (id === "buildingName") return validateRequired("buildingName", data.buildingName, "Building name is required.");
+        if (id === "holdingNumber") return validateRequired("holdingNumber", data.holdingNumber, "Holding number is required.");
+        if (id === "numberOfFlats") return validatePositiveNumber("numberOfFlats", data.numberOfFlats, "Number of flats must be greater than 0.");
+        if (id === "generatorPower") return validateRequired("generatorPower", data.generatorPower, "Generator power is required.");
+        if (id === "buildingUnderThana") return validateRequired("buildingUnderThana", data.buildingUnderThana, "Building thana is required.");
+    }
+
+    if (data.role === "PUMP_AUTHORITY") {
+        if (id === "pumpName") return validateRequired("pumpName", data.pumpName, "Pump name is required.");
+        if (id === "businessLicenseNumber") return validateRequired("businessLicenseNumber", data.businessLicenseNumber, "Business license number is required.");
+        if (id === "pumpAddress") return validateRequired("pumpAddress", data.pumpAddress, "Pump address is required.");
+        if (id === "pumpUnderThana") return validateRequired("pumpUnderThana", data.thanaOrUpazila, "Pump thana is required.");
+        if (id === "fuelCapacity") return validatePositiveNumber("fuelCapacity", data.fuelCapacity, "Fuel capacity must be greater than 0.");
+
+        if (id === "currentStock") {
+            if (data.currentStock === null || data.currentStock < 0) {
+                setFieldError("currentStock", "Current stock cannot be negative.");
+                return false;
+            }
+
+            if (data.fuelCapacity !== null && data.currentStock > data.fuelCapacity) {
+                setFieldError("currentStock", "Current stock cannot be greater than fuel capacity.");
+                return false;
+            }
+
+            clearFieldError("currentStock");
+            markValidById("currentStock");
+            return true;
+        }
+
+        if (id === "openingTime" && !data.open24Hours) {
+            return validateRequired("openingTime", data.openingTime, "Opening time is required.");
+        }
+
+        if (id === "closingTime" && !data.open24Hours) {
+            return validateRequired("closingTime", data.closingTime, "Closing time is required.");
+        }
+    }
+
+    if (data.role === "HOSPITAL_AUTHORITY") {
+        if (id === "hospitalName") return validateRequired("hospitalName", data.hospitalName, "Hospital name is required.");
+        if (id === "hospitalRegistrationNumber") return validateRequired("hospitalRegistrationNumber", data.hospitalRegistrationNumber, "Hospital registration number is required.");
+        if (id === "hospitalAddress") return validateRequired("hospitalAddress", data.hospitalAddress, "Hospital address is required.");
+        if (id === "hospitalUnderThana") return validateRequired("hospitalUnderThana", data.hospitalUnderThana, "Hospital thana is required.");
+
+        if (id === "hospitalGeneratorCapacity") {
+            return validatePositiveNumber(
+                "hospitalGeneratorCapacity",
+                Number(data.hospitalGeneratorCapacity),
+                "Hospital generator capacity must be greater than 0."
+            );
+        }
+
+        if (id === "hospitalDieselTankCapacity") {
+            return validateHospitalDieselTankCapacity(data.hospitalDieselTankCapacity);
+        }
+
+        if (id === "hospitalCurrentDieselReserve") {
+            return validateHospitalDieselReserve(data.hospitalCurrentDieselReserve, data.hospitalDieselTankCapacity);
+        }
+
+        if (id === "totalIcuUnits") {
+            return validateZeroOrPositiveNumber("totalIcuUnits", data.totalIcuUnits, "Total ICU units cannot be negative.");
+        }
+
+        if (id === "acPatientCapacity") {
+            return validateZeroOrPositiveNumber("acPatientCapacity", data.acPatientCapacity, "AC patient capacity cannot be negative.");
+        }
+
+        if (id === "nonAcPatientCapacity") {
+            return validateZeroOrPositiveNumber("nonAcPatientCapacity", data.nonAcPatientCapacity, "Non-AC patient capacity cannot be negative.");
+        }
+
+        if (id === "emergencyContactNumber") {
+            return validatePhoneField("emergencyContactNumber", data.emergencyContactNumber, "Emergency contact must be exactly 11 digits.");
+        }
+    }
+
+    if (data.role === "UTILITY_AUTHORITY") {
+        if (id === "utilityOrganizationType") return validateRequired("utilityOrganizationType", data.utilityOrganizationType, "Utility organization type is required.");
+        if (id === "utilityEmployeeId") return validateRequired("utilityEmployeeId", data.utilityEmployeeId, "Utility employee ID is required.");
+        if (id === "serviceArea") return validateRequired("serviceArea", data.serviceArea, "Service area is required.");
+        if (id === "utilityOfficeAddress") return validateRequired("utilityOfficeAddress", data.officeAddress, "Office address is required.");
+    }
+
+    if (data.role === "EMERGENCY_VEHICLE_AUTHORITY") {
+        if (id === "organizationName") return validateRequired("organizationName", data.organizationName, "Organization name is required.");
+        if (id === "organizationType") return validateRequired("organizationType", data.organizationType, "Organization type is required.");
+        if (id === "officialVerificationId") return validateRequired("officialVerificationId", data.officialVerificationId, "Official verification ID is required.");
+        if (id === "assignedArea") return validateRequired("assignedArea", data.assignedArea, "Assigned area is required.");
+    }
+
+    if (data.role === "GOVERNMENT_AUTHORITY") {
+        if (id === "governmentEmployeeId") return validateRequired("governmentEmployeeId", data.governmentEmployeeId, "Government employee ID is required.");
+        if (id === "departmentName") return validateRequired("departmentName", data.departmentName, "Department name is required.");
+        if (id === "governmentDesignation") return validateRequired("governmentDesignation", data.designation, "Designation is required.");
+        if (id === "governmentOfficeAddress") return validateRequired("governmentOfficeAddress", data.officeAddress, "Office address is required.");
+    }
+
+    if (data.role === "LOCAL_AUTHORITY") {
+        if (id === "localAuthorityId") return validateRequired("localAuthorityId", data.localAuthorityId, "Local authority ID is required.");
+        if (id === "district") return validateRequired("district", data.district, "District is required.");
+        if (id === "thanaOrUpazila") return validateRequired("thanaOrUpazila", data.thanaOrUpazila, "Thana/Upazila is required.");
+        if (id === "localDesignation") return validateRequired("localDesignation", data.designation, "Designation is required.");
+        if (id === "localOfficeAddress") return validateRequired("localOfficeAddress", data.officeAddress, "Office address is required.");
+    }
+
+    if (id === "adminCode" && data.role === "ADMIN") {
+        return validateRequired("adminCode", data.adminCode, "Admin secret code is required.");
+    }
+
+    return true;
+}
+
+function validatePasswordMatchIfTouched() {
+    if (!touchedFields.has("password") || !touchedFields.has("confirmPassword")) {
+        return true;
+    }
+
+    const password = getValue("password");
+    const confirmPassword = getValue("confirmPassword");
+
+    if (password && confirmPassword && password !== confirmPassword) {
+        setFieldError("confirmPassword", "Password and confirm password do not match.");
+        return false;
+    }
+
+    if (confirmPassword) {
+        clearFieldError("confirmPassword");
+        markValidById("confirmPassword");
+    }
+
+    return true;
+}
+
+function validatePumpStockIfTouched() {
+    if (!touchedFields.has("fuelCapacity") || !touchedFields.has("currentStock")) {
+        return true;
+    }
+
+    const fuelCapacity = getNumberValue("fuelCapacity");
+    const currentStock = getNumberValue("currentStock");
+
+    if (fuelCapacity !== null && currentStock !== null && currentStock > fuelCapacity) {
+        setFieldError("currentStock", "Current stock cannot be greater than fuel capacity.");
+        return false;
+    }
+
+    if (currentStock !== null && currentStock >= 0) {
+        clearFieldError("currentStock");
+        markValidById("currentStock");
+    }
+
+    return true;
+}
+
+function validateHospitalReserveIfTouched() {
+    if (!touchedFields.has("hospitalDieselTankCapacity") && !touchedFields.has("hospitalCurrentDieselReserve")) {
+        return true;
+    }
+
+    const data = buildRegistrationData(roleSelect.value);
+
+    if (touchedFields.has("hospitalDieselTankCapacity")) {
+        validateHospitalDieselTankCapacity(data.hospitalDieselTankCapacity);
+    }
+
+    if (touchedFields.has("hospitalCurrentDieselReserve")) {
+        return validateHospitalDieselReserve(data.hospitalCurrentDieselReserve, data.hospitalDieselTankCapacity);
+    }
+
+    return true;
+}
+
+function validateFuelTypesIfTouched() {
+    if (!touchedFields.has("fuelTypes")) {
+        return true;
+    }
+
+    const fuelTypes = getSelectedFuelTypes();
+
+    if (!fuelTypes) {
+        setCheckboxGroupError("fuelTypes", "Please select at least one fuel type.");
+        return false;
+    }
+
+    clearCheckboxGroupError("fuelTypes");
+    return true;
+}
+
+function buildRegistrationData(selectedRole) {
     const data = {
         role: selectedRole,
         fullName: getValue("fullName"),
@@ -104,6 +486,7 @@ function buildRegistrationData(selectedRole) {
         holdingNumber: null,
         numberOfFlats: null,
         generatorPower: null,
+        buildingUnderThana: null,
 
         pumpName: null,
         businessLicenseNumber: null,
@@ -118,7 +501,15 @@ function buildRegistrationData(selectedRole) {
         hospitalName: null,
         hospitalRegistrationNumber: null,
         hospitalAddress: null,
+        hospitalUnderThana: null,
+        hospitalGeneratorCapacity: null,
+        hospitalDieselTankCapacity: null,
+        hospitalCurrentDieselReserve: null,
         emergencyContactNumber: null,
+
+        totalIcuUnits: 0,
+        acPatientCapacity: 0,
+        nonAcPatientCapacity: 0,
 
         utilityOrganizationType: null,
         utilityEmployeeId: null,
@@ -150,12 +541,15 @@ function buildRegistrationData(selectedRole) {
         data.holdingNumber = getValue("holdingNumber");
         data.numberOfFlats = getNumberValue("numberOfFlats");
         data.generatorPower = getValue("generatorPower");
+        data.buildingUnderThana = getValue("buildingUnderThana");
+        data.thanaOrUpazila = data.buildingUnderThana;
     }
 
     if (selectedRole === "PUMP_AUTHORITY") {
         data.pumpName = getValue("pumpName");
         data.businessLicenseNumber = getValue("businessLicenseNumber");
         data.pumpAddress = getValue("pumpAddress");
+        data.thanaOrUpazila = getValue("pumpUnderThana");
         data.fuelCapacity = getNumberValue("fuelCapacity");
         data.fuelTypes = getSelectedFuelTypes();
         data.currentStock = getNumberValue("currentStock");
@@ -168,6 +562,14 @@ function buildRegistrationData(selectedRole) {
         data.hospitalName = getValue("hospitalName");
         data.hospitalRegistrationNumber = getValue("hospitalRegistrationNumber");
         data.hospitalAddress = getValue("hospitalAddress");
+        data.hospitalUnderThana = getValue("hospitalUnderThana");
+        data.thanaOrUpazila = data.hospitalUnderThana;
+        data.hospitalGeneratorCapacity = getValue("hospitalGeneratorCapacity");
+        data.hospitalDieselTankCapacity = getNumberValue("hospitalDieselTankCapacity");
+        data.hospitalCurrentDieselReserve = getNumberValue("hospitalCurrentDieselReserve");
+        data.totalIcuUnits = getNumberValue("totalIcuUnits");
+        data.acPatientCapacity = getNumberValue("acPatientCapacity");
+        data.nonAcPatientCapacity = getNumberValue("nonAcPatientCapacity");
         data.emergencyContactNumber = getValue("emergencyContactNumber");
     }
 
@@ -207,104 +609,386 @@ function buildRegistrationData(selectedRole) {
     return data;
 }
 
-function validateFrontendData(data) {
+function validateFrontendData(data, showGlobalMessage) {
+    let isValid = true;
 
-    if (!data.fullName) {
-        return "Full name is required.";
+    clearAllFieldErrors();
+
+    if (!validateRequired("fullName", data.fullName, "Full name is required.")) {
+        isValid = false;
     }
 
-    if (!data.phoneNumber) {
-        return "Phone number is required.";
+    if (!validatePhoneField("phoneNumber", data.phoneNumber, "Phone number must be exactly 11 digits.")) {
+        isValid = false;
     }
 
-    if (!data.password) {
-        return "Password is required.";
+    if (!validateRequired("password", data.password, "Password is required.")) {
+        isValid = false;
     }
 
-    if (!data.confirmPassword) {
-        return "Confirm password is required.";
+    if (!validateRequired("confirmPassword", data.confirmPassword, "Confirm password is required.")) {
+        isValid = false;
     }
 
-    if (data.password !== data.confirmPassword) {
-        return "Password and confirm password do not match.";
+    if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
+        setFieldError("confirmPassword", "Password and confirm password do not match.");
+        isValid = false;
     }
 
-    if (data.role === "VEHICLE_OWNER" && !data.drivingLicenseNumber) {
-        return "Driving license number is required for vehicle owner.";
+    if (data.role === "VEHICLE_OWNER") {
+        if (!validateRequired("drivingLicenseNumber", data.drivingLicenseNumber, "Driving license number is required for vehicle owner.")) {
+            isValid = false;
+        }
     }
 
     if (data.role === "BUILDING_MANAGER") {
-        if (!data.buildingName || !data.holdingNumber || !data.numberOfFlats || !data.generatorPower) {
-            return "Building name, holding number, number of flats, and generator power are required.";
-        }
+        if (!validateRequired("buildingName", data.buildingName, "Building name is required.")) isValid = false;
+        if (!validateRequired("holdingNumber", data.holdingNumber, "Holding number is required.")) isValid = false;
+        if (!validatePositiveNumber("numberOfFlats", data.numberOfFlats, "Number of flats must be greater than 0.")) isValid = false;
+        if (!validateRequired("generatorPower", data.generatorPower, "Generator power is required.")) isValid = false;
+        if (!validateRequired("buildingUnderThana", data.buildingUnderThana, "Building thana is required.")) isValid = false;
     }
 
     if (data.role === "PUMP_AUTHORITY") {
-        if (!data.pumpName || !data.businessLicenseNumber || !data.pumpAddress) {
-            return "Pump name, business license number, and pump address are required.";
-        }
-
-        if (!data.fuelCapacity || data.fuelCapacity <= 0) {
-            return "Valid fuel capacity is required.";
-        }
+        if (!validateRequired("pumpName", data.pumpName, "Pump name is required.")) isValid = false;
+        if (!validateRequired("businessLicenseNumber", data.businessLicenseNumber, "Business license number is required.")) isValid = false;
+        if (!validateRequired("pumpAddress", data.pumpAddress, "Pump address is required.")) isValid = false;
+        if (!validateRequired("pumpUnderThana", data.thanaOrUpazila, "Pump thana is required.")) isValid = false;
+        if (!validatePositiveNumber("fuelCapacity", data.fuelCapacity, "Fuel capacity must be greater than 0.")) isValid = false;
 
         if (!data.fuelTypes) {
-            return "Please select at least one fuel type.";
+            setCheckboxGroupError("fuelTypes", "Please select at least one fuel type.");
+            isValid = false;
+        } else {
+            clearCheckboxGroupError("fuelTypes");
         }
 
         if (data.currentStock === null || data.currentStock < 0) {
-            return "Valid current stock is required.";
+            setFieldError("currentStock", "Current stock cannot be negative.");
+            isValid = false;
         }
 
-        if (data.currentStock > data.fuelCapacity) {
-            return "Current stock cannot be greater than fuel capacity.";
+        if (data.currentStock !== null && data.fuelCapacity !== null && data.currentStock > data.fuelCapacity) {
+            setFieldError("currentStock", "Current stock cannot be greater than fuel capacity.");
+            isValid = false;
         }
 
-        if (!data.open24Hours && (!data.openingTime || !data.closingTime)) {
-            return "Opening and closing time are required if pump is not open 24 hours.";
+        if (!data.open24Hours) {
+            if (!validateRequired("openingTime", data.openingTime, "Opening time is required.")) isValid = false;
+            if (!validateRequired("closingTime", data.closingTime, "Closing time is required.")) isValid = false;
         }
     }
 
     if (data.role === "HOSPITAL_AUTHORITY") {
-        if (!data.hospitalName || !data.hospitalRegistrationNumber || !data.hospitalAddress || !data.emergencyContactNumber) {
-            return "Hospital name, registration number, address, and emergency contact number are required.";
+        if (!validateRequired("hospitalName", data.hospitalName, "Hospital name is required.")) isValid = false;
+        if (!validateRequired("hospitalRegistrationNumber", data.hospitalRegistrationNumber, "Hospital registration number is required.")) isValid = false;
+        if (!validateRequired("hospitalAddress", data.hospitalAddress, "Hospital address is required.")) isValid = false;
+        if (!validateRequired("hospitalUnderThana", data.hospitalUnderThana, "Hospital thana is required.")) isValid = false;
+
+        if (!validatePositiveNumber("hospitalGeneratorCapacity", Number(data.hospitalGeneratorCapacity), "Hospital generator capacity must be greater than 0.")) {
+            isValid = false;
+        }
+
+        if (!validateHospitalDieselTankCapacity(data.hospitalDieselTankCapacity)) {
+            isValid = false;
+        }
+
+        if (!validateZeroOrPositiveNumber("totalIcuUnits", data.totalIcuUnits, "Total ICU units cannot be negative.")) {
+            isValid = false;
+        }
+
+        if (!validateZeroOrPositiveNumber("acPatientCapacity", data.acPatientCapacity, "AC patient capacity cannot be negative.")) {
+            isValid = false;
+        }
+
+        if (!validateZeroOrPositiveNumber("nonAcPatientCapacity", data.nonAcPatientCapacity, "Non-AC patient capacity cannot be negative.")) {
+            isValid = false;
+        }
+
+        if (!validatePhoneField("emergencyContactNumber", data.emergencyContactNumber, "Emergency contact must be exactly 11 digits.")) {
+            isValid = false;
+        }
+
+        if (
+            data.hospitalUnderThana &&
+            typeof isValidCcsDhakaThana === "function" &&
+            !isValidCcsDhakaThana(data.hospitalUnderThana)
+        ) {
+            setFieldError("hospitalUnderThana", "Please select a valid Dhaka thana from the list.");
+            isValid = false;
         }
     }
 
     if (data.role === "UTILITY_AUTHORITY") {
-        if (!data.utilityOrganizationType || !data.utilityEmployeeId || !data.serviceArea || !data.officeAddress) {
-            return "Utility organization type, employee ID, service area, and office address are required.";
-        }
+        if (!validateRequired("utilityOrganizationType", data.utilityOrganizationType, "Utility organization type is required.")) isValid = false;
+        if (!validateRequired("utilityEmployeeId", data.utilityEmployeeId, "Utility employee ID is required.")) isValid = false;
+        if (!validateRequired("serviceArea", data.serviceArea, "Service area is required.")) isValid = false;
+        if (!validateRequired("utilityOfficeAddress", data.officeAddress, "Office address is required.")) isValid = false;
     }
 
     if (data.role === "EMERGENCY_VEHICLE_AUTHORITY") {
-        if (!data.organizationName || !data.organizationType || !data.officialVerificationId || !data.assignedArea) {
-            return "Organization name, type, official verification ID, and assigned area are required.";
-        }
+        if (!validateRequired("organizationName", data.organizationName, "Organization name is required.")) isValid = false;
+        if (!validateRequired("organizationType", data.organizationType, "Organization type is required.")) isValid = false;
+        if (!validateRequired("officialVerificationId", data.officialVerificationId, "Official verification ID is required.")) isValid = false;
+        if (!validateRequired("assignedArea", data.assignedArea, "Assigned area is required.")) isValid = false;
     }
 
     if (data.role === "GOVERNMENT_AUTHORITY") {
-        if (!data.governmentEmployeeId || !data.departmentName || !data.designation || !data.officeAddress) {
-            return "Government employee ID, department name, designation, and office address are required.";
-        }
+        if (!validateRequired("governmentEmployeeId", data.governmentEmployeeId, "Government employee ID is required.")) isValid = false;
+        if (!validateRequired("departmentName", data.departmentName, "Department name is required.")) isValid = false;
+        if (!validateRequired("governmentDesignation", data.designation, "Designation is required.")) isValid = false;
+        if (!validateRequired("governmentOfficeAddress", data.officeAddress, "Office address is required.")) isValid = false;
     }
 
     if (data.role === "LOCAL_AUTHORITY") {
-        if (!data.localAuthorityId || !data.district || !data.thanaOrUpazila || !data.designation || !data.officeAddress) {
-            return "Local authority ID, district, thana/upazila, designation, and office address are required.";
+        if (!validateRequired("localAuthorityId", data.localAuthorityId, "Local authority ID is required.")) isValid = false;
+        if (!validateRequired("district", data.district, "District is required.")) isValid = false;
+        if (!validateRequired("thanaOrUpazila", data.thanaOrUpazila, "Thana/Upazila is required.")) isValid = false;
+        if (!validateRequired("localDesignation", data.designation, "Designation is required.")) isValid = false;
+        if (!validateRequired("localOfficeAddress", data.officeAddress, "Office address is required.")) isValid = false;
+    }
+
+
+    if (
+        data.role === "BUILDING_MANAGER" &&
+        data.buildingUnderThana &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.buildingUnderThana)
+    ) {
+        setFieldError("buildingUnderThana", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
+
+    if (
+        data.role === "PUMP_AUTHORITY" &&
+        data.thanaOrUpazila &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.thanaOrUpazila)
+    ) {
+        setFieldError("pumpUnderThana", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
+
+    if (
+        data.role === "LOCAL_AUTHORITY" &&
+        data.thanaOrUpazila &&
+        typeof isValidCcsDhakaThana === "function" &&
+        !isValidCcsDhakaThana(data.thanaOrUpazila)
+    ) {
+        setFieldError("thanaOrUpazila", "Please select a valid Dhaka thana from the list.");
+        isValid = false;
+    }
+    if (data.role === "ADMIN") {
+        if (!validateRequired("adminCode", data.adminCode, "Admin secret code is required.")) isValid = false;
+    }
+
+    if (!isValid && showGlobalMessage) {
+        showMessage("Please fix the highlighted fields before registration.", "error-text");
+    }
+
+    return isValid;
+}
+
+function validateRequired(id, value, message) {
+    if (value === null || value === undefined || String(value).trim() === "") {
+        setFieldError(id, message);
+        return false;
+    }
+
+    clearFieldError(id);
+    markValidById(id);
+    return true;
+}
+
+function validatePhoneField(id, value, message) {
+    if (value === null || value === undefined || String(value).trim() === "") {
+        setFieldError(id, "This phone number is required.");
+        return false;
+    }
+
+    if (!/^[0-9]{11}$/.test(String(value).trim())) {
+        setFieldError(id, message);
+        return false;
+    }
+
+    clearFieldError(id);
+    markValidById(id);
+    return true;
+}
+
+function validatePositiveNumber(id, value, message) {
+    if (value === null || value === undefined || value === "" || Number(value) <= 0 || Number.isNaN(Number(value))) {
+        setFieldError(id, message);
+        return false;
+    }
+
+    clearFieldError(id);
+    markValidById(id);
+    return true;
+}
+
+function validateZeroOrPositiveNumber(id, value, message) {
+    if (value === null || value === undefined || value === "" || Number(value) < 0 || Number.isNaN(Number(value))) {
+        setFieldError(id, message);
+        return false;
+    }
+
+    clearFieldError(id);
+    markValidById(id);
+    return true;
+}
+
+function validateHospitalDieselTankCapacity(value) {
+    const capacity = Number(value);
+
+    if (value === null || value === undefined || value === "" || Number.isNaN(capacity) || capacity <= 0) {
+        setFieldError("hospitalDieselTankCapacity", "Hospital diesel tank capacity is required.");
+        return false;
+    }
+
+    if (capacity > 1000) {
+        setFieldError("hospitalDieselTankCapacity", "Hospital diesel tank capacity cannot be more than 1000 L.");
+        return false;
+    }
+
+    clearFieldError("hospitalDieselTankCapacity");
+    markValidById("hospitalDieselTankCapacity");
+    return true;
+}
+
+function validateHospitalDieselReserve(currentReserve, dieselTankCapacity) {
+    const reserve = Number(currentReserve);
+    const capacity = Number(dieselTankCapacity);
+
+    if (currentReserve === null || currentReserve === undefined || currentReserve === "" || Number.isNaN(reserve) || reserve < 0) {
+        setFieldError("hospitalCurrentDieselReserve", "Diesel reserve cannot be negative.");
+        return false;
+    }
+
+    if (dieselTankCapacity !== null && dieselTankCapacity !== undefined && dieselTankCapacity !== "" && !Number.isNaN(capacity)) {
+        if (reserve > capacity) {
+            setFieldError("hospitalCurrentDieselReserve", "Current diesel reserve cannot be greater than diesel tank capacity.");
+            return false;
         }
     }
 
-    if (data.role === "ADMIN" && !data.adminCode) {
-        return "Admin secret code is required.";
+    clearFieldError("hospitalCurrentDieselReserve");
+    markValidById("hospitalCurrentDieselReserve");
+    return true;
+}
+
+
+function markValidById(id) {
+    const field = document.getElementById(id);
+
+    if (field) {
+        field.classList.remove("invalid-input");
+        field.classList.add("valid-input");
+    }
+}
+
+function markInvalid(field) {
+    if (field) {
+        field.classList.remove("valid-input");
+        field.classList.add("invalid-input");
+    }
+}
+
+function setFieldError(id, message) {
+    const field = document.getElementById(id);
+
+    if (!field) {
+        return;
     }
 
-    return null;
+    let errorElement = document.getElementById(id + "Error");
+
+    if (!errorElement) {
+        errorElement = document.createElement("small");
+        errorElement.id = id + "Error";
+        errorElement.className = "field-error";
+        field.insertAdjacentElement("afterend", errorElement);
+    }
+
+    errorElement.innerText = message;
+    errorElement.style.display = "block";
+
+    field.classList.remove("valid-input");
+    field.classList.add("invalid-input");
+}
+
+function clearFieldError(id) {
+    const field = document.getElementById(id);
+    const errorElement = document.getElementById(id + "Error");
+
+    if (errorElement) {
+        errorElement.innerText = "";
+        errorElement.style.display = "none";
+    }
+
+    if (field) {
+        field.classList.remove("invalid-input");
+    }
+}
+
+function clearAllFieldErrors() {
+    document.querySelectorAll(".field-error").forEach(function (element) {
+        element.innerText = "";
+        element.style.display = "none";
+    });
+
+    document.querySelectorAll(".invalid-input").forEach(function (element) {
+        element.classList.remove("invalid-input");
+    });
+
+    document.querySelectorAll(".valid-input").forEach(function (element) {
+        element.classList.remove("valid-input");
+    });
+
+    clearCheckboxGroupError("fuelTypes");
+}
+
+function setCheckboxGroupError(name, message) {
+    let errorElement = document.getElementById(name + "Error");
+
+    if (!errorElement) {
+        const group = document.querySelector("input[name='" + name + "']");
+        if (group && group.closest(".checkbox-group")) {
+            errorElement = document.createElement("small");
+            errorElement.id = name + "Error";
+            errorElement.className = "field-error";
+            group.closest(".checkbox-group").insertAdjacentElement("afterend", errorElement);
+        }
+    }
+
+    if (errorElement) {
+        errorElement.innerText = message;
+        errorElement.style.display = "block";
+    }
+}
+
+function clearCheckboxGroupError(name) {
+    const errorElement = document.getElementById(name + "Error");
+
+    if (errorElement) {
+        errorElement.innerText = "";
+        errorElement.style.display = "none";
+    }
+}
+function focusFirstInvalidField() {
+    const firstInvalid = document.querySelector(".invalid-input");
+
+    if (firstInvalid) {
+        firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+        firstInvalid.focus();
+    }
 }
 
 function hideAllRoleSections() {
     Object.values(roleSections).forEach(function (section) {
-        section.style.display = "none";
+        if (section) {
+            section.style.display = "none";
+        }
     });
 }
 
@@ -331,7 +1015,13 @@ function getNumberValue(id) {
         return null;
     }
 
-    return Number(value);
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return null;
+    }
+
+    return numberValue;
 }
 
 function getSelectedFuelTypes() {
@@ -350,12 +1040,70 @@ function getSelectedFuelTypes() {
 
 function showMessage(text, className) {
     const message = document.getElementById("message");
-    message.className = className;
-    message.innerText = text;
+
+    if (message) {
+        message.className = className;
+        message.innerText = text;
+    }
 }
 
 function clearMessage() {
     const message = document.getElementById("message");
-    message.className = "";
-    message.innerText = "";
+
+    if (message) {
+        message.className = "";
+        message.innerText = "";
+    }
+}
+
+function showCelebration(text) {
+    const oldOverlay = document.querySelector(".celebration-overlay");
+
+    if (oldOverlay) {
+        oldOverlay.remove();
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "celebration-overlay";
+
+    const messageBox = document.createElement("div");
+    messageBox.className = "celebration-message";
+    messageBox.innerText = text;
+    overlay.appendChild(messageBox);
+
+    const balloonColors = [
+        "balloon-red",
+        "balloon-blue",
+        "balloon-yellow",
+        "balloon-green",
+        "balloon-purple"
+    ];
+
+    for (let i = 0; i < 10; i++) {
+        const balloon = document.createElement("div");
+        balloon.className = "celebration-balloon " + balloonColors[i % balloonColors.length];
+        balloon.style.left = Math.floor(Math.random() * 90) + "vw";
+        balloon.style.animationDelay = (Math.random() * 0.5) + "s";
+        overlay.appendChild(balloon);
+    }
+
+    for (let i = 0; i < 35; i++) {
+        const confetti = document.createElement("div");
+        confetti.className = "celebration-confetti";
+        confetti.style.left = Math.floor(Math.random() * 100) + "vw";
+        confetti.style.background = getRandomCelebrationColor();
+        confetti.style.animationDelay = (Math.random() * 0.7) + "s";
+        overlay.appendChild(confetti);
+    }
+
+    document.body.appendChild(overlay);
+
+    setTimeout(function () {
+        overlay.remove();
+    }, 2600);
+}
+
+function getRandomCelebrationColor() {
+    const colors = ["#ff4d6d", "#00a8ff", "#ffd166", "#06d6a0", "#9b5de5", "#f72585"];
+    return colors[Math.floor(Math.random() * colors.length)];
 }

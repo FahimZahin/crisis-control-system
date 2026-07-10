@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump Fuel Requests | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="pump-authority-dashboard.html">Pump Dashboard</a>
+        <a href="pump-stock-management.html">Stock Management</a>
+        <a href="notifications.html" class="navbar-notification-link">
+            🔔
+            <span id="navbarNotificationBadge" class="navbar-notification-badge" style="display:none;">0</span>
+        </a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Fuel Collection Verification</h1>
+            <p>Verify collection code, number plate, and odometer before marking vehicle fuel as collected.</p>
+        </div>
+        <span class="role-badge">PUMP COLLECTION</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Pump Name</h3>
+            <p id="pumpNameSummary">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pump Status</h3>
+            <p id="pumpStatusSummary">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved Requests</h3>
+            <p id="approvedRequestCount">0</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Total Stock</h3>
+            <p><span id="totalStockSummary">-</span> L</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Manual QR / Collection Code Verification</h2>
+        <p class="muted-text">
+            For normal vehicle fuel, enter collection code, vehicle number plate, and current odometer reading.
+            For hospital/building/emergency requests, collection code is enough.
+        </p>
+
+        <form id="collectionCodeForm" class="settings-form-grid">
+            <div class="settings-full-row">
+                <label>Collection Code</label>
+                <input type="text" id="collectionCode" placeholder="Example: CCS-FUEL-REQ-1" required>
+            </div>
+
+            <div>
+                <label>Verified Number Plate</label>
+                <input type="text" id="verifiedNumberPlate" placeholder="Required for normal vehicle fuel">
+            </div>
+
+            <div>
+                <label>Current Odometer Reading</label>
+                <input type="number" id="collectionOdometerReading" min="0" step="0.01" placeholder="Required for normal vehicle fuel">
+            </div>
+
+            <div>
+                <label>Payment Method</label>
+                <select id="paymentMethod" required>
+                    <option value="">Select payment method</option>
+                    <option value="CASH">Cash</option>
+                    <option value="BKASH">bKash</option>
+                </select>
+            </div>
+
+            <div id="bkashTransactionBox" style="display: none;">
+                <label>bKash Transaction ID</label>
+                <input type="text" id="bkashTransactionId" placeholder="Required for bKash payment">
+            </div>
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+
+            <button type="submit" class="btn primary full-width settings-full-row">
+                Verify Code and Mark Collected
+            </button>
+        </form>
+
+        <p id="collectionMessage"></p>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Approved Requests Assigned to This Pump</h2>
+                <p class="muted-text">
+                    Only APPROVED requests assigned to your pump are shown here.
+                </p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshAssignedRequestsBtn">
+                Refresh
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Collection Code</th>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Request Info</th>
+                    <th>Fuel Type</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+
+                <tbody id="assignedRequestsTableBody">
+                <tr>
+                    <td colspan="10">Loading assigned requests...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/pump-fuel-requests.js"></script>
+<script src="js/pump-page-access-guard.js"></script>
+<script src="js/scroll-buttons.js"></script>
+<script src="js/floating-chat.js"></script>
+<script src="js/navbar-notifications.js"></script>
+
+<script src="js/ui-enhancements.js"></script>
+</body>
+</html>

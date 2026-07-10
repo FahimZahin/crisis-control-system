@@ -1,0 +1,1274 @@
+let loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || {};
+
+document.addEventListener("DOMContentLoaded", async function () {
+    setupLogout();
+
+    if (loggedInUser.role === "HOSPITAL_AUTHORITY" || document.getElementById("hospitalName")) {
+        await refreshHospitalProfileSilently();
+    }
+
+    loadUserInfo();
+
+    if (document.getElementById("vehicleDashboardList")) {
+        loadVehiclesForDashboard();
+    }
+
+    if (document.getElementById("pumpDashboardName")) {
+        loadPumpForDashboard();
+    }
+
+    if (document.getElementById("refreshHospitalProfileBtn")) {
+        document.getElementById("refreshHospitalProfileBtn").addEventListener("click", refreshHospitalProfile);
+    }
+
+    if (document.getElementById("refreshGovernmentDashboardBtn")) {
+        document.getElementById("refreshGovernmentDashboardBtn").addEventListener("click", loadGovernmentAuthorityDashboard);
+        loadGovernmentAuthorityDashboard();
+    }
+
+    if (document.getElementById("refreshLocalAuthorityDashboardBtn")) {
+        document.getElementById("refreshLocalAuthorityDashboardBtn").addEventListener("click", loadLocalAuthorityDashboard);
+        loadLocalAuthorityDashboard();
+    }
+
+    setupFeatureButtons();
+});
+
+function loadUserInfo() {
+    const fullName = loggedInUser.fullName || localStorage.getItem("fullName") || "Demo User";
+    const phoneNumber = loggedInUser.phoneNumber || localStorage.getItem("phoneNumber") || "Not Provided";
+    const role = loggedInUser.role || localStorage.getItem("role") || "UNKNOWN";
+    const status = loggedInUser.status || localStorage.getItem("status") || "ACTIVE";
+    const address = loggedInUser.address || localStorage.getItem("address") || "Not Provided";
+    const userId = getLoggedInUserId();
+
+    const hospitalGeneratorCapacity = cleanNumber(loggedInUser.hospitalGeneratorCapacity);
+    const hospitalDieselTankCapacity = cleanNumber(loggedInUser.hospitalDieselTankCapacity);
+    const hospitalCurrentDieselReserve = cleanNumber(loggedInUser.hospitalCurrentDieselReserve);
+    const hospitalAvailableDieselSpace = Math.max(0, hospitalDieselTankCapacity - hospitalCurrentDieselReserve);
+
+    const totalIcuUnits = cleanNumber(loggedInUser.totalIcuUnits || localStorage.getItem("totalIcuUnits"));
+    const acPatientCapacity = cleanNumber(loggedInUser.acPatientCapacity || localStorage.getItem("acPatientCapacity"));
+    const nonAcPatientCapacity = cleanNumber(loggedInUser.nonAcPatientCapacity || localStorage.getItem("nonAcPatientCapacity"));
+    const totalPatientCapacity = acPatientCapacity + nonAcPatientCapacity;
+
+
+    const hospitalBackupHours = calculateHospitalCriticalBackupHoursForDashboard(
+        hospitalGeneratorCapacity,
+        hospitalCurrentDieselReserve,
+        totalIcuUnits,
+        acPatientCapacity,
+        nonAcPatientCapacity
+    );
+
+    const hospitalDieselStatus = resolveDieselStatus(hospitalBackupHours);
+
+
+    const hospitalPriorityLevel = resolveHospitalPriorityLevelForDashboard(
+        hospitalDieselStatus,
+        totalIcuUnits,
+        acPatientCapacity,
+        nonAcPatientCapacity
+    );
+
+    const buildingDieselTankCapacity = cleanNumber(loggedInUser.buildingDieselTankCapacity || localStorage.getItem("buildingDieselTankCapacity"));
+    const buildingWeeklyAllocationLiter = cleanNumber(localStorage.getItem("buildingWeeklyAllocationLiter") || loggedInUser.buildingWeeklyAllocationLiter);
+    const buildingCurrentFuel = cleanNumber(loggedInUser.buildingCurrentFuel || localStorage.getItem("buildingCurrentFuel"));
+    const buildingEstimatedBackupHours = calculateBuildingBackupHoursForDashboard(
+        loggedInUser.generatorPower,
+        loggedInUser.numberOfFlats,
+        buildingCurrentFuel
+    );
+    const buildingLowStockAlert = resolveBuildingLowStockAlertForDashboard(
+        buildingDieselTankCapacity,
+        buildingCurrentFuel,
+        buildingEstimatedBackupHours
+    );
+
+    setTextIfExists("dashboardUserName", fullName);
+    setTextIfExists("dashboardUserPhone", phoneNumber);
+    setTextIfExists("dashboardUserRole", role);
+    setTextIfExists("dashboardUserStatus", status);
+    setTextIfExists("dashboardUserAddress", address);
+    setTextIfExists("dashboardUserId", userId || "-");
+
+    setTextIfExists("drivingLicenseNumber", loggedInUser.drivingLicenseNumber || "Not Provided");
+
+    setTextIfExists("buildingName", loggedInUser.buildingName || "Not Provided");
+    setTextIfExists("holdingNumber", loggedInUser.holdingNumber || "Not Provided");
+    setTextIfExists("numberOfFlats", loggedInUser.numberOfFlats || "Not Provided");
+    setTextIfExists("generatorPower", loggedInUser.generatorPower || "Not Provided");
+    setTextIfExists("buildingUnderThana", loggedInUser.buildingUnderThana || loggedInUser.thanaOrUpazila || "Not Provided");
+    setTextIfExists("generatorPowerInfo", loggedInUser.generatorPower || "Not Provided");
+
+    setTextIfExists("buildingDieselTankCapacity", formatNumber(buildingDieselTankCapacity));
+    setTextIfExists("buildingWeeklyAllocationLiter", formatNumber(buildingWeeklyAllocationLiter));
+    setTextIfExists("buildingCurrentFuel", formatNumber(buildingCurrentFuel));
+    setTextIfExists("buildingEstimatedBackupHours", formatNumber(buildingEstimatedBackupHours));
+
+    setTextIfExists("buildingDieselTankCapacityInfo", formatNumber(buildingDieselTankCapacity));
+    setTextIfExists("buildingWeeklyAllocationInfo", formatNumber(buildingWeeklyAllocationLiter));
+    setTextIfExists("buildingCurrentFuelInfo", formatNumber(buildingCurrentFuel));
+    setTextIfExists("buildingBackupInfo", formatNumber(buildingEstimatedBackupHours));
+
+    setBuildingLowStockAlertDisplay("buildingLowStockAlert", buildingLowStockAlert);
+
+    setTextIfExists("pumpName", loggedInUser.pumpName || "Not Provided");
+    setTextIfExists("businessLicenseNumber", loggedInUser.businessLicenseNumber || "Not Provided");
+    setTextIfExists("pumpAddress", loggedInUser.pumpAddress || "Not Provided");
+    setTextIfExists("fuelCapacity", loggedInUser.fuelCapacity || "Not Provided");
+    setTextIfExists("fuelTypes", loggedInUser.fuelTypes || "Not Provided");
+    setTextIfExists("currentStock", loggedInUser.currentStock || "Not Provided");
+    setTextIfExists("open24Hours", loggedInUser.open24Hours ? "Yes" : "No");
+    setTextIfExists("openingTime", loggedInUser.openingTime || "Not Required");
+    setTextIfExists("closingTime", loggedInUser.closingTime || "Not Required");
+
+    setTextIfExists("hospitalName", loggedInUser.hospitalName || "Not Provided");
+    setTextIfExists("hospitalRegistrationNumber", loggedInUser.hospitalRegistrationNumber || "Not Provided");
+    setTextIfExists("hospitalAddress", loggedInUser.hospitalAddress || "Not Provided");
+    setTextIfExists("emergencyContactNumber", loggedInUser.emergencyContactNumber || loggedInUser.phoneNumber || "Not Provided");
+    setTextIfExists("hospitalUnderThana", loggedInUser.hospitalUnderThana || loggedInUser.thanaOrUpazila || "Not Provided");
+
+    setTextIfExists(
+        "hospitalGeneratorCapacity",
+        hospitalGeneratorCapacity > 0 ? hospitalGeneratorCapacity.toFixed(2) : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalDieselTankCapacity",
+        hospitalDieselTankCapacity > 0 ? hospitalDieselTankCapacity.toFixed(2) + " L" : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalAvailableDieselSpace",
+        hospitalDieselTankCapacity > 0 ? hospitalAvailableDieselSpace.toFixed(2) + " L" : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalCurrentDieselReserve",
+        hospitalCurrentDieselReserve >= 0 ? hospitalCurrentDieselReserve.toFixed(2) + " L" : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalEstimatedBackupHours",
+        hospitalBackupHours >= 0 ? hospitalBackupHours.toFixed(1) + " hours" : "Not Provided"
+    );
+
+    setTextIfExists(
+        "hospitalDieselStatus",
+        hospitalDieselStatus || loggedInUser.hospitalDieselStatus || "Not Provided"
+    );
+
+    setTextIfExists("totalIcuUnits", totalIcuUnits);
+    setTextIfExists("acPatientCapacity", acPatientCapacity);
+    setTextIfExists("nonAcPatientCapacity", nonAcPatientCapacity);
+    setTextIfExists("totalPatientCapacity", totalPatientCapacity);
+    setTextIfExists("hospitalPriorityLevel", hospitalPriorityLevel);
+    loadDashboardWeeklyAllocations();
+
+    setTextIfExists("utilityOrganizationType", loggedInUser.utilityOrganizationType || "Not Provided");
+    setTextIfExists("utilityEmployeeId", loggedInUser.utilityEmployeeId || "Not Provided");
+    setTextIfExists("serviceArea", loggedInUser.serviceArea || "Not Provided");
+    setTextIfExists("officeAddress", loggedInUser.officeAddress || "Not Provided");
+
+    setTextIfExists("organizationName", loggedInUser.organizationName || "Not Provided");
+    setTextIfExists("organizationType", loggedInUser.organizationType || "Not Provided");
+    setTextIfExists("officialVerificationId", loggedInUser.officialVerificationId || "Not Provided");
+    setTextIfExists("assignedArea", loggedInUser.assignedArea || "Not Provided");
+
+    setTextIfExists("governmentEmployeeId", loggedInUser.governmentEmployeeId || "Not Provided");
+    setTextIfExists("departmentName", loggedInUser.departmentName || "Not Provided");
+    setTextIfExists("designation", loggedInUser.designation || "Not Provided");
+
+    setTextIfExists("localAuthorityId", loggedInUser.localAuthorityId || "Not Provided");
+    setTextIfExists("district", loggedInUser.district || "Not Provided");
+    setTextIfExists("thanaOrUpazila", loggedInUser.thanaOrUpazila || loggedInUser.hospitalUnderThana || loggedInUser.buildingUnderThana || "Not Provided");
+}
+
+
+async function refreshHospitalProfileSilently() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/hospital-authority/profile/" + userId + "?time=" + Date.now());
+        const profile = await response.json();
+
+        if (!response.ok) {
+            return;
+        }
+
+        mergeHospitalProfile(profile);
+
+    } catch (error) {
+        // Dashboard will still load local data if server refresh fails.
+    }
+}
+
+async function refreshHospitalProfile() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        showHospitalDashboardMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/hospital-authority/profile/" + userId + "?time=" + Date.now());
+        const profile = await response.json();
+
+        if (!response.ok) {
+            showHospitalDashboardMessage(getErrorMessage(profile), "error-text");
+            return;
+        }
+
+        mergeHospitalProfile(profile);
+
+        loadUserInfo();
+
+        showHospitalDashboardMessage(
+            "Profile refreshed. Backup: " + cleanNumber(loggedInUser.hospitalEstimatedBackupHours).toFixed(1) +
+            " hours, Status: " + valueOrDash(loggedInUser.hospitalDieselStatus) +
+            ", Diesel Reserve: " + cleanNumber(loggedInUser.hospitalCurrentDieselReserve).toFixed(2) + " L",
+            "success-text"
+        );
+
+    } catch (error) {
+        showHospitalDashboardMessage("Server connection failed while refreshing hospital profile.", "error-text");
+    }
+}
+
+function mergeHospitalProfile(profile) {
+    loggedInUser.userId = profile.userId || profile.id || loggedInUser.userId || localStorage.getItem("userId");
+    loggedInUser.id = profile.id || profile.userId || loggedInUser.id;
+    loggedInUser.fullName = profile.fullName || loggedInUser.fullName;
+    loggedInUser.phoneNumber = profile.phoneNumber || loggedInUser.phoneNumber;
+    loggedInUser.address = profile.address || loggedInUser.address;
+    loggedInUser.role = profile.role || loggedInUser.role;
+    loggedInUser.status = profile.status || loggedInUser.status;
+
+    loggedInUser.hospitalName = profile.hospitalName || loggedInUser.hospitalName;
+    loggedInUser.hospitalRegistrationNumber = profile.hospitalRegistrationNumber || loggedInUser.hospitalRegistrationNumber;
+    loggedInUser.hospitalAddress = profile.hospitalAddress || loggedInUser.hospitalAddress;
+    loggedInUser.hospitalUnderThana = profile.hospitalUnderThana || profile.thanaOrUpazila || loggedInUser.hospitalUnderThana;
+    loggedInUser.thanaOrUpazila = profile.thanaOrUpazila || profile.hospitalUnderThana || loggedInUser.thanaOrUpazila;
+    loggedInUser.hospitalGeneratorCapacity = profile.hospitalGeneratorCapacity ?? loggedInUser.hospitalGeneratorCapacity;
+    loggedInUser.hospitalDieselTankCapacity = profile.hospitalDieselTankCapacity ?? loggedInUser.hospitalDieselTankCapacity;
+    loggedInUser.hospitalCurrentDieselReserve = profile.hospitalCurrentDieselReserve ?? loggedInUser.hospitalCurrentDieselReserve;
+    loggedInUser.hospitalEstimatedBackupHours = profile.hospitalEstimatedBackupHours ?? calculateHospitalCriticalBackupHoursForDashboard(
+        loggedInUser.hospitalGeneratorCapacity,
+        loggedInUser.hospitalCurrentDieselReserve,
+        profile.totalIcuUnits ?? loggedInUser.totalIcuUnits ?? localStorage.getItem("totalIcuUnits"),
+        profile.acPatientCapacity ?? loggedInUser.acPatientCapacity ?? localStorage.getItem("acPatientCapacity"),
+        profile.nonAcPatientCapacity ?? loggedInUser.nonAcPatientCapacity ?? localStorage.getItem("nonAcPatientCapacity")
+    );
+
+    loggedInUser.hospitalDieselStatus = profile.hospitalDieselStatus || resolveDieselStatus(
+        cleanNumber(loggedInUser.hospitalEstimatedBackupHours)
+    );
+    loggedInUser.emergencyContactNumber = profile.emergencyContactNumber || loggedInUser.emergencyContactNumber;
+
+    loggedInUser.totalIcuUnits = profile.totalIcuUnits ?? loggedInUser.totalIcuUnits ?? localStorage.getItem("totalIcuUnits") ?? 0;
+    loggedInUser.acPatientCapacity = profile.acPatientCapacity ?? loggedInUser.acPatientCapacity ?? localStorage.getItem("acPatientCapacity") ?? 0;
+    loggedInUser.nonAcPatientCapacity = profile.nonAcPatientCapacity ?? loggedInUser.nonAcPatientCapacity ?? localStorage.getItem("nonAcPatientCapacity") ?? 0;
+
+    loggedInUser.buildingDieselTankCapacity = profile.buildingDieselTankCapacity ?? loggedInUser.buildingDieselTankCapacity ?? localStorage.getItem("buildingDieselTankCapacity") ?? 0;
+    loggedInUser.buildingWeeklyAllocationLiter = profile.buildingWeeklyAllocationLiter ?? loggedInUser.buildingWeeklyAllocationLiter ?? localStorage.getItem("buildingWeeklyAllocationLiter") ?? 0;
+    loggedInUser.buildingCurrentFuel = profile.buildingCurrentFuel ?? loggedInUser.buildingCurrentFuel ?? localStorage.getItem("buildingCurrentFuel") ?? 0;
+    loggedInUser.buildingEstimatedBackupHours = profile.buildingEstimatedBackupHours ?? loggedInUser.buildingEstimatedBackupHours ?? localStorage.getItem("buildingEstimatedBackupHours") ?? 0;
+
+    localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+    localStorage.setItem("userId", loggedInUser.userId || "");
+    localStorage.setItem("fullName", loggedInUser.fullName || "");
+    localStorage.setItem("phoneNumber", loggedInUser.phoneNumber || "");
+    localStorage.setItem("role", loggedInUser.role || "");
+    localStorage.setItem("status", loggedInUser.status || "");
+
+    localStorage.setItem("totalIcuUnits", loggedInUser.totalIcuUnits || "");
+    localStorage.setItem("acPatientCapacity", loggedInUser.acPatientCapacity || "");
+    localStorage.setItem("nonAcPatientCapacity", loggedInUser.nonAcPatientCapacity || "");
+
+    localStorage.setItem("buildingDieselTankCapacity", loggedInUser.buildingDieselTankCapacity || "");
+    localStorage.setItem("buildingWeeklyAllocationLiter", loggedInUser.buildingWeeklyAllocationLiter || "");
+    localStorage.setItem("buildingCurrentFuel", loggedInUser.buildingCurrentFuel || "");
+    localStorage.setItem("buildingEstimatedBackupHours", loggedInUser.buildingEstimatedBackupHours || "");
+}
+
+
+
+async function loadPumpForDashboard() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        showDashboardPumpMessage("User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        let response = await fetch("http://localhost:8081/api/pumps/user/" + userId + "?time=" + Date.now());
+        let pump = await response.json();
+
+        if (!response.ok) {
+            response = await fetch("http://localhost:8081/api/pumps/create-from-user/" + userId, {
+                method: "POST"
+            });
+
+            pump = await response.json();
+        }
+
+        if (!response.ok) {
+            showDashboardPumpMessage(getErrorMessage(pump), "error-text");
+            return;
+        }
+
+        const penaltySummary = await loadPumpPenaltySummaryForDashboard(userId);
+
+        fillPumpDashboard(pump, penaltySummary);
+        loadPumpTransparencyToday(pump.id);
+        setupPumpTransparencyRefresh(pump.id);
+
+        showDashboardPumpMessage("Pump profile loaded from database.", "success-text");
+
+    } catch (error) {
+        showDashboardPumpMessage("Server connection failed while loading pump profile.", "error-text");
+    }
+}
+
+async function loadPumpPenaltySummaryForDashboard(userId) {
+    try {
+        const response = await fetch(
+            "http://localhost:8081/api/government-penalty-ledger/pump-authority/"
+            + userId
+            + "/account-summary?time="
+            + Date.now()
+        );
+
+        const summary = await response.json();
+
+        if (!response.ok) {
+            return null;
+        }
+
+        return summary;
+
+    } catch (error) {
+        return null;
+    }
+}
+
+function fillPumpDashboard(pump, penaltySummary) {
+    setTextIfExists("pumpDashboardName", valueOrDash(pump.pumpName));
+    setTextIfExists("pumpDashboardFuelTypes", valueOrDash(pump.fuelTypes));
+    setTextIfExists("pumpDashboardCapacity", valueOrDash(pump.totalFuelCapacity));
+    setTextIfExists("pumpDashboardStock", valueOrDash(pump.totalCurrentStock));
+
+    setTextIfExists("pumpDashboardLicense", valueOrDash(pump.businessLicenseNumber));
+    setTextIfExists("pumpDashboardAddress", valueOrDash(pump.pumpAddress));
+    setTextIfExists("pumpDashboardStatus", resolvePumpDashboardStatus(pump, penaltySummary));
+    setTextIfExists("pumpDashboardAvailable", valueOrDash(pump.totalAvailableStock));
+    setTextIfExists("pumpDashboardOpen24", pump.open24Hours ? "Yes" : "No");
+
+    const statusElement = document.getElementById("pumpDashboardStatus");
+
+    if (statusElement) {
+        stylePumpDashboardStatus(statusElement, resolvePumpDashboardStatus(pump, penaltySummary));
+    }
+
+    if (pump.open24Hours) {
+        setTextIfExists("pumpDashboardTime", "Open 24 Hours");
+    } else {
+        setTextIfExists("pumpDashboardTime", valueOrDash(pump.openingTime) + " - " + valueOrDash(pump.closingTime));
+    }
+
+    renderPumpFuelStockTable(pump.fuelStocks);
+}
+
+function resolvePumpDashboardStatus(pump, penaltySummary) {
+    const rawStatus = pump && pump.pumpStatus ? String(pump.pumpStatus) : "-";
+
+    if (!penaltySummary) {
+        return formatPumpStatus(rawStatus);
+    }
+
+    const outstandingDebt = Number(penaltySummary.totalOutstandingDebt || 0);
+    const operationStatus = String(penaltySummary.operationStatus || "");
+
+    if (
+        outstandingDebt > 0 &&
+        (
+            rawStatus === "OPEN_WITH_DEBT" ||
+            operationStatus === "OPEN WITH DEBT" ||
+            operationStatus === "PENDING PENALTY"
+        )
+    ) {
+        return "OPEN ON DEBT";
+    }
+
+    if (rawStatus === "PENALTY_LOCKED") {
+        return "PENALTY LOCKED";
+    }
+
+    if (rawStatus === "OPEN_WITH_DEBT") {
+        return "OPEN ON DEBT";
+    }
+
+    return formatPumpStatus(rawStatus);
+}
+
+function formatPumpStatus(status) {
+    if (!status) {
+        return "-";
+    }
+
+    return String(status).replaceAll("_", " ");
+}
+
+function stylePumpDashboardStatus(element, statusText) {
+    element.className = "";
+
+    if (statusText === "OPEN ON DEBT") {
+        element.className = "error-text";
+        return;
+    }
+
+    if (statusText === "PENALTY LOCKED") {
+        element.className = "error-text";
+        return;
+    }
+
+    if (statusText === "OPEN") {
+        element.className = "success-text";
+        return;
+    }
+
+    element.className = "";
+}
+
+async function loadPumpTransparencyToday(pumpId) {
+    if (!pumpId) {
+        showPumpTransparencyMessage("Pump ID not found. Transparency summary cannot be loaded.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/pumps/" + pumpId + "/transparency/today");
+        const transparency = await response.json();
+
+        if (!response.ok) {
+            showPumpTransparencyMessage(getErrorMessage(transparency), "error-text");
+            return;
+        }
+
+        setTextIfExists("dailyCashTotal", formatNumber(transparency.dailyCashTotal));
+        setTextIfExists("dailyBkashTotal", formatNumber(transparency.dailyBkashTotal));
+        setTextIfExists("totalPaymentToday", formatNumber(transparency.totalPaymentToday));
+        setTextIfExists("fuelSoldToday", formatNumber(transparency.fuelSoldToday));
+        setTextIfExists("totalCollectionsToday", transparency.totalCollectionsToday || 0);
+        setTextIfExists("transparencyDate", transparency.date || "-");
+
+        showPumpTransparencyMessage("Transparency dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showPumpTransparencyMessage("Server connection failed while loading transparency dashboard.", "error-text");
+    }
+}
+
+function setupPumpTransparencyRefresh(pumpId) {
+    const refreshButton = document.getElementById("refreshPumpTransparencyBtn");
+
+    if (!refreshButton) {
+        return;
+    }
+
+    refreshButton.onclick = function () {
+        loadPumpTransparencyToday(pumpId);
+    };
+}
+
+function showPumpTransparencyMessage(message, className) {
+    const element = document.getElementById("pumpTransparencyMessage");
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
+}
+
+async function loadVehiclesForDashboard() {
+    const userId = getLoggedInUserId();
+    const list = document.getElementById("vehicleDashboardList");
+    const totalVehicles = document.getElementById("totalVehicles");
+
+    if (!userId) {
+        list.innerHTML = `<p class="error-text">User ID not found. Please login again.</p>`;
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/vehicles/user/" + userId);
+        const vehicles = await response.json();
+
+        if (!response.ok) {
+            list.innerHTML = `<p class="error-text">Failed to load vehicles.</p>`;
+            return;
+        }
+
+        totalVehicles.innerText = vehicles.length;
+
+        if (vehicles.length === 0) {
+            list.innerHTML = `
+                <div class="empty-dashboard-box">
+                    <h3>No Vehicle Added Yet</h3>
+                    <p>Please complete vehicle setup to request fuel in the next module.</p>
+                    <a href="profile-setup.html" class="btn primary small-btn">Add Vehicle</a>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = "";
+
+        vehicles.forEach(function (vehicle) {
+            const estimatedRange = calculateEstimatedRange(vehicle);
+
+            const card = document.createElement("div");
+            card.className = "dashboard-vehicle-card";
+
+            card.innerHTML = `
+                <div class="dashboard-vehicle-image-box">
+                    <img src="${vehicle.vehiclePhotoPath || "images/default-vehicle.jpg"}" alt="Vehicle photo">
+                </div>
+
+                <div class="dashboard-vehicle-info">
+                    <h3>${vehicle.brand} ${vehicle.model}</h3>
+
+                    <div class="info-grid">
+                        <div><label>Vehicle Type</label><p>${vehicle.vehicleType}</p></div>
+                        <div><label>Car Category</label><p>${vehicle.carCategory}</p></div>
+                        <div><label>Fuel Type</label><p>${vehicle.fuelType}</p></div>
+                        <div><label>Engine CC</label><p>${vehicle.engineCc}</p></div>
+                        <div><label>Company Mileage</label><p>${vehicle.companyMileage} km/l</p></div>
+                        <div><label>Tank Capacity</label><p>${vehicle.tankCapacity} liter</p></div>
+                        <div><label>Last Taken Fuel From</label><p>${valueOrDash(vehicle.lastFuelPumpName)}</p></div>
+                        <div><label>Fuel After Last Insertion</label><p>${formatLiter(vehicle.fuelAfterLastInsertionLiter || vehicle.currentFuelLiter)}</p></div>
+                        <div><label>Number Plate</label><p>${vehicle.numberPlate}</p></div>
+                        <div><label>Odometer Reading</label><p>${vehicle.odometerReading} km</p></div>
+                        <div><label>Estimated Full Tank Range</label><p>${estimatedRange}</p></div>
+                        <div><label>Last Updated</label><p>${formatDate(vehicle.updatedAt)}</p></div>
+                    </div>
+                </div>
+            `;
+
+            list.appendChild(card);
+        });
+
+    } catch (error) {
+        list.innerHTML = `<p class="error-text">Server connection failed while loading vehicles.</p>`;
+    }
+}
+
+function calculateEstimatedRange(vehicle) {
+    const tank = Number(vehicle.tankCapacity);
+    const mileage = Number(vehicle.companyMileage);
+
+    if (tank > 0 && mileage > 0) {
+        return (tank * mileage).toFixed(0) + " km";
+    }
+
+    return "-";
+}
+
+function setupLogout() {
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    if (!logoutBtn) {
+        return;
+    }
+
+    logoutBtn.addEventListener("click", function () {
+        localStorage.clear();
+    });
+}
+
+function setupFeatureButtons() {
+    const cards = document.querySelectorAll(".feature-preview-card");
+
+    cards.forEach(function (card) {
+        const isLink = card.tagName.toLowerCase() === "a";
+
+        if (isLink) {
+            return;
+        }
+
+        /*
+         * Final project cleanup:
+         * Non-link feature cards are treated as informational cards only.
+         * Do not show "future module" alerts in final demo.
+         */
+        card.classList.add("info-only-feature-card");
+
+        card.addEventListener("click", function (event) {
+            event.preventDefault();
+        });
+    });
+}
+
+function showDashboardPumpMessage(message, className) {
+    const messageBox = document.getElementById("pumpDashboardMessage");
+
+    if (messageBox) {
+        messageBox.className = className;
+        messageBox.innerText = message;
+    }
+}
+
+function showHospitalDashboardMessage(message, className) {
+    const messageBox = document.getElementById("hospitalDashboardMessage");
+
+    if (messageBox) {
+        messageBox.className = className;
+        messageBox.innerText = message;
+    }
+}
+
+function setTextIfExists(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerText = value;
+    }
+}
+
+function getLoggedInUserId() {
+    return loggedInUser.userId || loggedInUser.id || localStorage.getItem("userId");
+}
+
+function cleanNumber(value) {
+    if (value === null || value === undefined || value === "-") {
+        return 0;
+    }
+
+    return Number(String(value).replace("L", "").replace("hours", "").replace("kVA", "").replace("KVA", "").trim()) || 0;
+}
+
+function calculateBackupHours(generatorCapacity, dieselReserve) {
+    const capacity = cleanNumber(generatorCapacity);
+    const reserve = cleanNumber(dieselReserve);
+
+    if (capacity <= 0 || reserve <= 0) {
+        return 0;
+    }
+
+    return reserve / (capacity * 0.25);
+}
+
+function resolveDieselStatus(backupHours) {
+    const hours = cleanNumber(backupHours);
+
+    if (hours < 6) {
+        return "CRITICAL";
+    }
+
+    if (hours < 8) {
+        return "MIDDLE";
+    }
+
+    if (hours < 12) {
+        return "RISK_FREE";
+    }
+
+    return "ENOUGH";
+}
+
+function calculateBuildingBackupHoursForDashboard(generatorPower, numberOfFlats, currentFuel) {
+    const flats = cleanNumber(numberOfFlats);
+    const fuel = cleanNumber(currentFuel);
+    const generator = cleanNumber(generatorPower);
+
+    if (flats <= 0 || fuel <= 0) {
+        return 0;
+    }
+
+    const perFlatKw = ((2 * 20) + (2 * 75)) / 1000;
+    const requiredLoadKw = flats * perFlatKw;
+
+    let safeGeneratorCapacityKw = 0;
+
+    if (generator > 0) {
+        safeGeneratorCapacityKw = generator * 0.80;
+    }
+
+    let effectiveLoadKw = requiredLoadKw;
+
+    if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+        effectiveLoadKw = safeGeneratorCapacityKw;
+    }
+
+    const hourlyDieselUse = effectiveLoadKw * 0.27;
+
+    if (hourlyDieselUse <= 0) {
+        return 0;
+    }
+
+    return fuel / hourlyDieselUse;
+}
+
+function resolveBuildingLowStockAlertForDashboard(tankCapacity, currentFuel, backupHours) {
+    const tank = cleanNumber(tankCapacity);
+    const fuel = cleanNumber(currentFuel);
+    const backup = cleanNumber(backupHours);
+
+    if (tank <= 0 || fuel <= 0) {
+        return true;
+    }
+
+    const stockPercentage = (fuel * 100) / tank;
+
+    return stockPercentage <= 20 || backup < 6;
+}
+
+function setBuildingLowStockAlertDisplay(id, isLowStock) {
+    const element = document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    if (isLowStock) {
+        element.innerText = "LOW STOCK";
+        element.className = "error-text";
+    } else {
+        element.innerText = "NORMAL";
+        element.className = "success-text";
+    }
+}
+
+function resolveHospitalPriorityLevelForDashboard(
+    dieselStatus,
+    totalIcuUnits,
+    acPatientCapacity,
+    nonAcPatientCapacity
+) {
+    const status = valueOrDash(dieselStatus);
+    const icu = cleanNumber(totalIcuUnits);
+    const acPatients = cleanNumber(acPatientCapacity);
+    const nonAcPatients = cleanNumber(nonAcPatientCapacity);
+    const totalPatients = acPatients + nonAcPatients;
+
+    if (status === "CRITICAL" && icu > 0) {
+        return "CRITICAL ICU PRIORITY";
+    }
+
+    if (status === "CRITICAL" && totalPatients >= 50) {
+        return "CRITICAL HIGH PATIENT PRIORITY";
+    }
+
+    if (status === "CRITICAL") {
+        return "CRITICAL STANDARD PRIORITY";
+    }
+
+    if (icu > 0 || totalPatients >= 50) {
+        return "PATIENT SAFETY PRIORITY";
+    }
+
+    return "STANDARD PRIORITY";
+}
+
+function valueOrDash(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
+}
+
+function getErrorMessage(result) {
+    if (result.message) {
+        return result.message;
+    }
+
+    if (result.messages) {
+        return JSON.stringify(result.messages);
+    }
+
+    return "Request failed.";
+}
+
+function formatDate(dateValue) {
+    if (!dateValue) {
+        return "-";
+    }
+
+    return dateValue.replace("T", " ").substring(0, 19);
+}
+
+function renderPumpFuelStockTable(fuelStocks) {
+    const tableBody = document.getElementById("pumpFuelStockTableBody");
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!fuelStocks || fuelStocks.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4">No fuel stock added yet.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    fuelStocks.forEach(function (stock) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${stock.fuelType}</td>
+            <td>${stock.fuelCapacity}</td>
+            <td>${stock.currentStock}</td>
+            <td>${stock.availableStock}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function formatLiter(value) {
+    if (value === null || value === undefined || value === "") {
+        return "0.00 L";
+    }
+
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return value;
+    }
+
+    return numberValue.toFixed(2) + " L";
+}
+
+async function loadGovernmentAuthorityDashboard() {
+    try {
+        const response = await fetch("http://localhost:8081/api/authority/government/dashboard?time=" + Date.now());
+        const data = await response.json();
+
+        if (!response.ok) {
+            showAuthorityMessage("governmentDashboardMessage", getErrorMessage(data), "error-text");
+            return;
+        }
+
+        fillAuthoritySummary("gov", data.summary);
+        renderThanaCrisisSummary("governmentThanaSummaryBody", data.thanaCrisisSummary, 5);
+        renderCriticalHospitals("governmentCriticalHospitalsBody", data.criticalHospitals);
+        renderLowStockBuildings("governmentLowStockBuildingsBody", data.lowStockBuildings);
+        renderAuthorityRequests("governmentCriticalRequestsBody", data.criticalRequests);
+        renderLowStockPumps("governmentLowStockPumpsBody", data.lowStockPumps);
+        renderAuthorityOutages("governmentOutagesBody", data.recentOutages);
+
+        showAuthorityMessage("governmentDashboardMessage", "Government dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showAuthorityMessage("governmentDashboardMessage", "Server connection failed while loading government dashboard.", "error-text");
+    }
+}
+
+async function loadLocalAuthorityDashboard() {
+    const userId = getLoggedInUserId();
+
+    if (!userId) {
+        showAuthorityMessage("localAuthorityDashboardMessage", "User ID not found. Please login again.", "error-text");
+        return;
+    }
+
+    try {
+        const response = await fetch("http://localhost:8081/api/authority/local/dashboard/" + userId + "?time=" + Date.now());
+        const data = await response.json();
+
+        if (!response.ok) {
+            showAuthorityMessage("localAuthorityDashboardMessage", getErrorMessage(data), "error-text");
+            return;
+        }
+
+        fillAuthoritySummary("local", data.summary);
+        renderThanaCrisisSummary("localThanaSummaryBody", data.thanaCrisisSummary, 5);
+        renderCriticalHospitals("localCriticalHospitalsBody", data.criticalHospitals);
+        renderLowStockBuildings("localLowStockBuildingsBody", data.lowStockBuildings);
+        renderLocalPumps(data.localPumps);
+        renderAuthorityRequests("localCriticalRequestsBody", data.criticalRequests);
+        renderAuthorityOutages("localOutagesBody", data.recentOutages);
+
+        showAuthorityMessage("localAuthorityDashboardMessage", "Local authority dashboard loaded successfully.", "success-text");
+
+    } catch (error) {
+        showAuthorityMessage("localAuthorityDashboardMessage", "Server connection failed while loading local authority dashboard.", "error-text");
+    }
+}
+
+function fillAuthoritySummary(prefix, summary) {
+    if (!summary) {
+        return;
+    }
+
+    setTextIfExists(prefix + "TotalUsers", summary.totalUsers || 0);
+    setTextIfExists(prefix + "TotalPumps", summary.totalPumps || 0);
+    setTextIfExists(prefix + "TotalFuelStock", formatNumber(summary.totalFuelStock));
+    setTextIfExists(prefix + "ActiveOutages", summary.activeOutages || 0);
+    setTextIfExists(prefix + "PendingRequests", summary.pendingRequests || 0);
+    setTextIfExists(prefix + "ApprovedRequests", summary.approvedRequests || 0);
+    setTextIfExists(prefix + "CollectedRequests", summary.collectedRequests || 0);
+    setTextIfExists(prefix + "RejectedRequests", summary.rejectedRequests || 0);
+}
+
+function renderAuthorityRequests(tableId, requests) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!requests || requests.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No critical or pending request found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    requests.slice(0, 10).forEach(function (request) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(request.id)}</td>
+            <td>
+                <strong>${authorityValue(request.userName)}</strong><br>
+                <small>${authorityValue(request.phoneNumber)}</small>
+            </td>
+            <td>${authorityValue(request.requestSource)}</td>
+            <td>
+                ${authorityValue(request.details)}<br>
+                <small>Area: ${authorityValue(request.area)}</small>
+                ${request.extraFuelRequested ? `<br><small>Extra Fuel: ${authorityValue(request.extraFuelReasonType)}</small>` : ""}
+            </td>
+            <td>
+                ${authorityValue(request.fuelType)}<br>
+                ${authorityValue(request.requestedLiter)} L<br>
+                ${authorityValue(request.estimatedCost)} BDT
+            </td>
+            <td>${authorityValue(request.requestStatus)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderThanaCrisisSummary(tableId, rows, limit = null) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!rows || rows.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8">No thana crisis summary found.</td></tr>`;
+        return;
+    }
+
+    const sortedRows = rows.slice().sort(function (first, second) {
+        const firstOngoing = Number(first.ongoingOutages || 0);
+        const secondOngoing = Number(second.ongoingOutages || 0);
+
+        if (secondOngoing !== firstOngoing) {
+            return secondOngoing - firstOngoing;
+        }
+
+        const firstDemand = Number(first.totalDieselDemand || 0);
+        const secondDemand = Number(second.totalDieselDemand || 0);
+
+        return secondDemand - firstDemand;
+    });
+
+    const finalRows = limit ? sortedRows.slice(0, limit) : sortedRows;
+
+    tableBody.innerHTML = "";
+
+    finalRows.forEach(function (rowData) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td><strong>${authorityValue(rowData.thana)}</strong></td>
+            <td>${authorityValue(rowData.ongoingOutages)}</td>
+            <td>${authorityValue(rowData.scheduledOutages)}</td>
+            <td>${authorityValue(rowData.pendingRequests)}</td>
+            <td>${authorityValue(rowData.criticalHospitals)}</td>
+            <td>${authorityValue(rowData.lowStockBuildings)}</td>
+            <td>${authorityValue(rowData.lowStockPumps)}</td>
+            <td>${authorityValue(rowData.totalDieselDemand)} L</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderCriticalHospitals(tableId, hospitals) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!hospitals || hospitals.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8">No critical hospital found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    hospitals.forEach(function (hospital) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(hospital.hospitalName)}</td>
+            <td>${authorityValue(hospital.phoneNumber)}</td>
+            <td>${authorityValue(hospital.thana)}</td>
+            <td>${authorityValue(hospital.currentDieselReserve)} L</td>
+            <td>${authorityValue(hospital.backupHours)} hours</td>
+            <td>${authorityValue(hospital.dieselStatus)}</td>
+            <td>${authorityValue(hospital.icuUnits)}</td>
+            <td>${authorityValue(hospital.patientCapacity)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLowStockBuildings(tableId, buildings) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!buildings || buildings.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7">No low-stock building found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    buildings.forEach(function (building) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(building.buildingName)}</td>
+            <td>${authorityValue(building.phoneNumber)}</td>
+            <td>${authorityValue(building.thana)}</td>
+            <td>${authorityValue(building.currentFuel)} L</td>
+            <td>${authorityValue(building.tankCapacity)} L</td>
+            <td>${authorityValue(building.backupHours)} hours</td>
+            <td>${authorityValue(building.numberOfFlats)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLowStockPumps(tableId, pumps) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!pumps || pumps.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No low-stock pump found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    pumps.forEach(function (pump) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(pump.pumpName)}</td>
+            <td>${authorityValue(pump.pumpAddress)}</td>
+            <td>${authorityValue(pump.fuelType)}</td>
+            <td>${authorityValue(pump.currentStock)} L</td>
+            <td>${authorityValue(pump.capacity)} L</td>
+            <td>${authorityValue(pump.stockPercentage)}%</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderLocalPumps(pumps) {
+    const tableBody = document.getElementById("localPumpsBody");
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!pumps || pumps.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5">No local pump found for this area.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    pumps.forEach(function (pump) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(pump.pumpName)}</td>
+            <td>${authorityValue(pump.pumpAddress)}</td>
+            <td>${authorityValue(pump.fuelTypes)}</td>
+            <td>${authorityValue(pump.currentStock)} L</td>
+            <td>${authorityValue(pump.pumpStatus)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function renderAuthorityOutages(tableId, outages) {
+    const tableBody = document.getElementById(tableId);
+
+    if (!tableBody) {
+        return;
+    }
+
+    if (!outages || outages.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6">No power outage notice found.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = "";
+
+    outages.slice(0, 10).forEach(function (outage) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${authorityValue(outage.provider)}</td>
+            <td>${authorityValue(outage.thanaName)}</td>
+            <td>${authorityValue(outage.outageType)}</td>
+            <td>${authorityValue(outage.cause)}</td>
+            <td>${authorityValue(outage.status)}</td>
+            <td>${authorityFormatDate(outage.expectedRestorationDateTime)}</td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+function showAuthorityMessage(id, message, className) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.className = className;
+        element.innerText = message;
+    }
+}
+
+function authorityValue(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    return value;
+}
+
+function formatNumber(value) {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return "0.00";
+    }
+
+    return numberValue.toFixed(2);
+}
+
+function authorityFormatDate(value) {
+    if (!value) {
+        return "-";
+    }
+
+    return String(value).replace("T", " ").substring(0, 16);
+}
+
+async function loadDashboardWeeklyAllocations() {
+    try {
+        const response = await fetch("http://localhost:8081/api/fuel-settings");
+        const settings = await response.json();
+
+        if (!response.ok) {
+            return;
+        }
+
+        const buildingWeeklyAllocation = cleanNumber(settings.buildingGeneratorWeeklyDieselAllocation);
+        const hospitalWeeklyAllocation = cleanNumber(settings.hospitalGeneratorWeeklyDieselAllocation);
+
+        localStorage.setItem("buildingWeeklyAllocationLiter", buildingWeeklyAllocation);
+        localStorage.setItem("hospitalGeneratorWeeklyDieselAllocation", hospitalWeeklyAllocation);
+
+        setTextIfExists("buildingWeeklyAllocationLiter", formatNumber(buildingWeeklyAllocation));
+        setTextIfExists("buildingWeeklyAllocationInfo", formatNumber(buildingWeeklyAllocation));
+        setTextIfExists("hospitalDashboardWeeklyAllocation", formatNumber(hospitalWeeklyAllocation));
+
+    } catch (error) {
+        // Dashboard can still load without weekly allocation preview.
+    }
+}
+
+function calculateHospitalCriticalBackupHoursForDashboard(
+    generatorCapacity,
+    currentDieselReserve,
+    totalIcuUnits,
+    acPatientCapacity,
+    nonAcPatientCapacity
+) {
+    const reserve = cleanNumber(currentDieselReserve);
+    const generator = cleanNumber(generatorCapacity);
+    const icu = cleanNumber(totalIcuUnits);
+    const acPatients = cleanNumber(acPatientCapacity);
+    const nonAcPatients = cleanNumber(nonAcPatientCapacity);
+
+    if (reserve <= 0) {
+        return 0;
+    }
+
+    const baseCriticalServiceLoadKw = 5.0;
+    const icuUnitLoadKw = 1.5;
+    const acPatientLoadKw = 0.08;
+    const nonAcPatientLoadKw = 0.04;
+    const dieselLiterPerKwh = 0.27;
+    const generatorSafeLoadFactor = 0.80;
+
+    let criticalLoadKw = baseCriticalServiceLoadKw;
+    criticalLoadKw += icu * icuUnitLoadKw;
+    criticalLoadKw += acPatients * acPatientLoadKw;
+    criticalLoadKw += nonAcPatients * nonAcPatientLoadKw;
+
+    let safeGeneratorCapacityKw = 0;
+
+    if (generator > 0) {
+        safeGeneratorCapacityKw = generator * generatorSafeLoadFactor;
+    }
+
+    let effectiveLoadKw = criticalLoadKw;
+
+    if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < criticalLoadKw) {
+        effectiveLoadKw = safeGeneratorCapacityKw;
+    }
+
+    const hourlyDieselUse = effectiveLoadKw * dieselLiterPerKwh;
+
+    if (hourlyDieselUse <= 0) {
+        return 0;
+    }
+
+    return reserve / hourlyDieselUse;
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump Authority Dashboard | Crisis Control System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Crisis Control System</div>
+    <div>
+        <a href="dashboard.html">Home</a>
+        <a href="pump-fuel-requests.html">Fuel Requests</a>
+        <a href="pump-stock-management.html">Stock Management</a>
+        <a href="pump-payment-records.html">Payment Records</a>
+        <a href="notifications.html" class="navbar-notification-link">
+            🔔
+            <span id="navbarNotificationBadge" class="navbar-notification-badge" style="display:none;">0</span>
+        </a>
+        <a href="profile.html">Profile</a>
+        <a href="login.html" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="role-dashboard-page">
+
+    <div class="role-dashboard-header">
+        <div>
+            <h1>Pump Authority Dashboard</h1>
+            <p>Manage pump profile, fuel stock, QR verification preview, and transparency reports.</p>
+        </div>
+        <span class="role-badge">PUMP AUTHORITY</span>
+    </div>
+
+    <div class="role-summary-grid">
+        <div class="summary-card">
+            <h3>Pump Name</h3>
+            <p id="pumpDashboardName">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Fuel Types</h3>
+            <p id="pumpDashboardFuelTypes">-</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Capacity</h3>
+            <p><span id="pumpDashboardCapacity">-</span> L</p>
+        </div>
+
+        <div class="summary-card">
+            <h3>Current Stock</h3>
+            <p><span id="pumpDashboardStock">-</span> L</p>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <h2>Current Pump Authority Features</h2>
+
+        <div class="feature-preview-grid">
+            <a href="pump-stock-management.html" class="feature-preview-card active-feature">
+                <h3>Update Fuel Stock</h3>
+                <p>Update petrol, octane, diesel, and CNG stock from database.</p>
+            </a>
+
+            <a href="pump-stock-management.html" class="feature-preview-card active-feature">
+                <h3>Open / Closed Status</h3>
+                <p>Control pump availability during crisis.</p>
+            </a>
+
+            <a href="pump-fuel-requests.html" class="feature-preview-card active-feature">
+                <h3>Scan QR Code</h3>
+                <p>Verify approved fuel collection using QR code or manual collection code.</p>
+            </a>
+
+            <a href="pump-fuel-requests.html" class="feature-preview-card active-feature">
+                <h3>Fuel Collection Verification</h3>
+                <p>Verify collection code, mark request as collected, and deduct pump fuel stock.</p>
+            </a>
+
+            <a href="pump-payment-records.html" class="feature-preview-card active-feature">
+                <h3>Payment Records</h3>
+                <p>Search daily cash and bKash collection records by date.</p>
+            </a>
+
+            <a href="notifications.html" class="feature-preview-card active-feature">
+                <h3>My Notifications</h3>
+                <p>View request updates, complaint progress, outage alerts, penalty updates, and system messages.</p>
+            </a>
+
+            <a href="pump-reports-audit.html" class="feature-preview-card active-feature">
+                <h3>Reports & Audit Logs</h3>
+                <p>View fuel collection activity, pump stock reports, and fuel request audit records.</p>
+            </a>
+
+            <a href="pump-complaint-monitoring.html" class="feature-preview-card active-feature">
+                <h3>Complaints Against My Pump</h3>
+                <p>View complaints submitted against your pump and prepare response for investigation.</p>
+            </a>
+
+            <a href="pump-penalty-account.html" class="feature-preview-card active-feature">
+                <h3>Pump Penalty Account</h3>
+                <p>View penalty debt, start operation today, and track earnings redirected to government.</p>
+            </a>
+
+            <a href="public-law-book.html" class="feature-preview-card active-feature">
+                <h3>Public Law Book</h3>
+                <p>View complaint rules, evidence requirements, verification process, penalties, and allowed admin actions.</p>
+            </a>
+
+            <a href="pump-route-tokens.html" class="feature-preview-card active-feature">
+                <h3>Route Fuel Tokens</h3>
+                <p>Verify vehicle route tokens, collect payment, and issue reserved route fuel.</p>
+            </a>
+
+            <a href="public-pump-transparency.html" class="feature-preview-card active-feature">
+                <h3>Public Transparency View</h3>
+                <p>See how your pump stock and collection transparency appears to users and authorities.</p>
+            </a>
+
+            <a href="chat.html" class="feature-preview-card active-feature">
+                <h3>Chat Communication</h3>
+                <p>Send and receive messages with users, pump authorities, local authority, government authority, and emergency-related roles.</p>
+            </a>
+
+            <a href="pump-payment-records.html" class="feature-preview-card active-feature">
+                <h3>Payment Records</h3>
+                <p>View central payment records from normal fuel requests and route fuel tokens.</p>
+            </a>
+        </div>
+    </div>
+
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Pump Stock Summary</h2>
+                <p class="muted-text">This summary is loaded from MySQL pump profile table.</p>
+            </div>
+
+            <a href="pump-stock-management.html" class="btn primary small-btn">Manage Stock</a>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-users-table">
+                <thead>
+                <tr>
+                    <th>Fuel Type</th>
+                    <th>Capacity</th>
+                    <th>Current Stock</th>
+                    <th>Empty Space</th>
+                </tr>
+                </thead>
+
+                <tbody id="pumpFuelStockTableBody">
+                <tr>
+                    <td colspan="4">Loading fuel stock...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pumpDashboardMessage"></div>
+
+        <div class="info-grid">
+            <div>
+                <label>Owner Name</label>
+                <p id="dashboardUserName">-</p>
+            </div>
+
+            <div>
+                <label>Phone</label>
+                <p id="dashboardUserPhone">-</p>
+            </div>
+
+            <div>
+                <label>Business License Number</label>
+                <p id="pumpDashboardLicense">-</p>
+            </div>
+
+            <div>
+                <label>Pump Address</label>
+                <p id="pumpDashboardAddress">-</p>
+            </div>
+
+            <div>
+                <label>Pump Status</label>
+                <p id="pumpDashboardStatus">-</p>
+            </div>
+
+            <div>
+                <label>Available Empty Space</label>
+                <p><span id="pumpDashboardAvailable">-</span> L</p>
+            </div>
+
+            <div>
+                <label>Open 24 Hours</label>
+                <p id="pumpDashboardOpen24">-</p>
+            </div>
+
+            <div>
+                <label>Opening / Closing Time</label>
+                <p id="pumpDashboardTime">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="role-dashboard-section">
+        <div class="card-title-row">
+            <div>
+                <h2>Pump Transparency Dashboard</h2>
+                <p class="muted-text">Today&apos;s cash, bKash, and fuel distribution summary from collected requests.</p>
+            </div>
+
+            <button class="btn primary small-btn" id="refreshPumpTransparencyBtn">
+                Refresh Transparency
+            </button>
+        </div>
+
+        <div class="role-summary-grid">
+            <div class="summary-card">
+                <a href="pump-payment-records.html?paymentMethod=CASH" style="text-decoration: none; color: inherit; display: block;">
+                    <h3>Today's Cash Total</h3>
+                    <p><span id="dailyCashTotal">0.00</span> BDT</p>
+                    <small class="muted-text">Click to view cash records by date</small>
+                </a>
+            </div>
+
+            <div class="summary-card">
+                <a href="pump-payment-records.html?paymentMethod=BKASH" style="text-decoration: none; color: inherit; display: block;">
+                    <h3>Today's bKash Total</h3>
+                    <p><span id="dailyBkashTotal">0.00</span> BDT</p>
+                    <small class="muted-text">Click to view bKash records by date</small>
+                </a>
+            </div>
+
+            <div class="summary-card">
+                <h3>Total Payment Today</h3>
+                <p><span id="totalPaymentToday">0.00</span> BDT</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Fuel Sold Today</h3>
+                <p><span id="fuelSoldToday">0.00</span> L</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Collections Today</h3>
+                <p id="totalCollectionsToday">0</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Transparency Date</h3>
+                <p id="transparencyDate">-</p>
+            </div>
+        </div>
+
+        <div id="pumpTransparencyMessage"></div>
+    </div>
+
+
+</div>
+
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/role-dashboard.js"></script>
+<script src="js/pump-operation-lock.js"></script>
+<script src="js/scroll-buttons.js"></script>
+<script src="js/floating-chat.js"></script>
+<script src="js/navbar-notifications.js"></script>
+
+<script src="js/ui-enhancements.js"></script>
+</body>
+</html>

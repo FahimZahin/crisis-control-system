@@ -2,37 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard | Crisis Control System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Redirect | Crisis Control System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<nav class="navbar">
-    <div class="logo">Crisis Control System</div>
-    <div>
-        <a href="index.html">Home</a>
-        <a href="login.html">Logout</a>
-    </div>
-</nav>
-
-<div class="dashboard">
-    <h1>Welcome to Crisis Control System</h1>
-
-    <div class="dashboard-card">
-        <h2 id="userName">User Name</h2>
-        <p><strong>User ID:</strong> <span id="userId"></span></p>
-        <p><strong>Role:</strong> <span id="userRole"></span></p>
-        <p class="success-text">Login successful. This is your demo dashboard.</p>
-
-        <a href="profile-setup.html" class="btn primary">Complete Profile Setup</a>
-    </div>
+<div class="redirect-page">
+    <h1>Redirecting to your dashboard...</h1>
+    <p>Please wait.</p>
 </div>
 
 <script>
-    document.getElementById("userName").innerText = localStorage.getItem("fullName") || "User";
-    document.getElementById("userId").innerText = localStorage.getItem("userId") || "-";
-    document.getElementById("userRole").innerText = localStorage.getItem("role") || "-";
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser")) || null;
+    const directRole = localStorage.getItem("role");
+
+    let role = null;
+
+    if (loggedInUser && loggedInUser.role) {
+        role = loggedInUser.role;
+    } else if (directRole) {
+        role = directRole;
+    }
+
+    if (!role) {
+        window.location.href = "login.html";
+    } else if (role === "VEHICLE_OWNER") {
+        window.location.href = "vehicle-owner-dashboard.html";
+    } else if (role === "BUILDING_MANAGER") {
+        window.location.href = "building-manager-dashboard.html";
+    } else if (role === "PUMP_AUTHORITY") {
+        window.location.href = "pump-authority-dashboard.html";
+    } else if (role === "HOSPITAL_AUTHORITY") {
+        window.location.href = "hospital-authority-dashboard.html";
+    } else if (role === "UTILITY_AUTHORITY") {
+        window.location.href = "utility-authority-dashboard.html";
+    } else if (role === "EMERGENCY_VEHICLE_AUTHORITY") {
+        window.location.href = "emergency-vehicle-dashboard.html";
+    } else if (role === "GOVERNMENT_AUTHORITY") {
+        window.location.href = "government-dashboard.html";
+    } else if (role === "LOCAL_AUTHORITY") {
+        window.location.href = "local-authority-dashboard.html";
+    } else if (role === "ADMIN") {
+        window.location.href = "admin-dashboard.html";
+    } else {
+        localStorage.clear();
+        window.location.href = "login.html";
+    }
 </script>
 
+<script src="js/api-client.js"></script>
+<script src="js/auth-guard.js"></script>
+
+
+<script src="js/ui-enhancements.js"></script>
 </body>
 </html>

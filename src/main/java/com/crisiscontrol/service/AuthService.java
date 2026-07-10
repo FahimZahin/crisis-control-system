@@ -10,25 +10,51 @@ import com.crisiscontrol.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.crisiscontrol.dto.ChangePasswordRequest;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private static final String ADMIN_SECRET_CODE = "CCS-ADMIN-2026";
+    private static final double MAX_HOSPITAL_DIESEL_CAPACITY = 1000.0;
+
+    private static final double BUILDING_DAILY_OUTAGE_HOURS = 2.0;
+    private static final double BUILDING_WEEKLY_DAYS = 7.0;
+    private static final double BUILDING_LIGHT_WATT = 20.0;
+    private static final double BUILDING_FAN_WATT = 75.0;
+    private static final double BUILDING_LIGHTS_PER_FLAT = 2.0;
+    private static final double BUILDING_FANS_PER_FLAT = 2.0;
+    private static final double BUILDING_DIESEL_LITER_PER_KWH = 0.27;
+    private static final double BUILDING_GENERATOR_SAFE_LOAD_FACTOR = 0.80;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final HospitalSupportCalculationService hospitalSupportCalculationService;
+    private final AuthTokenService authTokenService;
 
     public AuthResponse register(RegisterRequest request) {
-
         validateCommonFields(request);
         validateRoleSpecificFields(request);
+
+        String resolvedThana = firstNonBlank(
+                request.getThanaOrUpazila(),
+                request.getBuildingUnderThana(),
+                request.getHospitalUnderThana(),
+                request.getServiceArea(),
+                request.getAssignedArea(),
+                request.getDistrict()
+        );
+
+        Double hospitalGeneratorCapacity = parsePowerValue(request.getHospitalGeneratorCapacity());
+        Double hospitalDieselTankCapacity = request.getHospitalDieselTankCapacity();
 
         User user = User.builder()
                 .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .status(UserStatus.ACTIVE)
@@ -38,7 +64,22 @@ public class AuthService {
                 .buildingName(emptyToNull(request.getBuildingName()))
                 .holdingNumber(emptyToNull(request.getHoldingNumber()))
                 .numberOfFlats(request.getNumberOfFlats())
-                .generatorPower(emptyToNull(request.getGeneratorPower()))
+                .generatorPower(parseGeneratorPower(request.getGeneratorPower()))
+                .buildingUnderThana(
+                        request.getRole() == Role.BUILDING_MANAGER
+                                ? emptyToNull(resolvedThana)
+                                : emptyToNull(request.getBuildingUnderThana())
+                )
+                .buildingDieselTankCapacity(0.0)
+                .buildingWeeklyAllocationLiter(
+                        calculateBuildingWeeklyDieselAllocation(
+                                request.getNumberOfFlats(),
+                                parseGeneratorPower(request.getGeneratorPower())
+                        )
+                )
+                .buildingCurrentFuel(0.0)
+                .buildingEstimatedBackupHours(0.0)
+                .thanaOrUpazila(emptyToNull(resolvedThana))
 
                 .pumpName(emptyToNull(request.getPumpName()))
                 .businessLicenseNumber(emptyToNull(request.getBusinessLicenseNumber()))
@@ -53,7 +94,18 @@ public class AuthService {
                 .hospitalName(emptyToNull(request.getHospitalName()))
                 .hospitalRegistrationNumber(emptyToNull(request.getHospitalRegistrationNumber()))
                 .hospitalAddress(emptyToNull(request.getHospitalAddress()))
+                .hospitalUnderThana(
+                        request.getRole() == Role.HOSPITAL_AUTHORITY
+                                ? emptyToNull(resolvedThana)
+                                : emptyToNull(request.getHospitalUnderThana())
+                )
+                .hospitalGeneratorCapacity(hospitalGeneratorCapacity == null ? 0.0 : hospitalGeneratorCapacity)
+                .hospitalDieselTankCapacity(hospitalDieselTankCapacity == null ? 0.0 : hospitalDieselTankCapacity)
+                .hospitalCurrentDieselReserve(request.getHospitalCurrentDieselReserve())
                 .emergencyContactNumber(emptyToNull(request.getEmergencyContactNumber()))
+                .totalIcuUnits(request.getTotalIcuUnits())
+                .acPatientCapacity(request.getAcPatientCapacity())
+                .nonAcPatientCapacity(request.getNonAcPatientCapacity())
 
                 .utilityOrganizationType(emptyToNull(request.getUtilityOrganizationType()))
                 .utilityEmployeeId(emptyToNull(request.getUtilityEmployeeId()))
@@ -71,22 +123,27 @@ public class AuthService {
 
                 .localAuthorityId(emptyToNull(request.getLocalAuthorityId()))
                 .district(emptyToNull(request.getDistrict()))
-                .thanaOrUpazila(emptyToNull(request.getThanaOrUpazila()))
 
                 .adminCode(emptyToNull(request.getAdminCode()))
                 .build();
 
+        if (request.getRole() == Role.HOSPITAL_AUTHORITY) {
+            double backupHours = hospitalSupportCalculationService.calculateBackupHours(
+                    request.getHospitalGeneratorCapacity(),
+                    request.getHospitalCurrentDieselReserve()
+            );
+
+            user.setHospitalEstimatedBackupHours(backupHours);
+            user.setHospitalDieselStatus(hospitalSupportCalculationService.resolveDieselStatus(backupHours));
+        }
+
         User savedUser = userRepository.save(user);
 
-        return AuthResponse.builder()
-                .message("Registration successful")
-                .userId(savedUser.getId())
-                .fullName(savedUser.getFullName())
-                .role(savedUser.getRole())
-                .build();
+        return buildAuthResponse("Registration successful", savedUser);
     }
 
     public AuthResponse login(LoginRequest request) {
+        validateLoginFields(request);
 
         User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
                 .orElseThrow(() -> new RuntimeException("Invalid phone number or password"));
@@ -95,22 +152,91 @@ public class AuthService {
             throw new RuntimeException("Invalid phone number or password");
         }
 
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new RuntimeException("User account is not active");
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("User account is blocked");
         }
 
-        return AuthResponse.builder()
-                .message("Login successful")
-                .userId(user.getId())
-                .fullName(user.getFullName())
-                .role(user.getRole())
-                .build();
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("User account is inactive. Please request activation.");
+        }
+
+        if (user.getRole() == Role.HOSPITAL_AUTHORITY) {
+            user = hospitalSupportCalculationService.recalculateAndSave(user);
+        }
+
+        AuthResponse response = buildAuthResponse("Login successful", user);
+        response.setToken(authTokenService.createToken(user));
+
+        return response;
+    }
+
+    public void changePassword(ChangePasswordRequest request) {
+        validateChangePasswordRequest(request);
+
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new RuntimeException("User account is blocked");
+        }
+
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("User account is inactive. Please request activation first.");
+        }
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new RuntimeException("New password cannot be the same as current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    private void validateChangePasswordRequest(ChangePasswordRequest request) {
+        if (request == null) {
+            throw new RuntimeException("Change password request is required");
+        }
+
+        if (request.getUserId() == null) {
+            throw new RuntimeException("User ID is required");
+        }
+
+        if (isBlank(request.getCurrentPassword())) {
+            throw new RuntimeException("Current password is required");
+        }
+
+        if (isBlank(request.getNewPassword())) {
+            throw new RuntimeException("New password is required");
+        }
+
+        if (isBlank(request.getConfirmNewPassword())) {
+            throw new RuntimeException("Confirm new password is required");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new RuntimeException("New password and confirm password do not match");
+        }
+
+        if (request.getNewPassword().length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters");
+        }
     }
 
     private void validateCommonFields(RegisterRequest request) {
-
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("Password and confirm password do not match");
+        }
+
+        if (isBlank(request.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        if (!request.getPhoneNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Phone number must be exactly 11 digits");
         }
 
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
@@ -123,8 +249,21 @@ public class AuthService {
     }
 
     private void validateRoleSpecificFields(RegisterRequest request) {
-
         Role role = request.getRole();
+
+        if (
+                role == Role.BUILDING_MANAGER &&
+                        isBlank(firstNonBlank(request.getThanaOrUpazila(), request.getBuildingUnderThana()))
+        ) {
+            throw new RuntimeException("Building thana is required for building manager");
+        }
+
+        if (
+                role == Role.HOSPITAL_AUTHORITY &&
+                        isBlank(firstNonBlank(request.getThanaOrUpazila(), request.getHospitalUnderThana()))
+        ) {
+            throw new RuntimeException("Hospital under thana is required for hospital authority");
+        }
 
         if (role == Role.VEHICLE_OWNER) {
             validateVehicleOwner(request);
@@ -148,7 +287,6 @@ public class AuthService {
     }
 
     private void validateVehicleOwner(RegisterRequest request) {
-
         if (isBlank(request.getDrivingLicenseNumber())) {
             throw new RuntimeException("Driving license number is required for vehicle owner");
         }
@@ -159,7 +297,6 @@ public class AuthService {
     }
 
     private void validateBuildingManager(RegisterRequest request) {
-
         if (isBlank(request.getBuildingName())) {
             throw new RuntimeException("Building name is required for building manager");
         }
@@ -182,7 +319,6 @@ public class AuthService {
     }
 
     private void validatePumpAuthority(RegisterRequest request) {
-
         if (isBlank(request.getPumpName())) {
             throw new RuntimeException("Pump name is required for pump authority");
         }
@@ -193,6 +329,9 @@ public class AuthService {
 
         if (isBlank(request.getPumpAddress())) {
             throw new RuntimeException("Pump address is required for pump authority");
+        }
+        if (isBlank(request.getThanaOrUpazila())) {
+            throw new RuntimeException("Pump thana is required for pump authority");
         }
 
         if (request.getFuelCapacity() == null || request.getFuelCapacity() <= 0) {
@@ -229,7 +368,6 @@ public class AuthService {
     }
 
     private void validateHospitalAuthority(RegisterRequest request) {
-
         if (isBlank(request.getHospitalName())) {
             throw new RuntimeException("Hospital name is required for hospital authority");
         }
@@ -242,17 +380,63 @@ public class AuthService {
             throw new RuntimeException("Hospital address is required for hospital authority");
         }
 
+        if (isBlank(request.getHospitalUnderThana()) && isBlank(request.getThanaOrUpazila())) {
+            throw new RuntimeException("Hospital under thana is required for hospital authority");
+        }
+
+        Double generatorCapacityKva = parseDoubleValue(
+                request.getHospitalGeneratorCapacity(),
+                "Hospital generator capacity must be a valid number"
+        );
+
+        if (generatorCapacityKva == null || generatorCapacityKva <= 0) {
+            throw new RuntimeException("Hospital generator capacity is required");
+        }
+
+        Double dieselTankCapacity = request.getHospitalDieselTankCapacity();
+
+        if (dieselTankCapacity == null || dieselTankCapacity <= 0) {
+            throw new RuntimeException("Hospital diesel tank capacity is required");
+        }
+
+        if (dieselTankCapacity > MAX_HOSPITAL_DIESEL_CAPACITY) {
+            throw new RuntimeException("Hospital diesel tank capacity cannot be more than 1000 L");
+        }
+
+        if (request.getHospitalCurrentDieselReserve() == null || request.getHospitalCurrentDieselReserve() < 0) {
+            throw new RuntimeException("Hospital current diesel reserve cannot be negative");
+        }
+
+        if (request.getHospitalCurrentDieselReserve() > dieselTankCapacity) {
+            throw new RuntimeException("Hospital current diesel reserve cannot be greater than diesel tank capacity");
+        }
+
         if (isBlank(request.getEmergencyContactNumber())) {
             throw new RuntimeException("Emergency contact number is required for hospital authority");
+        }
+
+        if (!request.getEmergencyContactNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Emergency contact number must be exactly 11 digits");
         }
 
         if (userRepository.existsByHospitalRegistrationNumber(request.getHospitalRegistrationNumber())) {
             throw new RuntimeException("Hospital registration number already registered");
         }
+
+        if (request.getTotalIcuUnits() == null || request.getTotalIcuUnits() < 0) {
+            throw new RuntimeException("Total ICU units is required for hospital authority");
+        }
+
+        if (request.getAcPatientCapacity() == null || request.getAcPatientCapacity() < 0) {
+            throw new RuntimeException("AC patient capacity is required for hospital authority");
+        }
+
+        if (request.getNonAcPatientCapacity() == null || request.getNonAcPatientCapacity() < 0) {
+            throw new RuntimeException("Non-AC patient capacity is required for hospital authority");
+        }
     }
 
     private void validateUtilityAuthority(RegisterRequest request) {
-
         if (isBlank(request.getUtilityOrganizationType())) {
             throw new RuntimeException("Utility organization type is required");
         }
@@ -275,7 +459,6 @@ public class AuthService {
     }
 
     private void validateEmergencyVehicleAuthority(RegisterRequest request) {
-
         if (isBlank(request.getOrganizationName())) {
             throw new RuntimeException("Organization name is required");
         }
@@ -298,7 +481,6 @@ public class AuthService {
     }
 
     private void validateGovernmentAuthority(RegisterRequest request) {
-
         if (isBlank(request.getGovernmentEmployeeId())) {
             throw new RuntimeException("Government employee ID is required");
         }
@@ -321,7 +503,6 @@ public class AuthService {
     }
 
     private void validateLocalAuthority(RegisterRequest request) {
-
         if (isBlank(request.getLocalAuthorityId())) {
             throw new RuntimeException("Local authority ID is required");
         }
@@ -348,7 +529,6 @@ public class AuthService {
     }
 
     private void validateAdmin(RegisterRequest request) {
-
         if (isBlank(request.getAdminCode())) {
             throw new RuntimeException("Admin secret code is required");
         }
@@ -356,6 +536,114 @@ public class AuthService {
         if (!ADMIN_SECRET_CODE.equals(request.getAdminCode())) {
             throw new RuntimeException("Invalid admin secret code");
         }
+    }
+
+    private AuthResponse buildAuthResponse(String message, User user) {
+        String resolvedThana = firstNonBlank(
+                user.getThanaOrUpazila(),
+                user.getBuildingUnderThana(),
+                user.getHospitalUnderThana(),
+                user.getServiceArea(),
+                user.getAssignedArea(),
+                user.getDistrict()
+        );
+
+        String resolvedBuildingThana = firstNonBlank(
+                user.getBuildingUnderThana(),
+                user.getThanaOrUpazila()
+        );
+
+        String resolvedHospitalThana = firstNonBlank(
+                user.getHospitalUnderThana(),
+                user.getThanaOrUpazila()
+        );
+
+        return AuthResponse.builder()
+                .token(null)
+                .message(message)
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .phoneNumber(user.getPhoneNumber())
+                .address(user.getAddress())
+                .latitude(user.getLatitude())
+                .longitude(user.getLongitude())
+                .role(user.getRole())
+                .status(user.getStatus())
+
+                .drivingLicenseNumber(user.getDrivingLicenseNumber())
+
+                .buildingName(user.getBuildingName())
+                .holdingNumber(user.getHoldingNumber())
+                .numberOfFlats(user.getNumberOfFlats())
+                .generatorPower(
+                        user.getGeneratorPower() == null
+                                ? "0.0"
+                                : String.format("%.2f", user.getGeneratorPower())
+                )
+                .buildingUnderThana(
+                        isBlank(resolvedBuildingThana)
+                                ? "-"
+                                : resolvedBuildingThana
+                )
+                .buildingDieselTankCapacity(user.getBuildingDieselTankCapacity())
+                .buildingWeeklyAllocationLiter(user.getBuildingWeeklyAllocationLiter())
+                .buildingCurrentFuel(user.getBuildingCurrentFuel())
+                .buildingEstimatedBackupHours(user.getBuildingEstimatedBackupHours())
+                .thanaOrUpazila(
+                        isBlank(resolvedThana)
+                                ? "-"
+                                : resolvedThana
+                )
+
+                .pumpName(user.getPumpName())
+                .businessLicenseNumber(user.getBusinessLicenseNumber())
+                .pumpAddress(user.getPumpAddress())
+                .fuelCapacity(user.getFuelCapacity())
+                .fuelTypes(user.getFuelTypes())
+                .currentStock(user.getCurrentStock())
+                .open24Hours(user.getOpen24Hours())
+                .openingTime(user.getOpeningTime())
+                .closingTime(user.getClosingTime())
+
+                .hospitalName(user.getHospitalName())
+                .hospitalRegistrationNumber(user.getHospitalRegistrationNumber())
+                .hospitalAddress(user.getHospitalAddress())
+                .hospitalUnderThana(
+                        isBlank(resolvedHospitalThana)
+                                ? "-"
+                                : resolvedHospitalThana
+                )
+                .hospitalGeneratorCapacity(
+                        user.getHospitalGeneratorCapacity() == null
+                                ? "0.0"
+                                : String.format("%.2f", user.getHospitalGeneratorCapacity())
+                )
+                .hospitalDieselTankCapacity(user.getHospitalDieselTankCapacity())
+                .hospitalCurrentDieselReserve(user.getHospitalCurrentDieselReserve())
+                .hospitalEstimatedBackupHours(user.getHospitalEstimatedBackupHours())
+                .hospitalDieselStatus(user.getHospitalDieselStatus())
+                .emergencyContactNumber(user.getEmergencyContactNumber())
+                .totalIcuUnits(user.getTotalIcuUnits())
+                .acPatientCapacity(user.getAcPatientCapacity())
+                .nonAcPatientCapacity(user.getNonAcPatientCapacity())
+
+                .utilityOrganizationType(user.getUtilityOrganizationType())
+                .utilityEmployeeId(user.getUtilityEmployeeId())
+                .serviceArea(user.getServiceArea())
+                .officeAddress(user.getOfficeAddress())
+
+                .organizationName(user.getOrganizationName())
+                .organizationType(user.getOrganizationType())
+                .officialVerificationId(user.getOfficialVerificationId())
+                .assignedArea(user.getAssignedArea())
+
+                .governmentEmployeeId(user.getGovernmentEmployeeId())
+                .departmentName(user.getDepartmentName())
+                .designation(user.getDesignation())
+
+                .localAuthorityId(user.getLocalAuthorityId())
+                .district(user.getDistrict())
+                .build();
     }
 
     private boolean isBlank(String value) {
@@ -368,5 +656,115 @@ public class AuthService {
         }
 
         return value.trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (
+                    value != null
+                            && !value.trim().isEmpty()
+                            && !value.trim().equals("-")
+                            && !value.trim().equalsIgnoreCase("Not Provided")
+                            && !value.trim().equalsIgnoreCase("null")
+                            && !value.trim().equalsIgnoreCase("undefined")
+            ) {
+                return value.trim();
+            }
+        }
+
+        return null;
+    }
+
+
+    private Double calculateBuildingWeeklyDieselAllocation(Integer numberOfFlats, Double generatorCapacityKva) {
+        if (numberOfFlats == null || numberOfFlats <= 0) {
+            return 0.0;
+        }
+
+        double perFlatWatt = (BUILDING_LIGHTS_PER_FLAT * BUILDING_LIGHT_WATT)
+                + (BUILDING_FANS_PER_FLAT * BUILDING_FAN_WATT);
+
+        double perFlatKw = perFlatWatt / 1000.0;
+        double requiredLoadKw = numberOfFlats * perFlatKw;
+
+        double safeGeneratorCapacityKw = 0.0;
+
+        if (generatorCapacityKva != null && generatorCapacityKva > 0) {
+            safeGeneratorCapacityKw = generatorCapacityKva * BUILDING_GENERATOR_SAFE_LOAD_FACTOR;
+        }
+
+        double effectiveLoadKw = requiredLoadKw;
+
+        if (safeGeneratorCapacityKw > 0 && safeGeneratorCapacityKw < requiredLoadKw) {
+            effectiveLoadKw = safeGeneratorCapacityKw;
+        }
+
+        double weeklyOutageHours = BUILDING_DAILY_OUTAGE_HOURS * BUILDING_WEEKLY_DAYS;
+        double weeklyDieselLiter = effectiveLoadKw * weeklyOutageHours * BUILDING_DIESEL_LITER_PER_KWH;
+
+        return Math.ceil(weeklyDieselLiter);
+    }
+    private Double parseGeneratorPower(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return 0.0;
+        }
+
+        String cleanedValue = value.trim()
+                .replace("kVA", "")
+                .replace("KVA", "")
+                .replace("Kva", "")
+                .replace("kw", "")
+                .replace("KW", "")
+                .replace("Kw", "")
+                .replace(" ", "");
+
+        return Double.parseDouble(cleanedValue);
+    }
+
+    private Double parsePowerValue(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return 0.0;
+        }
+
+        String cleanedValue = value.trim()
+                .replace("kVA", "")
+                .replace("KVA", "")
+                .replace("Kva", "")
+                .replace("kw", "")
+                .replace("KW", "")
+                .replace("Kw", "")
+                .replace(" ", "");
+
+        return Double.parseDouble(cleanedValue);
+    }
+
+    private Double parseDoubleValue(String value, String errorMessage) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException exception) {
+            throw new RuntimeException(errorMessage);
+        }
+    }
+
+    private void validateLoginFields(LoginRequest request) {
+        if (request == null) {
+            throw new RuntimeException("Login request is required");
+        }
+
+        if (isBlank(request.getPhoneNumber())) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        if (!request.getPhoneNumber().matches("^[0-9]{11}$")) {
+            throw new RuntimeException("Phone number must be exactly 11 digits");
+        }
+
+        if (isBlank(request.getPassword())) {
+            throw new RuntimeException("Password is required");
+        }
     }
 }

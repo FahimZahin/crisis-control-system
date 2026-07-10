@@ -1,0 +1,12 @@
+package com.crisiscontrol.entity;
+
+public enum PumpComplaintStatus {
+    PENDING_LOCAL_VERIFICATION,
+    UNDER_LOCAL_INVESTIGATION,
+    VERIFIED_TRUE,
+    VERIFIED_FALSE,
+    NEEDS_MORE_EVIDENCE,
+    SENT_TO_ADMIN,
+    ADMIN_ACTION_TAKEN,
+    DISMISSED
+}

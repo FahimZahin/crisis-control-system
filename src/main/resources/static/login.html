@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Crisis Control System</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -11,8 +12,6 @@
     <div class="logo">Crisis Control System</div>
     <div>
         <a href="index.html">Home</a>
-        <a href="register.html">Register</a>
-        <a href="login.html">Login</a>
     </div>
 </nav>
 
@@ -23,10 +22,23 @@
     <form id="loginForm">
 
         <label>Phone Number</label>
-        <input type="text" id="phoneNumber" placeholder="Enter phone number" required>
+        <input
+                type="text"
+                id="phoneNumber"
+                placeholder="Enter 11 digit phone number"
+                maxlength="11"
+                inputmode="numeric"
+                autocomplete="tel"
+                required
+        >
+        <small id="phoneNumberError" class="field-error"></small>
 
         <label>Password</label>
-        <input type="password" id="password" placeholder="Enter password" required>
+        <div class="password-wrapper">
+            <input type="password" id="password" placeholder="Enter password" required>
+            <button type="button" class="eye-btn" onclick="togglePassword('password', this)">👁</button>
+            <small id="passwordError" class="field-error"></small>
+        </div>
 
         <button type="submit" class="btn primary full-width">Login</button>
     </form>
@@ -39,6 +51,19 @@
 </div>
 
 <script src="js/login.js"></script>
+<script>
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
 
+        if (input.type === "password") {
+            input.type = "text";
+            button.innerText = "🙈";
+        } else {
+            input.type = "password";
+            button.innerText = "👁";
+        }
+    }
+</script>
+<script src="js/ui-enhancements.js"></script>
 </body>
 </html>

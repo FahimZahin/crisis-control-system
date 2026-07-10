@@ -41,6 +41,12 @@ public class User {
     @Column(name = "address")
     private String address;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Column(name = "password", nullable = false)
     private String password;
 
@@ -67,7 +73,22 @@ public class User {
     private Integer numberOfFlats;
 
     @Column(name = "generator_power")
-    private String generatorPower;
+    private Double generatorPower;
+
+    @Column(name = "building_under_thana")
+    private String buildingUnderThana;
+
+    @Column(name = "building_diesel_tank_capacity")
+    private Double buildingDieselTankCapacity;
+
+    @Column(name = "building_weekly_allocation_liter")
+    private Double buildingWeeklyAllocationLiter;
+
+    @Column(name = "building_current_fuel")
+    private Double buildingCurrentFuel;
+
+    @Column(name = "building_estimated_backup_hours")
+    private Double buildingEstimatedBackupHours;
 
     // Pump authority fields
     @Column(name = "pump_name")
@@ -107,8 +128,35 @@ public class User {
     @Column(name = "hospital_address")
     private String hospitalAddress;
 
+    @Column(name = "hospital_under_thana")
+    private String hospitalUnderThana;
+
+    @Column(name = "hospital_generator_capacity")
+    private Double hospitalGeneratorCapacity;
+
+    @Column(name = "hospital_diesel_tank_capacity")
+    private Double hospitalDieselTankCapacity;
+
+    @Column(name = "hospital_current_diesel_reserve")
+    private Double hospitalCurrentDieselReserve;
+
+    @Column(name = "hospital_estimated_backup_hours")
+    private Double hospitalEstimatedBackupHours;
+
+    @Column(name = "hospital_diesel_status")
+    private String hospitalDieselStatus;
+
     @Column(name = "emergency_contact_number")
     private String emergencyContactNumber;
+
+    @Column(name = "total_icu_units")
+    private Integer totalIcuUnits;
+
+    @Column(name = "ac_patient_capacity")
+    private Integer acPatientCapacity;
+
+    @Column(name = "non_ac_patient_capacity")
+    private Integer nonAcPatientCapacity;
 
     // Utility authority fields
     @Column(name = "utility_organization_type")
@@ -123,7 +171,7 @@ public class User {
     @Column(name = "office_address")
     private String officeAddress;
 
-
+    // Emergency vehicle authority fields
     @Column(name = "organization_name")
     private String organizationName;
 
@@ -136,7 +184,7 @@ public class User {
     @Column(name = "assigned_area")
     private String assignedArea;
 
-
+    // Government authority fields
     @Column(name = "government_employee_id", unique = true)
     private String governmentEmployeeId;
 
@@ -146,6 +194,7 @@ public class User {
     @Column(name = "designation")
     private String designation;
 
+    // Local authority fields
     @Column(name = "local_authority_id", unique = true)
     private String localAuthorityId;
 
@@ -155,6 +204,7 @@ public class User {
     @Column(name = "thana_or_upazila")
     private String thanaOrUpazila;
 
+    // Admin field
     @Column(name = "admin_code")
     private String adminCode;
 
